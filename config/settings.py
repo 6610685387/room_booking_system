@@ -59,7 +59,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -103,7 +103,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTH_USER_MODEL = 'account.User'
+AUTH_USER_MODEL = "account.User"
 
 
 # Internationalization
@@ -127,3 +127,26 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# TU REST API
+TU_APP_KEY = config("TU_APP_KEY", default="")
+
+# Admin usernames (staff who can approve bookings)
+ECE_ADMIN_USERNAMES = config(
+    "ECE_ADMIN_USERNAMES",
+    default="",
+    cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],
+)
+
+# Auth redirect
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/dashboard/"
+
+# Session timeout = 8 ชั่วโมง (NFR-SEC-03)
+SESSION_COOKIE_AGE = 8 * 60 * 60  # 28800 วินาที
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # ยังอยู่แม้ปิด browser (ภายใน 8 ชั่วโมง)
+SESSION_SAVE_EVERY_REQUEST = True  # reset timer ทุก request
+
+# HTTPS only cookie (NFR-SEC-02) — เปิดเมื่อ deploy จริง
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True

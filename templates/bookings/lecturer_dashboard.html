@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}หน้าหลัก · ระบบจองห้อง ECE{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="flex-between mb-16">
+    <div>
+      <div class="page-title">สวัสดี, {{ user.displayname_th }}</div>
+      <div class="page-sub">{{ user.department }}</div>
+    </div>
+    <a href="/bookings/new/" class="btn btn-primary">+ จองห้องใหม่</a>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num" style="color:#92400e;">{{ stat_pending }}</div>
+      <div class="stat-label">รอการอนุมัติ</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#065f46;">{{ stat_approved }}</div>
+      <div class="stat-label">อนุมัติแล้ว</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#991b1b;">{{ stat_rejected }}</div>
+      <div class="stat-label">ปฏิเสธ / ยกเลิก</div>
+    </div>
+  </div>
+
+  <!-- Booking list -->
+  <div class="card">
+    <div class="flex-between" style="margin-bottom:16px;">
+      <div class="card-title" style="margin-bottom:0;">การจองของฉัน</div>
+      <a href="/bookings/" class="text-sm" style="color:#8B0000;text-decoration:none;">ดูทั้งหมด →</a>
+    </div>
+
+    {% if bookings %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ห้อง</th>
+          <th>วันและเวลา</th>
+          <th>จุดประสงค์</th>
+          <th>สถานะ</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in bookings %}
+        <tr>
+          <td>
+            <div style="font-weight:600;">{{ booking.room.room_code }}</div>
+            <div class="text-sm text-muted">{{ booking.room.room_type }}</div>
+          </td>
+          <td>
+            <div>{{ booking.start_datetime|date:"D j M Y" }}</div>
+            <div class="text-sm text-muted">{{ booking.start_datetime|time:"H:i" }} – {{ booking.end_datetime|time:"H:i" }}</div>
+          </td>
+          <td>
+            {% if booking.purpose_type == 'teaching' and booking.teaching_info %}
+              <div>{{ booking.teaching_info.subject_code }}</div>
+              <div class="text-sm text-muted">{{ booking.teaching_info.subject_name }}</div>
+            {% elif booking.purpose_type == 'training' and booking.training_info %}
+              <div>อบรม</div>
+              <div class="text-sm text-muted">{{ booking.training_info.topic }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if booking.status == 'Pending' %}
+              <span class="badge badge-pending">รออนุมัติ</span>
+            {% elif booking.status == 'Approved' %}
+              <span class="badge badge-approved">อนุมัติแล้ว</span>
+            {% elif booking.status == 'Rejected' %}
+              <span class="badge badge-rejected">ปฏิเสธ</span>
+            {% else %}
+              <span class="badge badge-cancelled">ยกเลิก</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if booking.status == 'Pending' %}
+            <form method="POST" action="/bookings/{{ booking.booking_id }}/cancel/" style="display:inline;">
+              {% csrf_token %}
+              <button class="btn btn-secondary btn-sm" type="submit"
+                onclick="return confirm('ยืนยันการยกเลิก?')">ยกเลิก</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center" style="padding:40px 0;color:#9ca3af;">
+      <div style="font-size:32px;margin-bottom:10px;">📋</div>
+      <div>ยังไม่มีการจอง</div>
+      <a href="/bookings/new/" class="btn btn-primary" style="margin-top:16px;display:inline-block;">จองห้องแรกของคุณ</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

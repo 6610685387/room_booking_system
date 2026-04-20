@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ · ECE</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Sarabun', 'Segoe UI', sans-serif;
+      background: #8B0000;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 40px 36px;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #8B0000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 auto 16px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1f2937;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .sub {
+      font-size: 13px;
+      color: #9ca3af;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .alert {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4b5563;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1f2937;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #8B0000;
+      box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.08);
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      background: #8B0000;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 4px;
+    }
+
+    .btn:hover {
+      background: #6e0000;
+    }
+
+    .btn:disabled {
+      background: #d1d5db;
+      cursor: not-allowed;
+    }
+
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #9ca3af;
+      text-decoration: none;
+    }
+
+    .back:hover {
+      color: #4b5563;
+    }
+
+    .loading {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.6);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 99;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #8B0000;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-text {
+      font-size: 13px;
+      color: #4b5563;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="loading" id="overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">กำลังตรวจสอบบัญชี TU...</div>
+  </div>
+
+  <div class="card">
+    <div class="logo">TU</div>
+    <h1>เข้าสู่ระบบ</h1>
+    <p class="sub">ใช้บัญชี TU ของมหาวิทยาลัยธรรมศาสตร์</p>
+
+    {% if error %}
+    <div class="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login/" id="form">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="เช่น thep_p หรือ 6000012345"
+          autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn" type="submit" id="btn">เข้าสู่ระบบ</button>
+    </form>
+
+    <a href="/" class="back">← กลับ</a>
+  </div>
+
+  <script>
+    document.getElementById('form').addEventListener('submit', function () {
+      document.getElementById('btn').disabled = true;
+      document.getElementById('overlay').classList.add('show');
+    });
+  </script>
+
+</body>
+
+</html>

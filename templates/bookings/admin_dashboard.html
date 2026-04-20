@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}จัดการการจอง · ECE{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="flex-between mb-16">
+    <div>
+      <div class="page-title">จัดการการจอง</div>
+      <div class="page-sub">{{ user.displayname_th }} · ภาควิชา ECE</div>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="stat-card">
+      <div class="stat-num" style="color:#92400e;">{{ stat_pending }}</div>
+      <div class="stat-label">รออนุมัติ</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#065f46;">{{ stat_approved }}</div>
+      <div class="stat-label">อนุมัติแล้ว</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#991b1b;">{{ stat_rejected }}</div>
+      <div class="stat-label">ปฏิเสธ</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ stat_total }}</div>
+      <div class="stat-label">ทั้งหมด (เดือนนี้)</div>
+    </div>
+  </div>
+
+  <!-- Pending bookings -->
+  <div class="card">
+    <div class="card-title">รอการอนุมัติ</div>
+
+    {% if pending_bookings %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ผู้จอง</th>
+          <th>ห้อง</th>
+          <th>วันและเวลา</th>
+          <th>จุดประสงค์</th>
+          <th>การดำเนินการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in pending_bookings %}
+        <tr>
+          <td>
+            <div style="font-weight:600;">{{ booking.booker.displayname_th }}</div>
+            <div class="text-sm text-muted">{{ booking.booker.username }}</div>
+          </td>
+          <td>
+            <div style="font-weight:600;">{{ booking.room.room_code }}</div>
+            <div class="text-sm text-muted">{{ booking.room.room_type }}</div>
+          </td>
+          <td>
+            <div>{{ booking.start_datetime|date:"D j M Y" }}</div>
+            <div class="text-sm text-muted">{{ booking.start_datetime|time:"H:i" }} – {{ booking.end_datetime|time:"H:i" }}</div>
+          </td>
+          <td>
+            {% if booking.purpose_type == 'teaching' and booking.teaching_info %}
+              <div>สอน: {{ booking.teaching_info.subject_code }}</div>
+              <div class="text-sm text-muted">{{ booking.teaching_info.get_program_type_display }}</div>
+            {% elif booking.purpose_type == 'training' and booking.training_info %}
+              <div>อบรม</div>
+              <div class="text-sm text-muted">{{ booking.training_info.topic }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="flex gap-8">
+              <!-- Approve -->
+              <form method="POST" action="/admin/bookings/{{ booking.booking_id }}/approve/" style="display:inline;">
+                {% csrf_token %}
+                <button class="btn btn-success btn-sm" type="submit">อนุมัติ</button>
+              </form>
+              <!-- Reject -->
+              <button class="btn btn-danger btn-sm"
+                onclick="showRejectModal({{ booking.booking_id }})">ปฏิเสธ</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center" style="padding:40px 0;color:#9ca3af;">
+      <div style="font-size:32px;margin-bottom:10px;">✅</div>
+      <div>ไม่มีรายการรอการอนุมัติ</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- All bookings today -->
+  <div class="card">
+    <div class="flex-between" style="margin-bottom:16px;">
+      <div class="card-title" style="margin-bottom:0;">การจองทั้งหมดวันนี้</div>
+      <a href="/admin/bookings/" class="text-sm" style="color:#8B0000;text-decoration:none;">ดูทั้งหมด →</a>
+    </div>
+
+    {% if today_bookings %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ผู้จอง</th>
+          <th>ห้อง</th>
+          <th>เวลา</th>
+          <th>สถานะ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in today_bookings %}
+        <tr>
+          <td>{{ booking.booker.displayname_th }}</td>
+          <td>{{ booking.room.room_code }}</td>
+          <td>{{ booking.start_datetime|time:"H:i" }} – {{ booking.end_datetime|time:"H:i" }}</td>
+          <td>
+            {% if booking.status == 'Pending' %}
+              <span class="badge badge-pending">รออนุมัติ</span>
+            {% elif booking.status == 'Approved' %}
+              <span class="badge badge-approved">อนุมัติแล้ว</span>
+            {% elif booking.status == 'Rejected' %}
+              <span class="badge badge-rejected">ปฏิเสธ</span>
+            {% else %}
+              <span class="badge badge-cancelled">ยกเลิก</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center" style="padding:24px 0;color:#9ca3af;font-size:14px;">ไม่มีการจองสำหรับวันนี้</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Reject Modal -->
+<div id="rejectModal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.4); z-index:100;
+  align-items:center; justify-content:center;
+">
+  <div style="
+    background:#fff; border-radius:12px; padding:28px;
+    max-width:400px; width:90%; margin:20px;
+  ">
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">ยืนยันการปฏิเสธ</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;">กรุณาระบุเหตุผลในการปฏิเสธ</div>
+    <form method="POST" id="rejectForm" action="">
+      {% csrf_token %}
+      <textarea
+        name="reject_reason"
+        placeholder="เหตุผลในการปฏิเสธ..."
+        style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;
+               font-family:inherit;resize:vertical;min-height:80px;margin-bottom:16px;"
+        required
+      ></textarea>
+      <div class="flex gap-8">
+        <button class="btn btn-danger" type="submit" style="flex:1;">ยืนยันปฏิเสธ</button>
+        <button class="btn btn-secondary" type="button" onclick="closeRejectModal()" style="flex:1;">ยกเลิก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function showRejectModal(bookingId) {
+  document.getElementById('rejectForm').action = '/admin/bookings/' + bookingId + '/reject/';
+  document.getElementById('rejectModal').style.display = 'flex';
+}
+function closeRejectModal() {
+  document.getElementById('rejectModal').style.display = 'none';
+}
+document.getElementById('rejectModal').addEventListener('click', function(e) {
+  if (e.target === this) closeRejectModal();
+});
+</script>
+{% endblock %}

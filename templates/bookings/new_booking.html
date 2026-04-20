@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}จองห้องใหม่ · ECE{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+
+  <a href="/dashboard/" style="
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:13px;color:#9ca3af;text-decoration:none;margin-bottom:20px;
+  ">← กลับ</a>
+
+  <div class="page-title">จองห้องใหม่</div>
+  <div class="page-sub">กรอกข้อมูลเพื่อส่งคำขอจองห้อง</div>
+
+  {% if error %}
+  <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="/bookings/new/" id="bookingForm">
+    {% csrf_token %}
+
+    <!-- Room selection -->
+    <div class="card">
+      <div class="card-title">เลือกห้อง</div>
+
+      <div class="form-group">
+        <label class="form-label">ห้อง</label>
+        <select class="form-control" name="room_id" required>
+          <option value="">-- เลือกห้อง --</option>
+          {% for room in rooms %}
+          <option value="{{ room.room_id }}" {% if selected_room == room.room_id %}selected{% endif %}>
+            {{ room.room_code }} · {{ room.room_name }} ({{ room.room_type }}, {{ room.capacity }} คน)
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">วันที่</label>
+          <input class="form-control" type="date" name="date" required
+            min="{{ today }}" value="{{ form_date }}" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">เวลาเริ่ม</label>
+          <input class="form-control" type="time" name="time_start" required
+            value="{{ form_time_start|default:'08:00' }}" step="1800" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">เวลาสิ้นสุด</label>
+          <input class="form-control" type="time" name="time_end" required
+            value="{{ form_time_end|default:'10:00' }}" step="1800" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Purpose -->
+    <div class="card">
+      <div class="card-title">จุดประสงค์</div>
+
+      <div class="form-group">
+        <label class="form-label">ประเภทการใช้ห้อง</label>
+        <select class="form-control" name="purpose_type" id="purposeType" required onchange="togglePurpose()">
+          <option value="">-- เลือกประเภท --</option>
+          <option value="teaching" {% if form_purpose == 'teaching' %}selected{% endif %}>สอน (Teaching)</option>
+          <option value="training" {% if form_purpose == 'training' %}selected{% endif %}>อบรม (Training)</option>
+        </select>
+      </div>
+
+      <!-- Teaching fields -->
+      <div id="teachingFields" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">รหัสวิชา</label>
+          <input class="form-control" type="text" name="subject_code"
+            placeholder="เช่น EE101" value="{{ form_subject_code }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อวิชา</label>
+          <input class="form-control" type="text" name="subject_name"
+            placeholder="เช่น วงจรไฟฟ้า" value="{{ form_subject_name }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระดับการศึกษา</label>
+          <select class="form-control" name="program_type">
+            <option value="">-- เลือกระดับ --</option>
+            <option value="Bachelor">ปริญญาตรีภาคปกติ</option>
+            <option value="Master">ปริญญาโท</option>
+            <option value="TEP-TEPE">TEP-TEPE</option>
+            <option value="TU-PINE">TU-PINE</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Training fields -->
+      <div id="trainingFields" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">หัวข้ออบรม</label>
+          <input class="form-control" type="text" name="topic"
+            placeholder="เช่น Python for Engineers" value="{{ form_topic }}" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Recurring (optional) -->
+    <div class="card">
+      <div class="flex-between" style="margin-bottom:0;">
+        <div class="card-title" style="margin-bottom:0;">จองซ้ำรายสัปดาห์ (ไม่บังคับ)</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#4b5563;">
+          <input type="checkbox" name="is_recurring" id="isRecurring" onchange="toggleRecurring()" />
+          เปิดใช้
+        </label>
+      </div>
+
+      <div id="recurringFields" style="display:none;margin-top:16px;">
+        <div class="form-group">
+          <label class="form-label">วันที่สิ้นสุดการซ้ำ</label>
+          <input class="form-control" type="date" name="recurring_end_date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันในสัปดาห์</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            {% for day_val, day_label in days_of_week %}
+            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;
+                          background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;">
+              <input type="checkbox" name="recurring_days" value="{{ day_val }}" />
+              {{ day_label }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" type="submit" style="padding:13px;font-size:15px;">
+      ส่งคำขอจอง
+    </button>
+    <a href="/dashboard/" class="btn btn-secondary btn-block" style="margin-top:8px;padding:13px;font-size:14px;text-align:center;">
+      ยกเลิก
+    </a>
+  </form>
+
+</div>
+
+<script>
+function togglePurpose() {
+  const v = document.getElementById('purposeType').value;
+  document.getElementById('teachingFields').style.display = v === 'teaching' ? 'block' : 'none';
+  document.getElementById('trainingFields').style.display = v === 'training' ? 'block' : 'none';
+}
+function toggleRecurring() {
+  const checked = document.getElementById('isRecurring').checked;
+  document.getElementById('recurringFields').style.display = checked ? 'block' : 'none';
+}
+// Init on load (for form re-render after error)
+togglePurpose();
+</script>
+{% endblock %}

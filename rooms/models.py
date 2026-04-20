@@ -5,8 +5,8 @@ from django.utils import timezone
 
 class Room(models.Model):
     ROOM_TYPE_CHOICES = [
-        ('Meeting Room', 'ห้องประชุม'),
-        ('Classroom', 'ห้องเรียน'),
+        ("Meeting Room", "ห้องประชุม"),
+        ("Classroom", "ห้องเรียน"),
     ]
 
     room_id = models.AutoField(primary_key=True)
@@ -18,14 +18,15 @@ class Room(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,         
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='rooms_updated'
+        null=True,
+        blank=True,
+        related_name="rooms_updated",
     )
 
     class Meta:
-        db_table = 'rooms'
+        db_table = "rooms"
 
     def __str__(self):
         return f"{self.room_code} - {self.room_name}"
@@ -34,19 +35,19 @@ class Room(models.Model):
 class BlackoutPeriod(models.Model):
     blackout_id = models.AutoField(primary_key=True)
     room = models.ForeignKey(
-        Room, on_delete=models.CASCADE, related_name='blackout_periods'
+        Room, on_delete=models.CASCADE, related_name="blackout_periods"
     )
     start_date = models.DateField()
     end_date = models.DateField()
     reason = models.TextField()
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,      
+        settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='blackout_periods_created'
+        related_name="blackout_periods_created",
     )
 
     class Meta:
-        db_table = 'blackout_periods'
+        db_table = "blackout_periods"
 
     def __str__(self):
         return f"{self.room.room_code} blackout {self.start_date} to {self.end_date}"
