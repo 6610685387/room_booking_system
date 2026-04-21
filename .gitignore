@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Environment variables — never commit the real .env
 .env
 
@@ -52,3 +53,13 @@ ENV/
 
 # Docker
 *.override.yml
+=======
+venv/
+*.pyc
+__pycache__/
+db.sqlite3
+.env
+detail/
+.venv/
+.DS_Store
+>>>>>>> bdd12360e999952ba45bb031b89f470eba916dfc

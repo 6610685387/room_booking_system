@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 services:
   db:
     image: postgres:16
@@ -78,3 +79,14 @@ volumes:
 networks:
   django_network:
     driver: bridge
+=======
+version: "3.9"
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+>>>>>>> bdd12360e999952ba45bb031b89f470eba916dfc
