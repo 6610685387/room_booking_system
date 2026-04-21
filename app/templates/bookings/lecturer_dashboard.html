@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECE TU Room Booking</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { primary: "#7e0000" }, fontFamily: { sans: ['Sarabun', 'sans-serif'] } } }
+    }
+  </script>
+  <style>
+    :root {
+      --primary: #7e0000;
+      --primary-glow: rgba(126, 0, 0, 0.15);
+    }
+
+    /* ── Status badges ── */
+    .badge-pending {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+    .badge-approved {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .badge-rejected {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border: 1px solid #fca5a5;
+    }
+
+    /* ── Calendar chips ── */
+    .chip-approved {
+      background: #d1fae5;
+      border-left: 2px solid #10b981;
+      color: #065f46;
+    }
+
+    .chip-pending {
+      background: #fef3c7;
+      border-left: 2px solid #f59e0b;
+      color: #92400e;
+    }
+
+    .block-approved {
+      background: #d1fae5;
+      border-left: 4px solid #10b981;
+      color: #065f46;
+    }
+
+    .block-pending {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      color: #92400e;
+    }
+
+    /* ── Layout ── */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .week-grid {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+    }
+
+    .cal-day {
+      min-height: 110px;
+      transition: background .12s;
+      cursor: pointer;
+    }
+
+    .cal-day:hover {
+      background: #f8fafc;
+    }
+
+    /* ── Sidebar nav ── */
+    .nav-item {
+      transition: background .12s;
+    }
+
+    .nav-item:hover {
+      background: #f8fafc;
+    }
+
+    .nav-active {
+      background: #fff1f2 !important;
+      color: #7e0000 !important;
+      font-weight: 700;
+      border-right: 3px solid #7e0000;
+    }
+
+    /* ── View tabs (calendar) ── */
+    .view-tab {
+      padding: 6px 15px;
+      font-weight: 700;
+      font-size: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .15s;
+      color: #64748b;
+      border: none;
+      background: transparent;
+    }
+
+    .view-tab.active {
+      background: #7e0000;
+      color: #fff;
+    }
+
+    /* ── Filter dropdown ── */
+    .filter-dd {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 210px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .10);
+      z-index: 200;
+      padding: 8px;
+    }
+
+    .filter-dd.open {
+      display: block;
+    }
+
+    .filter-opt {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .1s;
+    }
+
+    .filter-opt:hover {
+      background: #f8fafc;
+    }
+
+    .filter-opt input[type=checkbox] {
+      accent-color: #7e0000;
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ── Room card ── */
+    .room-card {
+      transition: box-shadow .2s, transform .2s;
+    }
+
+    .room-card:hover {
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .10);
+      transform: translateY(-2px);
+    }
+
+    /* ── Timeline ── */
+    .tl-bg {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tl-bar {
+      position: absolute;
+      height: 100%;
+      border-radius: 99px;
+      background: #fb923c;
+    }
+
+    /* ── Day pill ── */
+    .day-pill input:checked+div {
+      background: #7e0000;
+      color: #fff;
+      border-color: #7e0000;
+    }
+
+    /* ── Today ring ── */
+    .today-ring {
+      background: #7e0000;
+      color: #fff;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .view-enter {
+      animation: fadeUp .2s ease;
+    }
+
+    @keyframes zoomIn {
+      from {
+        opacity: 0;
+        transform: scale(.93);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .modal-card {
+      animation: zoomIn .18s ease;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 99px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      transition: opacity .3s;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen flex font-sans text-slate-900">
+
+  <!-- ═══════════════ SIDEBAR ══════════════════════════════════════════ -->
+  <aside
+    class="w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen hidden md:flex z-30 flex-shrink-0">
+    <div class="p-5 border-b border-slate-100 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#7e0000">
+        <span class="material-symbols-outlined text-white text-[18px]">school</span>
+      </div>
+      <div>
+        <div class="font-bold text-slate-800 text-sm leading-tight">ECE TU Booking</div>
+        <div class="text-[10px] text-slate-400 font-medium tracking-wider">ระบบจองห้อง ECE</div>
+      </div>
+    </div>
+    <nav class="flex-1 py-3 px-2 space-y-0.5" id="sideNav">
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium cursor-pointer"
+        data-view="dashboard" onclick="navigate('dashboard')">
+        <span class="material-symbols-outlined text-[20px]">dashboard</span> หน้าแรก
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium cursor-pointer"
+        data-view="booking" onclick="navigate('booking')">
+        <span class="material-symbols-outlined text-[20px]">add_box</span> จองห้อง
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium cursor-pointer"
+        data-view="my-bookings" onclick="navigate('my-bookings')">
+        <span class="material-symbols-outlined text-[20px]">event_note</span> รายการจองของฉัน
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium cursor-pointer"
+        data-view="calendar" onclick="navigate('calendar')">
+        <span class="material-symbols-outlined text-[20px]">calendar_month</span> ปฏิทินการจอง
+      </a>
+    </nav>
+    <div class="p-4 border-t border-slate-100">
+      <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl mb-2">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fff1f2">
+          <span class="material-symbols-outlined text-[18px]" style="color:#7e0000">person</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-bold text-slate-700 truncate">อ.ดร.สมชาย ใจดี</div>
+          <div class="text-[10px] text-slate-400">อาจารย์ประจำภาควิชา</div>
+        </div>
+      </div>
+      <button
+        class="w-full py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 flex items-center justify-center gap-1.5 rounded-lg hover:bg-red-50 transition-all">
+        <span class="material-symbols-outlined text-[14px]">logout</span> ออกจากระบบ
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN ══════════════════════════════════════════════ -->
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+    <div id="app" class="flex-1 overflow-auto"></div>
+  </div>
+
+  <!-- ═══════════════ CANCEL MODAL ══════════════════════════════════════ -->
+  <div id="cancelModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl text-center">
+      <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background:#fee2e2">
+        <span class="material-symbols-outlined text-red-600" style="font-size:34px">warning</span>
+      </div>
+      <h4 class="text-xl font-bold text-slate-800 mb-2">ยืนยันการยกเลิก?</h4>
+      <p class="text-slate-500 text-sm mb-6">การจอง <span id="cancelId"
+          class="font-bold text-slate-700"></span><br>จะถูกยกเลิกและไม่สามารถย้อนคืนได้</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="closeCancelModal()"
+          class="py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 text-sm">ย้อนกลับ</button>
+        <button onclick="doCancelBooking()" class="py-3 font-bold rounded-xl text-white text-sm shadow-md"
+          style="background:#dc2626">ยืนยันยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ DAY MODAL (Calendar) ════════════════════════════ -->
+  <div id="dayModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl">
+      <div class="p-5 flex justify-between items-center" style="background:linear-gradient(135deg,#7e0000,#a50000)">
+        <div>
+          <h3 class="text-lg font-bold text-white" id="dayModalTitle">รายการจอง</h3>
+          <p class="text-red-200 text-xs mt-0.5">รายการทั้งหมดที่คุณจองไว้</p>
+        </div>
+        <button onclick="closeDayModal()"
+          class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-white text-[18px]">close</span>
+        </button>
+      </div>
+      <div id="dayModalBody" class="p-5 space-y-3 max-h-[55vh] overflow-y-auto"></div>
+      <div class="p-4 border-t border-slate-100 bg-slate-50">
+        <button onclick="closeDayModal()"
+          class="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-100 text-sm">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TOAST ════════════════════════════════════════════ -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 opacity-0 pointer-events-none">
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-medium">
+      <span class="material-symbols-outlined text-green-400 text-[18px]" id="toastIcon">check_circle</span>
+      <span id="toastMsg">สำเร็จ</span>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════
+    // DATA
+    // ═══════════════════════════════════════════════════════════════════
+    const MONTHS_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const DAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const DAYS_TH = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+    const DAYS_TH_L = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+
+    const ROOMS = [
+      { id: '406-3', name: 'ห้องประชุม 1', type: 'ห้องประชุม', seats: 60, img: 'https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&q=80&w=800', sched: [{ d: 'Mon', s: 9, e: 11, l: 'EE210' }, { d: 'Wed', s: 13, e: 16, l: 'ประชุม' }, { d: 'Fri', s: 9, e: 12, l: 'EE402' }] },
+      { id: '408-1', name: 'ห้องบรรยาย 3', type: 'ห้องบรรยาย', seats: 40, img: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800', sched: [{ d: 'Tue', s: 8, e: 10, l: 'EE301' }, { d: 'Thu', s: 13, e: 16, l: 'EE402' }] },
+
+      { id: '408-2', name: 'ห้องบรรยาย 1', type: 'ห้องบรรยาย', seats: 80, img: 'https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&q=80&w=800', sched: [{ d: 'Mon', s: 9, e: 12, l: 'EE101' }, { d: 'Wed', s: 9, e: 12, l: 'EE101' }, { d: 'Fri', s: 9, e: 12, l: 'EE101' }] },
+    ];
+
+    let myBookings = [
+      { id: 'BK-9901', roomId: '408-2', roomName: 'ห้องบรรยาย 1 (408-2)', purpose: 'สอนปกติ/ชดเชย', subject: 'EE402 Computer Network', course: 'ปริญญาตรี (ภาคปกติ)', status: 'pending', dateFrom: '25 เม.ย. 2569', dateTo: '25 เม.ย. 2569', recurring: false, days: ['Tue'], ts: '13:00', te: '16:00', created: '10 เมษายน 2569 เวลา 14:30 น.', note: '' },
+      { id: 'BK-9854', roomId: '406-3', roomName: 'ห้องประชุม 1 (406-3)', purpose: 'จัดอบรม', subject: 'อบรมเทคนิคการเขียน Paper', course: 'หลักสูตรปฐก.', status: 'approved', dateFrom: '20 เม.ย. 2569', dateTo: '30 พ.ค. 2569', recurring: true, days: ['Thu'], ts: '09:00', te: '12:00', created: '5 เมษายน 2569 เวลา 09:10 น.', note: '' },
+
+    ];
+
+    const CAL_BOOKINGS = {
+      '2026-3-7': [{ room: '406-3', roomFull: 'ห้องประชุม 1 (406-3)', time: '09:00–11:00', h: 9, dur: 2, subj: 'EE301 Digital Circuit', status: 'approved' }],
+      '2026-3-14': [{ room: '408-1', roomFull: 'ห้องบรรยาย 3 (408-1)', time: '10:00–12:00', h: 10, dur: 2, subj: 'EE402 Computer Network', status: 'approved' }],
+      '2026-3-19': [
+        { room: '406-3', roomFull: 'ห้องประชุม 1 (406-3)', time: '09:00–12:00', h: 9, dur: 3, subj: 'EE402 Computer Network', status: 'approved' },
+        { room: '408-1', roomFull: 'ห้องบรรยาย 3 (408-1)', time: '13:00–16:00', h: 13, dur: 3, subj: 'ติวเสริมสอบมิดเทอม', status: 'pending' }
+      ],
+      '2026-3-21': [
+
+        { room: '410-1', roomFull: 'ห้องสัมมนา (410-1)', time: '14:00–16:00', h: 14, dur: 2, subj: 'ประชุมกลุ่มโปรเจค', status: 'pending' }
+      ],
+      '2026-3-25': [{ room: '406-3', roomFull: 'ห้องประชุม 1 (406-3)', time: '11:00–13:00', h: 11, dur: 2, subj: 'ประชุมชมรม', status: 'approved' }],
+      '2026-3-28': [
+        { room: '408-1', roomFull: 'ห้องบรรยาย 3 (408-1)', time: '13:00–15:00', h: 13, dur: 2, subj: 'สอบ EE402', status: 'pending' },
+
+      ],
+    };
+
+    // ═══════════════════════════════════════════════════════════════════
+    // ROUTER STATE
+    // ═══════════════════════════════════════════════════════════════════
+    let curView = 'dashboard';
+    let curDetailId = null;
+    let curRoomId = null;
+    let mbTab = 'all';
+    let dashSearch = '';
+    let dashType = 'all';
+    let cancelId = null;
+    let bfType = 'all';
+
+    // Calendar state
+    let calView = 'month';
+    let calDate = new Date(2026, 3, 19);
+    let calRooms = new Set(['406-3', '408-1', '405-2', '410-1']);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // NAVIGATION
+    // ═══════════════════════════════════════════════════════════════════
+    function navigate(view, params = {}) {
+      curView = view;
+      if (params.detailId) curDetailId = params.detailId;
+      if (params.roomId) curRoomId = params.roomId;
+
+      // Sidebar active state
+      const sideMap = { dashboard: 'dashboard', booking: 'booking', 'room-booking': 'booking', 'my-bookings': 'my-bookings', detail: 'my-bookings', calendar: 'calendar' };
+      document.querySelectorAll('[data-view]').forEach(el => {
+        const active = el.dataset.view === (sideMap[view] || view);
+        el.className = `nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer ${active ? 'nav-active' : 'text-slate-600'}`;
+      });
+
+      renderApp();
+    }
+
+    function renderApp() {
+      const app = document.getElementById('app');
+      let html = '';
+      switch (curView) {
+        case 'dashboard': html = vDashboard(); break;
+        case 'booking': html = vBooking(); break;
+        case 'room-booking': html = vRoomBooking(); break;
+        case 'my-bookings': html = vMyBookings(); break;
+        case 'detail': html = vDetail(); break;
+        case 'calendar': html = vCalendar(); break;
+      }
+      app.innerHTML = `<div class="view-enter">${html}</div>`;
+      app.scrollTop = 0;
+      if (curView === 'calendar') initCalendar();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════════════════════════════
+    function toBE(y) { return y + 543; }
+    function thaiMonthYear(d) { return `${MONTHS_TH[d.getMonth()]} ${toBE(d.getFullYear())}`; }
+    function isToday(y, m, d) { const t = new Date(); return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d; }
+
+    function badge(status) {
+      const cfg = { pending: ['badge-pending', 'pending', 'รออนุมัติ'], approved: ['badge-approved', 'check_circle', 'อนุมัติแล้ว'], rejected: ['badge-rejected', 'cancel', 'ไม่อนุมัติ'] }[status];
+      return `<span class="${cfg[0]} px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">${cfg[1]}</span>${cfg[2]}</span>`;
+    }
+
+    function showToast(msg, icon = 'check_circle') {
+      const t = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      document.getElementById('toastIcon').textContent = icon;
+      t.style.opacity = '1';
+      t.style.pointerEvents = 'auto';
+      setTimeout(() => { t.style.opacity = '0'; t.style.pointerEvents = 'none'; }, 3000);
+    }
+
+    function isBusy(room) {
+      const h = new Date().getHours(), day = DAYS_EN[new Date().getDay()];
+      return room.sched.some(s => s.d === day && s.s <= h && s.e > h);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VIEW: DASHBOARD
+    // ═══════════════════════════════════════════════════════════════════
+    function vDashboard() {
+      const today = new Date();
+      const todayStr = `วัน${DAYS_TH_L[today.getDay()]}ที่ ${today.getDate()} ${MONTHS_TH[today.getMonth()]} ${toBE(today.getFullYear())}`;
+      return `
+    <div class="p-6 sm:p-8">
+        <div class="flex flex-wrap justify-between items-end gap-4 mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">ตารางการใช้ห้องวันนี้</h2>
+                <p class="text-slate-500 text-sm mt-0.5">${todayStr}</p>
+            </div>
+            <button onclick="navigate('booking')" class="px-5 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:opacity-90 transition-all" style="background:#7e0000;box-shadow:0 4px 14px rgba(126,0,0,.25)">
+                <span class="material-symbols-outlined text-[17px]">add</span> จองห้องใหม่
+            </button>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-5 flex flex-wrap gap-3 items-center">
+            <div class="flex-1 min-w-[180px] relative">
+                <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+                <input type="text" id="dashQ" placeholder="ค้นหาชื่อห้อง หรือรหัสห้อง..." value="${dashSearch}"
+                    oninput="dashSearch=this.value;redrawRooms()"
+                    class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary focus:ring-2" style="--tw-ring-color:rgba(126,0,0,.1)">
+            </div>
+            <select onchange="dashType=this.value;redrawRooms()" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary min-w-[140px]">
+                <option value="all" ${dashType === 'all' ? 'selected' : ''}>ทุกประเภท</option>
+                <option value="ห้องประชุม" ${dashType === 'ห้องประชุม' ? 'selected' : ''}>ห้องประชุม</option>
+                <option value="ห้องบรรยาย" ${dashType === 'ห้องบรรยาย' ? 'selected' : ''}>ห้องบรรยาย</option>
+                
+            </select>
+        </div>
+
+        <div class="space-y-4" id="dashRooms">${renderRoomCards()}</div>
+    </div>`;
+    }
+
+    function renderRoomCards() {
+      const q = dashSearch.toLowerCase();
+      const filtered = ROOMS.filter(r =>
+        (r.id.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) &&
+        (dashType === 'all' || r.type.includes(dashType))
+      );
+      if (!filtered.length) return `<div class="text-center py-16 text-slate-400"><span class="material-symbols-outlined text-5xl block mb-2">search_off</span>ไม่พบห้องที่ตรงกัน</div>`;
+
+      const todayDay = DAYS_EN[new Date().getDay()];
+      return filtered.map(room => {
+        const busy = isBusy(room);
+        const todaySlots = room.sched.filter(s => s.d === todayDay);
+        const bars = todaySlots.map(s => {
+          const l = ((s.s - 8) / 12) * 100, w = ((s.e - s.s) / 12) * 100;
+          return `<div class="tl-bar" style="left:${l}%;width:${w}%"></div>`;
+        }).join('');
+        return `
+        <div class="room-card bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm grid cursor-pointer" style="grid-template-columns:30% 1fr"
+             onclick="navigate('room-booking',{roomId:'${room.id}'})">
+            <div class="flex flex-col items-center justify-center bg-slate-50 border-r border-slate-100 group-hover:bg-red-50 transition-colors">
+            <span class="material-symbols-outlined text-slate-300 text-[32px] mb-1">meeting_room</span>
+            <div class="text-sm font-black text-slate-700 tracking-tight">${room.id}</div>
+        </div>
+            <div class="p-5">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800">${room.name}</h3>
+                        <div class="flex gap-3 mt-0.5 text-xs text-slate-500">
+                            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>${room.seats} ที่นั่ง</span>
+                            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">meeting_room</span>${room.type}</span>
+                        </div>
+                    </div>
+                    <span class="${busy ? 'badge-pending' : 'badge-approved'} px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0">${busy ? 'ถูกใช้งาน' : 'ว่างตอนนี้'}</span>
+                </div>
+                
+                <div class="tl-bg">${bars}</div>
+                <div class="flex justify-between text-[10px] text-slate-400 mt-1"><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span></div>
+                ${todaySlots.length === 0 ? `<p class="text-[11px] text-emerald-600 font-medium mt-1">✓ ว่างตลอดวันนี้</p>` : `<p class="text-[11px] text-amber-600 font-medium mt-1">มีการจอง ${todaySlots.length} ช่วง</p>`}
+            </div>
+        </div>`;
+      }).join('');
+    }
+
+    function redrawRooms() { const el = document.getElementById('dashRooms'); if (el) el.innerHTML = renderRoomCards(); }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VIEW: BOOKING (Room Selector)
+    // ═══════════════════════════════════════════════════════════════════
+    function vBooking() {
+      const filterPills = ['all', 'ห้องประชุม', 'ห้องบรรยาย',];
+      const pillLabels = ['ทั้งหมด', 'ห้องประชุม', 'ห้องบรรยาย',];
+      const pills = filterPills.map((t, i) => `
+        <button onclick="setBfType('${t}')" data-bft="${t}"
+            class="px-4 py-1.5 rounded-full text-sm font-bold border transition-all ${bfType === t ? 'text-white border-primary' : 'border-slate-200 text-slate-600 hover:border-primary hover:text-primary'}"
+            ${bfType === t ? 'style="background:#7e0000"' : ''}>
+            ${pillLabels[i]}
+        </button>`).join('');
+
+      return `
+    <div class="p-6 sm:p-8">
+        <header class="mb-6">
+            <h2 class="text-2xl font-bold text-slate-800">จองห้อง</h2>
+            <p class="text-slate-500 text-sm mt-0.5">เลือกห้องที่ต้องการเพื่อดูตารางและทำการจอง</p>
+        </header>
+        <div class="flex gap-2 flex-wrap mb-5">${pills}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="bfGrid">${renderBookingRoomGrid()}</div>
+    </div>`;
+    }
+
+    function renderBookingRoomGrid() {
+      const list = bfType === 'all' ? ROOMS : ROOMS.filter(r => r.type.includes(bfType));
+      return list.map(room => `
+    <div class="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden cursor-pointer hover:border-primary transition-all group shadow-sm"
+         onclick="navigate('room-booking',{roomId:'${room.id}'})">
+        <div class="h-36 overflow-hidden relative">
+            <img src="${room.img}" alt="${room.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,.35),transparent)"></div>
+            <div class="absolute bottom-2 left-2 text-white text-[10px] font-bold bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded">${room.type}</div>
+            <div class="absolute top-2 right-2 text-white text-[10px] font-bold bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded">${room.id}</div>
+        </div>
+        <div class="p-4">
+            <div class="font-bold text-slate-800 mb-0.5">${room.name}</div>
+            <div class="text-xs text-slate-500 mb-2">${room.seats} ที่นั่ง</div>
+    
+            <button class="w-full py-2 rounded-xl text-sm font-bold border transition-all hover:opacity-90" style="background:#fff1f2;color:#7e0000;border-color:#fecaca">
+                เลือกห้องนี้ →
+            </button>
+        </div>
+    </div>`).join('');
+    }
+
+    function setBfType(t) {
+      bfType = t;
+      // Update pill styles
+      document.querySelectorAll('[data-bft]').forEach(el => {
+        const active = el.dataset.bft === t;
+        el.className = `px-4 py-1.5 rounded-full text-sm font-bold border transition-all ${active ? 'text-white border-primary' : 'border-slate-200 text-slate-600 hover:border-primary hover:text-primary'}`;
+        el.style.background = active ? '#7e0000' : '';
+      });
+      const g = document.getElementById('bfGrid');
+      if (g) g.innerHTML = renderBookingRoomGrid();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VIEW: ROOM BOOKING FORM
+    // ═══════════════════════════════════════════════════════════════════
+    function vRoomBooking() {
+      const room = ROOMS.find(r => r.id === curRoomId) || ROOMS[0];
+      const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+      const wdLabels = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.'];
+      const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+
+      const schedGrid = `
+    <table class="w-full text-xs border-collapse">
+        <thead><tr class="bg-slate-50">
+            <th class="p-2 border border-slate-200 text-slate-400 font-bold w-14 text-center">เวลา</th>
+            ${wdLabels.map(d => `<th class="p-2 border border-slate-200 text-slate-600 font-bold text-center">${d}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+            ${hours.map(h => `<tr>
+                <td class="p-2 border border-slate-200 bg-slate-50 text-slate-400 text-center font-medium">${h}:00</td>
+                ${weekDays.map(day => {
+        const sl = room.sched.find(s => s.d === day && s.s <= h && s.e > h);
+        return sl
+          ? `<td class="p-1 border border-slate-100 bg-orange-50 border-l-2 border-l-orange-400"><span class="text-[10px] text-orange-700 font-bold">${sl.l}</span></td>`
+          : `<td class="p-2 border border-slate-100 hover:bg-emerald-50 transition-colors"></td>`;
+      }).join('')}
+            </tr>`).join('')}
+        </tbody>
+    </table>`;
+
+      return `
+    <div class="p-6 sm:p-8">
+        <div class="flex items-center gap-2 text-sm text-slate-400 mb-5">
+            <button onclick="navigate('booking')" class="hover:text-primary font-medium transition-colors">จองห้อง</button>
+            <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span class="text-slate-700 font-bold">${room.name} (${room.id})</span>
+        </div>
+
+        <div class="grid grid-cols-12 gap-6 items-start">
+            <!-- LEFT: Info + Schedule -->
+            <div class="col-span-12 lg:col-span-7 space-y-5">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="h-44 relative overflow-hidden">
+                        <img src="${room.img}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 flex items-end p-5" style="background:linear-gradient(to top,rgba(0,0,0,.65),transparent)">
+                            <div>
+                                <h2 class="text-2xl font-bold text-white">${room.name}</h2>
+                                <div class="flex gap-3 text-white/80 text-sm mt-1">
+                                    <span><span class="material-symbols-outlined text-[14px] align-middle">groups</span> ${room.seats} ที่นั่ง</span>
+                                    <span><span class="material-symbols-outlined text-[14px] align-middle">badge</span> ${room.id}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                   
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_view_week</span>
+                        <h3 class="font-bold text-slate-800 text-sm">ตารางการจองรายสัปดาห์</h3>
+                    </div>
+                    <div class="p-4 overflow-x-auto">
+                        ${schedGrid}
+                        <div class="flex gap-4 mt-3 text-xs font-bold">
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-orange-400 rounded"></span>ถูกจองแล้ว</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-emerald-300" style="background:#f0fdf4"></span>ว่าง</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Form -->
+            <div class="col-span-12 lg:col-span-5">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-md sticky top-4 overflow-hidden">
+                    <div class="px-6 py-4 flex items-center gap-2" style="background:linear-gradient(135deg,#7e0000,#a50000)">
+                        <span class="material-symbols-outlined text-white/80 text-[19px]">edit_calendar</span>
+                        <h3 class="font-bold text-white">ข้อมูลการจอง</h3>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <!-- วัตถุประสงค์ -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">วัตถุประสงค์</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer transition-all" id="pl1" style="border-color:#7e0000;background:#fff1f2">
+                                    <input type="radio" name="purp" value="teach" checked class="accent-red-800" onchange="hlPurpose(1)">
+                                    <span class="text-sm font-medium">สอนปกติ/ชดเชย</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-primary transition-all" id="pl2">
+                                    <input type="radio" name="purp" value="train" class="accent-red-800" onchange="hlPurpose(2)">
+                                    <span class="text-sm font-medium">จัดอบรม/ติว</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- ส่วนที่ 1: สำหรับการสอน (TEACHING_INFO) -->
+                        <div id="teaching-fields" class="space-y-4">
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">รหัสวิชา</label>
+                                    <input type="text" id="subject_code" placeholder="EEXXX" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">ชื่อวิชา</label>
+                                    <input type="text" id="subject_name" placeholder="ระบุชื่อวิชา" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">หลักสูตร (Program Type)</label>
+                                <select id="program_type" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary bg-white">
+                                    <option value="ปริญญาตรีภาคปกติ">ปริญญาตรีภาคปกติ</option>
+                                    <option value="ปริญญาโท">ปริญญาโท</option>
+                                    <option value="TEP-TEPE">TEP-TEPE</option>
+                                    <option value="TU-PINE">TU-PINE</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- ส่วนที่ 2: สำหรับการอบรม (TRAINING_INFO) -->
+                        <div id="training-fields" class="space-y-4 hidden">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">หัวข้อการอบรม/ติว (Topic)</label>
+                                <input type="text" id="training_topic" placeholder="ระบุชื่อหัวข้อหรือโครงการ" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <!-- ข้อมูลวันเวลา (ใช้ร่วมกัน) -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">วันที่เริ่ม</label><input type="date" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">วันที่สิ้นสุด</label><input type="date" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">เลือกวัน (รายสัปดาห์)</label>
+                                <!-- ปุ่ม Select All -->
+                                <button type="button" onclick="toggleAllDays()" id="btnSelectAll" class="text-[10px] font-bold text-red-800 hover:underline">เลือกทั้งหมด</button>
+                            </div>
+                            <div class="flex gap-1.5" id="dayContainer">
+                                <label class="day-pill flex-1"><input type="checkbox" class="hidden peer day-checkbox"><div class="text-center py-2 border-2 border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-all peer-checked:border-red-800 peer-checked:bg-red-50">จ.</div></label>
+                                <label class="day-pill flex-1"><input type="checkbox" class="hidden peer day-checkbox"><div class="text-center py-2 border-2 border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-all peer-checked:border-red-800 peer-checked:bg-red-50">อ.</div></label>
+                                <label class="day-pill flex-1"><input type="checkbox" class="hidden peer day-checkbox"><div class="text-center py-2 border-2 border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-all peer-checked:border-red-800 peer-checked:bg-red-50">พ.</div></label>
+                                <label class="day-pill flex-1"><input type="checkbox" class="hidden peer day-checkbox"><div class="text-center py-2 border-2 border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-all peer-checked:border-red-800 peer-checked:bg-red-50">พฤ.</div></label>
+                                <label class="day-pill flex-1"><input type="checkbox" class="hidden peer day-checkbox"><div class="text-center py-2 border-2 border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-all peer-checked:border-red-800 peer-checked:bg-red-50">ศ.</div></label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">เวลาเริ่ม</label><input type="time" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">เวลาสิ้นสุด</label><input type="time" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+                        </div>
+
+                        <button onclick="submitBooking()"
+                            class="w-full py-3.5 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                            style="background:#7e0000;box-shadow:0 4px 14px rgba(126,0,0,.25)">
+                            <span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจองห้อง
+                        </button>
+                        <p class="text-center text-[11px] text-slate-400">* การจองสมบูรณ์เมื่อได้รับการอนุมัติจากเจ้าหน้าที่</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    }
+
+    function toggleAllDays() {
+      const checkboxes = document.querySelectorAll('.day-checkbox');
+      const btn = document.getElementById('btnSelectAll');
+
+      // ตรวจสอบว่าตอนนี้เลือกครบทุกอันหรือยัง
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+      if (allChecked) {
+        // ถ้าเลือกครบแล้ว ให้ยกเลิกทั้งหมด
+        checkboxes.forEach(cb => cb.checked = false);
+        btn.textContent = "เลือกทั้งหมด";
+      } else {
+        // ถ้ายังเลือกไม่ครบ ให้เลือกทั้งหมด
+        checkboxes.forEach(cb => cb.checked = true);
+        btn.textContent = "ยกเลิกทั้งหมด";
+      }
+    }
+
+
+
+    function hlPurpose(n) {
+      const p1 = document.getElementById('pl1'), p2 = document.getElementById('pl2');
+      const fTeach = document.getElementById('teaching-fields');
+      const fTrain = document.getElementById('training-fields');
+
+      if (!p1 || !p2 || !fTeach || !fTrain) return;
+
+      if (n === 1) {
+        // เลือกการสอน
+        p1.style.borderColor = '#7e0000'; p1.style.background = '#fff1f2';
+        p2.style.borderColor = '#e2e8f0'; p2.style.background = '';
+        fTeach.classList.remove('hidden');
+        fTrain.classList.add('hidden');
+      } else {
+        // เลือกการอบรม
+        p2.style.borderColor = '#7e0000'; p2.style.background = '#fff1f2';
+        p1.style.borderColor = '#e2e8f0'; p1.style.background = '';
+        fTrain.classList.remove('hidden');
+        fTeach.classList.add('hidden');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VIEW: MY BOOKINGS
+    // ═══════════════════════════════════════════════════════════════════
+    function vMyBookings() {
+      const counts = { all: myBookings.length, pending: myBookings.filter(b => b.status === 'pending').length, approved: myBookings.filter(b => b.status === 'approved').length, rejected: myBookings.filter(b => b.status === 'rejected').length };
+      const tabs = [['all', 'ทั้งหมด'], ['pending', 'รออนุมัติ'], ['approved', 'อนุมัติแล้ว'], ['rejected', 'ไม่อนุมัติ']];
+      const filtered = mbTab === 'all' ? myBookings : myBookings.filter(b => b.status === mbTab);
+
+      const tabHtml = tabs.map(([k, l]) => `
+    <button onclick="setMbTab('${k}')" data-mbt="${k}"
+        class="pb-3 px-1 border-b-2 text-sm font-bold transition-all flex items-center gap-1.5 ${mbTab === k ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}">
+        ${l} <span class="px-1.5 py-0.5 rounded-full text-[10px] ${mbTab === k ? 'text-white' : 'bg-slate-200 text-slate-500'}" ${mbTab === k ? 'style="background:#7e0000"' : ''}>${counts[k]}</span>
+    </button>`).join('');
+
+      const borderMap = { pending: 'border-l-amber-400', approved: 'border-l-emerald-500', rejected: 'border-l-red-400' };
+      const cardsHtml = filtered.length === 0
+        ? `<div class="text-center py-16 text-slate-400"><span class="material-symbols-outlined text-5xl block mb-2">event_busy</span>ไม่มีรายการจองในหมวดนี้</div>`
+        : filtered.map(b => `
+        <div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status]} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex-1 space-y-2 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    ${badge(b.status)}
+                    <span class="text-slate-400 text-xs">${b.id}</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-800 truncate">${b.roomName}</h3>
+                <p class="text-sm text-slate-600">${b.purpose}: ${b.subject}</p>
+                <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${b.dateFrom}${b.dateTo !== b.dateFrom ? ' – ' + b.dateTo : ''}</span>
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${b.ts} – ${b.te}</span>
+                </div>
+                ${b.note ? `<div class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5"><span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">admin_panel_settings</span>${b.note}</div>` : ''}
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <button onclick="navigate('detail',{detailId:'${b.id}'})"
+                    class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-200 flex items-center gap-1.5 transition-all">
+                    <span class="material-symbols-outlined text-[15px]">visibility</span>รายละเอียด
+                </button>
+                ${b.status === 'pending' ? `
+                <button onclick="openCancelModal('${b.id}')"
+                    class="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-100 flex items-center gap-1.5 transition-all">
+                    <span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก
+                </button>`: `
+                <button class="px-4 py-2 bg-slate-50 text-slate-300 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-100 flex items-center gap-1.5" title="ติดต่อเจ้าหน้าที่">
+                    <span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก
+                </button>`}
+            </div>
+        </div>`).join('');
+
+      return `
+    <div class="p-6 sm:p-8 max-w-4xl">
+        <header class="mb-6">
+            <h2 class="text-2xl font-bold text-slate-800">รายการจองของฉัน</h2>
+            <p class="text-slate-500 text-sm mt-0.5">ตรวจสอบสถานะและจัดการรายการจองห้อง</p>
+        </header>
+        <div class="flex gap-5 border-b border-slate-200 mb-6">${tabHtml}</div>
+        <div class="space-y-4">${cardsHtml}</div>
+    </div>`;
+    }
+
+    function setMbTab(t) { mbTab = t; renderApp(); }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VIEW: BOOKING DETAIL
+    // ═══════════════════════════════════════════════════════════════════
+    function vDetail() {
+      const b = myBookings.find(x => x.id === curDetailId);
+      if (!b) return `<div class="p-8 text-slate-400 text-center"><span class="material-symbols-outlined text-5xl block mb-2">search_off</span>ไม่พบรายการจอง</div>`;
+
+      const sCfg = {
+        pending: { bar: 'bg-amber-100 border-amber-200 text-amber-700', label: 'รอการอนุมัติ (Pending)', ping: true },
+        approved: { bar: 'bg-green-100 border-green-200 text-green-700', label: 'อนุมัติแล้ว (Approved)', ping: false },
+        rejected: { bar: 'bg-red-100 border-red-200 text-red-700', label: 'ไม่อนุมัติ (Rejected)', ping: false },
+      }[b.status];
+
+      const allWd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+      const wdSh = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.'];
+
+      return `
+    <div class="p-6 sm:p-8">
+        <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <button onclick="navigate('my-bookings')" class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 shadow-sm transition-all">
+                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                </button>
+                <div>
+                    <h2 class="text-xl font-bold">รายละเอียดการจอง <span class="text-slate-400 font-normal text-base">${b.id}</span></h2>
+                    <p class="text-xs text-slate-500 mt-0.5">สร้างเมื่อ ${b.created}</p>
+                </div>
+            </div>
+            <div class="px-5 py-2 ${sCfg.bar} border rounded-full flex items-center gap-2">
+                ${sCfg.ping ? `<span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span></span>` : ''}
+                <span class="font-bold text-sm">${sCfg.label}</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-12 gap-6 max-w-5xl">
+            <div class="col-span-12 lg:col-span-8 space-y-5">
+                <!-- Room & Subject -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-[16px]">meeting_room</span> ข้อมูลห้องและวิชา
+                    </div>
+                    <div class="p-6 grid sm:grid-cols-2 gap-5">
+                        <div><p class="text-xs font-bold text-slate-400 uppercase mb-1">ห้องที่จอง</p><p class="font-bold text-slate-800">${b.roomName}</p></div>
+                        <div><p class="text-xs font-bold text-slate-400 uppercase mb-1">ประเภทการใช้งาน</p><p class="font-semibold text-slate-800">${b.purpose}</p></div>
+                        <div><p class="text-xs font-bold text-slate-400 uppercase mb-1">วิชา / หัวข้อ</p><p class="font-bold text-slate-800">${b.subject}</p></div>
+                        <div><p class="text-xs font-bold text-slate-400 uppercase mb-1">หลักสูตร</p><p class="font-semibold text-slate-800">${b.course}</p></div>
+                    </div>
+                </div>
+                <!-- Date & Time -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-[16px]">calendar_month</span> วันที่และช่วงเวลาใช้งาน
+                    </div>
+                    <div class="p-6">
+                        <div class="grid sm:grid-cols-2 gap-5 mb-6">
+                            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <p class="text-xs font-bold text-slate-400 uppercase mb-1">ช่วงวันที่</p>
+                                <p class="font-bold text-slate-800 text-base">${b.dateFrom}${b.dateTo !== b.dateFrom ? ' – ' + b.dateTo : ''}</p>
+                                ${b.recurring ? `<p class="text-xs text-slate-500 mt-1 italic">จองต่อเนื่องทุกสัปดาห์</p>` : ''}
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-400 uppercase mb-2">เวลาที่ใช้งาน</p>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-center"><p class="text-2xl font-black" style="color:#7e0000">${b.ts}</p><p class="text-[10px] text-slate-400 font-bold uppercase">เริ่ม</p></div>
+                                    <span class="material-symbols-outlined text-slate-300">arrow_forward</span>
+                                    <div class="text-center"><p class="text-2xl font-black" style="color:#7e0000">${b.te}</p><p class="text-[10px] text-slate-400 font-bold uppercase">สิ้นสุด</p></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs font-bold text-slate-400 uppercase mb-3">วันที่จอง (ในสัปดาห์)</p>
+                        <div class="flex gap-2">
+                            ${allWd.map((d, i) => `
+                            <div class="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${b.days.includes(d) ? 'text-white shadow-md' : 'bg-slate-100 text-slate-300'}"
+                                 ${b.days.includes(d) ? 'style="background:#7e0000;box-shadow:0 4px 10px rgba(126,0,0,.2)"' : ''}>
+                                ${wdSh[i]}
+                            </div>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-span-12 lg:col-span-4 space-y-5">
+                <!-- Actions -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 mb-3 text-sm">การจัดการ</h3>
+                    <div class="space-y-2">
+                        
+                        ${b.status === 'pending' ? `
+                        <button onclick="openCancelModal('${b.id}')"
+                            class="w-full py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
+                            <span class="material-symbols-outlined text-[16px]">cancel</span> ยกเลิกการจอง
+                        </button>`: ''}
+                    </div>
+                </div>
+                <!-- Admin note -->
+                <div class="rounded-2xl overflow-hidden shadow-md" style="background:linear-gradient(135deg,#1e293b,#334155)">
+                    <div class="p-5">
+                        <h3 class="font-bold mb-3 flex items-center gap-2 text-white text-sm">
+                            <span class="material-symbols-outlined text-amber-400 text-[18px]">admin_panel_settings</span>
+                            บันทึกจากเจ้าหน้าที่
+                        </h3>
+                        <div class="p-3 rounded-xl border" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12)">
+                            <p class="text-sm text-slate-300 italic">${b.note ? `"${b.note}"` : 'ยังไม่มีหมายเหตุจากเจ้าหน้าที่'}</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Help -->
+                <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <p class="text-blue-800 text-xs font-bold flex items-center gap-1.5 mb-1.5">
+                        <span class="material-symbols-outlined text-[14px]">help</span> ต้องการแก้ไขข้อมูล?
+                    </p>
+                    <p class="text-[11px] text-blue-600 leading-relaxed">กรุณายกเลิกรายการนี้แล้วทำการจองใหม่ หรือติดต่อเจ้าหน้าที่สำนักงานภาควิชาฯ โทร. 02-XXX-XXXX</p>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VIEW: CALENDAR
+    // ═══════════════════════════════════════════════════════════════════
+    function vCalendar() {
+      const allRooms = ['406-3', '408-1', '405-2', '410-1'];
+      const allChecked = allRooms.every(r => calRooms.has(r));
+
+      return `
+    <div class="flex flex-col" style="height:100%;min-height:0">
+        <!-- Top bar -->
+        <div class="bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap gap-3 items-center justify-between sticky top-0 z-20">
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex bg-slate-100 rounded-xl p-1 gap-0.5">
+                    <button class="view-tab ${calView === 'month' ? 'active' : ''}" id="calTm" onclick="calSwitchView('month')">
+                        <span class="material-symbols-outlined text-[13px] align-middle mr-0.5">calendar_month</span>รายเดือน
+                    </button>
+                    <button class="view-tab ${calView === 'week' ? 'active' : ''}" id="calTw" onclick="calSwitchView('week')">
+                        <span class="material-symbols-outlined text-[13px] align-middle mr-0.5">view_week</span>รายสัปดาห์
+                    </button>
+                </div>
+                <div class="flex bg-slate-100 rounded-xl p-1 items-center gap-0.5">
+                    <button onclick="calNav(-1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center transition-all">
+                        <span class="material-symbols-outlined text-[17px] text-slate-500">chevron_left</span>
+                    </button>
+                    <button onclick="calToday()" class="px-3 h-8 rounded-lg hover:bg-white text-xs font-bold text-slate-600 transition-all">วันนี้</button>
+                    <button onclick="calNav(1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center transition-all">
+                        <span class="material-symbols-outlined text-[17px] text-slate-500">chevron_right</span>
+                    </button>
+                </div>
+                <span class="font-bold text-slate-800 text-sm" id="calHdr"></span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex gap-3 text-[11px] font-bold text-slate-500">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#10b981"></span>อนุมัติแล้ว</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#f59e0b"></span>รออนุมัติ</span>
+                </div>
+                <div class="relative" id="calFW">
+                    <button onclick="calTogFd(event)" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:border-primary hover:text-primary transition-all">
+                        <span class="material-symbols-outlined text-[14px]">filter_list</span>
+                        <span id="calFLbl">${allChecked ? 'ห้องทั้งหมด' : calRooms.size + ' ห้อง'}</span>
+                        <span class="material-symbols-outlined text-[13px]">expand_more</span>
+                    </button>
+                    <div class="filter-dd" id="calFDD">
+                        <label class="filter-opt"><input type="checkbox" id="calFAll" ${allChecked ? 'checked' : ''} onchange="calTogAll(this)"> แสดงทั้งหมด</label>
+                        <div style="border-top:1px solid #f1f5f9;margin:4px 0"></div>
+                        <label class="filter-opt"><input type="checkbox" class="cal-rcb" value="406-3" ${calRooms.has('406-3') ? 'checked' : ''} onchange="calUpdFlt()"> ห้องประชุม 1 (406-3)</label>
+                        <label class="filter-opt"><input type="checkbox" class="cal-rcb" value="408-1" ${calRooms.has('408-1') ? 'checked' : ''} onchange="calUpdFlt()"> ห้องบรรยาย 3 (408-1)</label>
+                        <label class="filter-opt"><input type="checkbox" class="cal-rcb" value="410-1" ${calRooms.has('410-1') ? 'checked' : ''} onchange="calUpdFlt()"> ห้องสัมมนา (410-1)</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar content -->
+        <div class="flex-1 overflow-auto p-4">
+            <div id="calMV" class="${calView === 'month' ? '' : 'hidden'} bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="cal-grid bg-slate-50 border-b border-slate-200">
+                    ${DAYS_TH.map(d => `<div class="py-3 text-center text-xs font-bold text-slate-400">${d}</div>`).join('')}
+                </div>
+                <div id="calMG" class="cal-grid"></div>
+            </div>
+            <div id="calWV" class="${calView === 'week' ? '' : 'hidden'} bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div id="calWH" class="week-grid border-b border-slate-200 bg-slate-50 sticky top-0 z-10"></div>
+                <div id="calWB" class="week-grid"></div>
+            </div>
+        </div>
+    </div>`;
+    }
+
+    function initCalendar() { calRender(); }
+
+    function calFKey(y, m, d) { return `${y}-${m}-${d}`; }
+    function calGetBk(key) { return (CAL_BOOKINGS[key] || []).filter(b => calRooms.has(b.room)); }
+
+    function calRender() {
+      const hdr = document.getElementById('calHdr');
+      if (hdr) {
+        if (calView === 'month') {
+          hdr.textContent = thaiMonthYear(calDate);
+        } else {
+          const ws = calWkStart(calDate), we = new Date(ws.getTime() + 6 * 864e5);
+          hdr.textContent = ws.getMonth() === we.getMonth()
+            ? `${ws.getDate()}–${we.getDate()} ${MONTHS_TH[ws.getMonth()]} ${toBE(ws.getFullYear())}`
+            : `${ws.getDate()} ${MONTHS_TH[ws.getMonth()]} – ${we.getDate()} ${MONTHS_TH[we.getMonth()]} ${toBE(we.getFullYear())}`;
+        }
+      }
+      if (calView === 'month') calRenderMonth();
+      else calRenderWeek();
+    }
+
+    function calRenderMonth() {
+      const g = document.getElementById('calMG'); if (!g) return;
+      const y = calDate.getFullYear(), m = calDate.getMonth();
+      const fd = new Date(y, m, 1).getDay(), dm = new Date(y, m + 1, 0).getDate();
+      let html = '';
+      for (let i = 0; i < fd; i++) html += `<div class="cal-day p-2 border-r border-b border-slate-100 bg-slate-50/50"></div>`;
+      for (let d = 1; d <= dm; d++) {
+        const key = calFKey(y, m, d), bks = calGetBk(key), tod = isToday(y, m, d);
+        const chips = bks.slice(0, 3).map(b => `<div class="px-1.5 py-0.5 rounded-r text-[10px] font-bold truncate ${b.status === 'approved' ? 'chip-approved' : 'chip-pending'}">${b.room} ${b.time.split('–')[0]}</div>`).join('');
+        const more = bks.length > 3 ? `<div class="text-[10px] text-slate-400 font-semibold pl-1">+${bks.length - 3}</div>` : '';
+        const td = `${d} ${MONTHS_TH[m]} ${toBE(y)}`;
+        html += `<div class="cal-day p-2 border-r border-b border-slate-100 ${tod ? 'bg-red-50/40' : ''}"
+                    onclick="calShowDay('${td}','${key}')">
+            <span class="${tod ? 'today-ring' : 'font-bold text-sm'}">${d}</span>
+            <div class="mt-1 space-y-0.5">${chips}${more}</div>
+        </div>`;
+      }
+      g.innerHTML = html;
+    }
+
+    function calWkStart(d) { const r = new Date(d); r.setDate(r.getDate() - r.getDay()); return r; }
+
+    const CAL_HRS = Array.from({ length: 12 }, (_, i) => i + 7);
+    const SH = 52;
+
+    function calRenderWeek() {
+      const wh = document.getElementById('calWH'), wb = document.getElementById('calWB');
+      if (!wh || !wb) return;
+      const ws = calWkStart(calDate);
+      const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(d.getDate() + i); return d; });
+
+      let hHtml = `<div class="py-3 border-r border-slate-100"></div>`;
+      days.forEach((d, i) => {
+        const tod = isToday(d.getFullYear(), d.getMonth(), d.getDate());
+        hHtml += `<div class="py-3 text-center border-r border-slate-100 ${tod ? 'bg-red-50' : ''}">
+            <div class="text-[11px] font-bold text-slate-400">${DAYS_TH[i]}</div>
+            <div class="${tod ? 'today-ring mx-auto mt-0.5' : 'text-slate-700 font-bold text-sm'}">${d.getDate()}</div>
+        </div>`;
+      });
+      wh.innerHTML = hHtml; wh.style.gridTemplateColumns = '56px repeat(7,1fr)';
+
+      let bHtml = '';
+      CAL_HRS.forEach(h => {
+        bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1" style="height:${SH}px">
+            <span class="text-[10px] text-slate-400 font-medium">${h}:00</span>
+        </div>`;
+        days.forEach(d => {
+          const key = calFKey(d.getFullYear(), d.getMonth(), d.getDate());
+          const bks = calGetBk(key).filter(b => b.h === h);
+          const tod = isToday(d.getFullYear(), d.getMonth(), d.getDate());
+          const td = `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${toBE(d.getFullYear())}`;
+          const blocks = bks.map(b => `
+                <div class="${b.status === 'approved' ? 'block-approved' : 'block-pending'} absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[10px] font-bold overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                     style="top:2px;height:${b.dur * SH - 6}px;z-index:5"
+                     onclick="calShowDay('${td}','${key}')">
+                    <div class="truncate">${b.room}</div>
+                    <div class="opacity-70 text-[9px] truncate">${b.time}</div>
+                </div>`).join('');
+          bHtml += `<div class="border-r border-b border-slate-100 relative ${tod ? 'bg-red-50/20' : ''}" style="height:${SH}px">${blocks}</div>`;
+        });
+      });
+      wb.innerHTML = bHtml; wb.style.gridTemplateColumns = '56px repeat(7,1fr)';
+    }
+
+    function calSwitchView(v) {
+      calView = v;
+      document.getElementById('calMV')?.classList.toggle('hidden', v !== 'month');
+      document.getElementById('calWV')?.classList.toggle('hidden', v !== 'week');
+      document.getElementById('calTm')?.classList.toggle('active', v === 'month');
+      document.getElementById('calTw')?.classList.toggle('active', v === 'week');
+      calRender();
+    }
+    function calNav(d) {
+      calDate = calView === 'month'
+        ? new Date(calDate.getFullYear(), calDate.getMonth() + d, 1)
+        : new Date(calDate.getTime() + d * 7 * 864e5);
+      calRender();
+    }
+    function calToday() { calDate = new Date(); calRender(); }
+    function calTogFd(e) { e.stopPropagation(); document.getElementById('calFDD')?.classList.toggle('open'); }
+    function calTogAll(cb) { document.querySelectorAll('.cal-rcb').forEach(r => r.checked = cb.checked); calUpdFlt(); }
+    function calUpdFlt() {
+      const cbs = document.querySelectorAll('.cal-rcb');
+      calRooms = new Set([...cbs].filter(c => c.checked).map(c => c.value));
+      const all = document.getElementById('calFAll');
+      if (all) { all.checked = calRooms.size === cbs.length; all.indeterminate = calRooms.size > 0 && calRooms.size < cbs.length; }
+      const lbl = document.getElementById('calFLbl');
+      if (lbl) lbl.textContent = calRooms.size === cbs.length ? 'ห้องทั้งหมด' : calRooms.size === 0 ? 'ไม่มีห้อง' : `${calRooms.size} ห้อง`;
+      calRender();
+    }
+    function calShowDay(dateStr, key) {
+      const items = calGetBk(key);
+      document.getElementById('dayModalTitle').textContent = `รายการจอง – ${dateStr}`;
+      document.getElementById('dayModalBody').innerHTML = items.length === 0
+        ? `<div class="text-center py-10 text-slate-400"><span class="material-symbols-outlined text-4xl block mb-2">event_busy</span>ไม่มีรายการจองในวันนี้</div>`
+        : items.map(b => `
+        <div class="p-4 rounded-2xl border-2 ${b.status === 'approved' ? 'border-green-100 bg-green-50/30' : 'border-amber-100 bg-amber-50/30'} flex justify-between items-start gap-3">
+            <div>
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span class="w-2 h-2 rounded-full ${b.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                    <span class="text-xs font-bold ${b.status === 'approved' ? 'text-emerald-700' : 'text-amber-700'} uppercase tracking-wider">${b.status === 'approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span>
+                </div>
+                <p class="font-bold text-slate-800">${b.roomFull}</p>
+                <p class="text-sm text-slate-600 mt-0.5">เวลา ${b.time} น.</p>
+                <p class="text-xs text-slate-500 mt-1">${b.subj}</p>
+            </div>
+            <button onclick="closeDayModal();navigate('my-bookings')" class="text-xs font-bold hover:underline mt-1 flex-shrink-0" style="color:#7e0000">ดูสิทธิ์ →</button>
+        </div>`).join('');
+      document.getElementById('dayModal').classList.remove('hidden');
+    }
+    function closeDayModal() { document.getElementById('dayModal').classList.add('hidden'); }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CANCEL MODAL
+    // ═══════════════════════════════════════════════════════════════════
+    function openCancelModal(id) {
+      cancelId = id;
+      document.getElementById('cancelId').textContent = id;
+      document.getElementById('cancelModal').classList.remove('hidden');
+    }
+    function closeCancelModal() { document.getElementById('cancelModal').classList.add('hidden'); }
+    function doCancelBooking() {
+      myBookings = myBookings.filter(b => b.id !== cancelId);
+      closeCancelModal();
+      showToast('ยกเลิกการจองเรียบร้อยแล้ว', 'cancel');
+      navigate(curView === 'detail' ? 'my-bookings' : curView);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GLOBAL CLICK HANDLER
+    // ═══════════════════════════════════════════════════════════════════
+    window.addEventListener('click', e => {
+      if (e.target === document.getElementById('cancelModal')) closeCancelModal();
+      if (e.target === document.getElementById('dayModal')) closeDayModal();
+      const fw = document.getElementById('calFW');
+      if (fw && !fw.contains(e.target)) document.getElementById('calFDD')?.classList.remove('open');
+    });
+
+    // ═══════════════════════════════════════════════════════════════════
+    // BOOT
+    // ═══════════════════════════════════════════════════════════════════
+    navigate('dashboard');
+  </script>
+</body>
+
+</html>

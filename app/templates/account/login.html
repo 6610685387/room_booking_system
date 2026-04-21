@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ — ECE TU Room Booking</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { primary: "#7e0000" }, fontFamily: { sans: ['Sarabun', 'sans-serif'] } } } }</script>
+  <style>
+    :root {
+      --primary: #7e0000;
+    }
+
+    .grid-bg {
+      background-color: #7e0000;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, .06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, .06) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 12px 14px 12px 44px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 14px;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+      color: #1e293b;
+    }
+
+    .field-input:focus {
+      border-color: #7e0000;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(126, 0, 0, .08);
+    }
+
+    .field-input::placeholder {
+      color: #94a3b8;
+    }
+
+    .field-wrap {
+      position: relative;
+    }
+
+    .field-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 18px;
+      pointer-events: none;
+    }
+
+    .field-eye {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 18px;
+      transition: color .12s;
+    }
+
+    .field-eye:hover {
+      color: #7e0000;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: #7e0000;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 4px 16px rgba(126, 0, 0, .30);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-login:hover {
+      background: #a50000;
+      box-shadow: 0 6px 20px rgba(126, 0, 0, .38);
+    }
+
+    .btn-login:active {
+      transform: scale(.98);
+    }
+
+    .btn-login:disabled {
+      background: #ccc;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translateX(0)
+      }
+
+      20%,
+      60% {
+        transform: translateX(-6px)
+      }
+
+      40%,
+      80% {
+        transform: translateX(6px)
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .anim-slide {
+      animation: slideUp .35s ease both;
+    }
+
+    .anim-fade {
+      animation: fadeIn .5s ease;
+    }
+
+    .shake {
+      animation: shake .35s ease;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(255, 255, 255, .3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 99px;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex font-sans text-slate-900 bg-slate-100">
+  <div class="flex w-full min-h-screen">
+
+    <!-- LEFT PANEL -->
+    <div class="hidden lg:flex lg:w-[52%] grid-bg flex-col justify-between p-10 relative overflow-hidden anim-fade">
+      <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full" style="background:rgba(255,255,255,.04)"></div>
+      <div class="absolute -bottom-20 -right-20 w-96 h-96 rounded-full" style="background:rgba(255,255,255,.04)"></div>
+
+      <div class="relative z-10 flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center">
+          <span class="material-symbols-outlined text-white text-[22px]">school</span>
+        </div>
+        <div>
+          <div class="text-white font-bold text-base leading-tight">ECE TU Room Booking</div>
+          <div class="text-white/60 text-[11px] tracking-widest uppercase">ระบบจองห้องภาควิชา ECE</div>
+        </div>
+      </div>
+
+      <div class="relative z-10 space-y-8">
+        <div>
+          <h1 class="text-4xl font-bold text-white leading-snug">จองห้องประชุม<br>และห้องเรียน<br><span
+              class="text-white/70">ได้ทุกที่ ทุกเวลา</span></h1>
+          <p class="text-white/60 text-sm mt-3 leading-relaxed max-w-xs">
+            ระบบจองห้องออนไลน์สำหรับบุคลากรภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์ มหาวิทยาลัยธรรมศาสตร์
+          </p>
+        </div>
+      </div>
+
+      <div class="relative z-10 flex gap-6">
+        <div>
+          <div class="text-2xl font-bold text-white">5</div>
+          <div class="text-white/50 text-xs">ห้องทั้งหมด</div>
+        </div>
+        <div class="w-px bg-white/20"></div>
+        <div>
+          <div class="text-2xl font-bold text-white">—</div>
+          <div class="text-white/50 text-xs">การจองเดือนนี้</div>
+        </div>
+        <div class="w-px bg-white/20"></div>
+        <div>
+          <div class="text-2xl font-bold text-white">ECE</div>
+          <div class="text-white/50 text-xs">มธ. รังสิต</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL — Login Form -->
+    <div class="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 bg-white">
+
+      <div class="flex lg:hidden items-center gap-3 mb-8">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#7e0000">
+          <span class="material-symbols-outlined text-white text-[20px]">school</span>
+        </div>
+        <div>
+          <div class="font-bold text-slate-800 text-sm leading-tight">ECE TU Room Booking</div>
+          <div class="text-slate-400 text-[10px] tracking-wider uppercase">ระบบจองห้องภาควิชา ECE</div>
+        </div>
+      </div>
+
+      <div class="w-full max-w-sm anim-slide">
+
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold text-slate-800">เข้าสู่ระบบ</h2>
+          <p class="text-slate-500 text-sm mt-1">ใช้บัญชี TU Account ของมหาวิทยาลัย</p>
+        </div>
+
+        <div class="flex items-start gap-3 p-3.5 bg-blue-50 border border-blue-100 rounded-2xl mb-6">
+          <span class="material-symbols-outlined text-blue-500 text-[18px] mt-0.5 flex-shrink-0">info</span>
+          <p class="text-xs text-blue-700 leading-relaxed">ระบบนี้ใช้การยืนยันตัวตนผ่าน <span class="font-bold">TU REST
+              API</span> — รหัสผ่านของคุณจะไม่ถูกจัดเก็บในระบบนี้</p>
+        </div>
+
+        <!-- Django form — POST to login_view -->
+        <form id="loginForm" method="post" action="{% url 'login' %}" onsubmit="setLoading(true)" class="space-y-4"
+          autocomplete="off" novalidate>
+          {% csrf_token %}
+
+          <!-- Username -->
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Username (TU
+              Account)</label>
+            <div class="field-wrap">
+              <span class="material-symbols-outlined field-icon">person</span>
+              <input type="text" id="username" name="username" class="field-input" placeholder="เช่น somchai.j"
+                autocomplete="username" />
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Password</label>
+            <div class="field-wrap mt-1.5">
+              <span class="material-symbols-outlined field-icon">lock</span>
+              <input type="password" id="password" name="password" class="field-input" placeholder="รหัสผ่าน TU Account"
+                autocomplete="current-password" />
+              <span class="material-symbols-outlined field-eye" id="eyeBtn" onclick="togglePw()">visibility</span>
+            </div>
+          </div>
+
+          <!-- Error message (set by Django view via context) -->
+          <div id="errBox"
+            class="{% if error %}flex{% else %}hidden{% endif %} items-center gap-2.5 p-3 bg-red-50 border border-red-100 rounded-xl">
+            <span class="material-symbols-outlined text-red-500 text-[17px] flex-shrink-0">error</span>
+            <p class="text-xs text-red-700 font-medium">{{ error }}</p>
+          </div>
+
+          <!-- Submit -->
+          <button type="submit" class="btn-login mt-2" id="loginBtn">
+            <span id="btnLabel" class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">login</span>
+              เข้าสู่ระบบ
+            </span>
+            <div class="spinner hidden" id="spinner"></div>
+          </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-slate-100 space-y-3">
+          <div class="flex items-start gap-2.5 text-xs text-slate-500">
+            <span class="material-symbols-outlined text-[15px] mt-0.5 text-slate-400 flex-shrink-0">help_outline</span>
+            <span>ลืมรหัสผ่าน? ติดต่อ <a href="https://account.tu.ac.th" target="_blank"
+                class="font-bold hover:underline" style="color:#7e0000">account.tu.ac.th</a> เพื่อรีเซ็ตรหัสผ่าน TU
+              Account</span>
+          </div>
+          <div class="flex items-start gap-2.5 text-xs text-slate-500">
+            <span class="material-symbols-outlined text-[15px] mt-0.5 text-slate-400 flex-shrink-0">lock_person</span>
+            <span>ระบบนี้เปิดให้เฉพาะ <span class="font-bold text-slate-700">บุคลากรภาควิชา ECE</span> เท่านั้น</span>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="mt-8 text-[11px] text-slate-400 text-center">
+        ภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์ · มหาวิทยาลัยธรรมศาสตร์
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    let showingPw = false;
+    function togglePw() {
+      const inp = document.getElementById('password'), eye = document.getElementById('eyeBtn');
+      showingPw = !showingPw;
+      inp.type = showingPw ? 'text' : 'password';
+      eye.textContent = showingPw ? 'visibility_off' : 'visibility';
+    }
+
+    function setLoading(on) {
+      const btn = document.getElementById('loginBtn');
+      const lbl = document.getElementById('btnLabel');
+      const sp = document.getElementById('spinner');
+      btn.disabled = on;
+      lbl.classList.toggle('hidden', on);
+      sp.classList.toggle('hidden', !on);
+    }
+  </script>
+</body>
+
+</html>

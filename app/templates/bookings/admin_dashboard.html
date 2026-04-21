@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECE TU Admin — ระบบจองห้อง</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { primary: "#7e0000" }, fontFamily: { sans: ['Sarabun', 'sans-serif'] } } } }</script>
+  <style>
+    :root {
+      --primary: #7e0000;
+      --primary-light: #fff1f2;
+    }
+
+    .nav-item {
+      transition: background .12s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      background: #f8fafc;
+    }
+
+    .nav-active {
+      background: #fff1f2 !important;
+      color: #7e0000 !important;
+      font-weight: 700;
+      border-right: 3px solid #7e0000;
+    }
+
+    .badge-pending {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+    .badge-approved {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .badge-rejected {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border: 1px solid #fca5a5;
+    }
+
+    .stat-card {
+      transition: box-shadow .18s, transform .18s;
+    }
+
+    .stat-card:hover {
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .10);
+      transform: translateY(-2px);
+    }
+
+    .room-card {
+      transition: box-shadow .18s, transform .18s;
+    }
+
+    .room-card:hover {
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
+      transform: translateY(-1px);
+    }
+
+    .tl-bg {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tl-bar {
+      position: absolute;
+      height: 100%;
+      border-radius: 99px;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .cal-day {
+      min-height: 90px;
+      transition: background .12s;
+      cursor: pointer;
+    }
+
+    .cal-day:hover {
+      background: #f8fafc;
+    }
+
+    .chip-approved {
+      background: #d1fae5;
+      border-left: 2px solid #10b981;
+      color: #065f46;
+    }
+
+    .chip-pending {
+      background: #fef3c7;
+      border-left: 2px solid #f59e0b;
+      color: #92400e;
+    }
+
+    .today-ring {
+      background: #7e0000;
+      color: #fff;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .util-bar {
+      transition: width .6s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .view-enter {
+      animation: fadeUp .2s ease;
+    }
+
+    @keyframes zoomIn {
+      from {
+        opacity: 0;
+        transform: scale(.94);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .modal-card {
+      animation: zoomIn .18s ease;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 99px;
+    }
+
+    #toast {
+      transition: opacity .3s, transform .3s;
+    }
+
+    /* Admin-specific accent */
+    .admin-badge {
+      background: linear-gradient(135deg, #7e0000, #b91c1c);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+      letter-spacing: .05em;
+    }
+
+    /* Table */
+    .data-table th {
+      background: #f8fafc;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 10px 14px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background: #fafafa;
+    }
+
+    /* Donut placeholder */
+    .donut {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: conic-gradient(#10b981 0% 62%, #f59e0b 62% 79%, #ef4444 79% 87%, #e2e8f0 87% 100%);
+    }
+
+    /* Toggle switch */
+    .toggle input:checked+div {
+      background: #7e0000;
+    }
+
+    .toggle input:checked+div div {
+      transform: translateX(18px);
+    }
+
+    /* Step indicator */
+    .step-line {
+      height: 2px;
+      background: #e2e8f0;
+      flex: 1;
+    }
+
+    .step-line.done {
+      background: #7e0000;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen flex font-sans text-slate-900">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside
+    class="w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen hidden md:flex z-30 flex-shrink-0">
+    <div class="p-5 border-b border-slate-100">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#7e0000">
+          <span class="material-symbols-outlined text-white text-[18px]">school</span>
+        </div>
+        <div>
+          <div class="font-bold text-slate-800 text-sm leading-tight">ECE TU Booking</div>
+          <div class="text-[10px] text-slate-400 font-medium tracking-wider">ระบบจองห้อง ECE</div>
+        </div>
+      </div>
+      <span class="admin-badge">⚙ เจ้าหน้าที่ระบบ</span>
+    </div>
+    <nav class="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto" id="sideNav">
+      <p class="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ภาพรวม</p>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="dashboard" onclick="go('dashboard')">
+        <span class="material-symbols-outlined text-[20px]">dashboard</span> แดชบอร์ด
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="calendar" onclick="go('calendar')">
+        <span class="material-symbols-outlined text-[20px]">calendar_month</span> ปฏิทินห้องว่าง
+      </a>
+      <p class="px-3 pt-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">การจัดการ</p>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="approvals" onclick="go('approvals')">
+        <span class="material-symbols-outlined text-[20px]">pending_actions</span>
+        <span class="flex-1">รออนุมัติ</span>
+        <span id="pendingBadge" class="badge-pending px-2 py-0.5 rounded-full text-[10px] font-bold"></span>
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="all-bookings" onclick="go('all-bookings')">
+        <span class="material-symbols-outlined text-[20px]">list_alt</span> รายการจองทั้งหมด
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="rooms" onclick="go('rooms')">
+        <span class="material-symbols-outlined text-[20px]">meeting_room</span> จัดการห้อง
+      </a>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="users" onclick="go('users')">
+        <span class="material-symbols-outlined text-[20px]">manage_accounts</span> จัดการผู้ใช้
+      </a>
+      <p class="px-3 pt-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">วิเคราะห์</p>
+      <a class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 text-sm font-medium"
+        data-view="reports" onclick="go('reports')">
+        <span class="material-symbols-outlined text-[20px]">bar_chart</span> รายงานสถิติ
+      </a>
+    </nav>
+    <div class="p-4 border-t border-slate-100">
+      <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl mb-2">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fff1f2">
+          <span class="material-symbols-outlined text-[18px]" style="color:#7e0000">admin_panel_settings</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-bold text-slate-700 truncate">นางสาวรัตนา เจ้าหน้าที่</div>
+          <div class="text-[10px]" style="color:#7e0000">เจ้าหน้าที่ภาควิชา</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+    <div id="app" class="flex-1 overflow-auto"></div>
+  </div>
+
+  <!-- ═══════════ APPROVE MODAL ═══════════ -->
+  <div id="approveModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="p-5 flex items-center gap-3" style="background:linear-gradient(135deg,#7e0000,#a50000)">
+        <span class="material-symbols-outlined text-white text-[22px]">check_circle</span>
+        <h3 class="font-bold text-white text-base">ยืนยันการอนุมัติ</h3>
+      </div>
+      <div class="p-5">
+        <div id="approveDetail" class="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-700 mb-4">
+        </div>
+        <p class="text-xs text-slate-500 mb-1 font-bold">หมายเหตุเพิ่มเติม (ถ้ามี)</p>
+        <textarea id="approveNote" rows="2" placeholder="เช่น กรุณาเตรียมห้องก่อน 30 นาที..."
+          class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none resize-none"></textarea>
+      </div>
+      <div class="p-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+        <button onclick="closeModals()"
+          class="py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-200">ยกเลิก</button>
+        <button onclick="doApprove()" class="py-3 font-bold rounded-xl text-white text-sm"
+          style="background:#10b981">อนุมัติการจอง</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ REJECT MODAL ═══════════ -->
+  <div id="rejectModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="p-5 flex items-center gap-3 bg-red-50 border-b border-red-100">
+        <span class="material-symbols-outlined text-red-600 text-[22px]">cancel</span>
+        <h3 class="font-bold text-red-800 text-base">ปฏิเสธการจอง</h3>
+      </div>
+      <div class="p-5">
+        <div id="rejectDetail" class="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-700 mb-4">
+        </div>
+        <p class="text-xs font-bold text-slate-600 mb-1">เหตุผลในการปฏิเสธ <span class="text-red-500">*</span></p>
+        <textarea id="rejectReason" rows="3" placeholder="กรุณาระบุเหตุผล เช่น ห้องอยู่ระหว่างการบำรุงรักษา..."
+          class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-red-400"></textarea>
+        <p class="text-xs text-slate-400 mt-1">เหตุผลนี้จะถูกส่งให้ผู้จองทางอีเมล</p>
+      </div>
+      <div class="p-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+        <button onclick="closeModals()"
+          class="py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-200">ยกเลิก</button>
+        <button onclick="doReject()" class="py-3 font-bold rounded-xl text-white text-sm"
+          style="background:#dc2626">ยืนยันการปฏิเสธ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ROOM MODAL ═══════════ -->
+  <div id="roomModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl">
+      <div class="p-5 flex justify-between items-center" style="background:linear-gradient(135deg,#7e0000,#a50000)">
+        <h3 class="font-bold text-white" id="roomModalTitle">เพิ่ม / แก้ไขห้อง</h3>
+        <button onclick="closeModals()"
+          class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"><span
+            class="material-symbols-outlined text-white text-[17px]">close</span></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="block text-xs font-bold text-slate-500 mb-1">รหัสห้อง</label><input id="rmId" type="text"
+              placeholder="เช่น 406-3"
+              class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+          <div><label class="block text-xs font-bold text-slate-500 mb-1">ชื่อห้อง</label><input id="rmName" type="text"
+              placeholder="เช่น ห้องประชุม 1"
+              class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+          <div><label class="block text-xs font-bold text-slate-500 mb-1">ประเภท</label>
+            <select id="rmType"
+              class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-primary">
+              <option>ห้องประชุม</option>
+              <option>ห้องเรียน</option>
+              <option>ห้องปฏิบัติการ</option>
+            </select>
+          </div>
+          <div><label class="block text-xs font-bold text-slate-500 mb-1">จำนวนที่นั่ง</label><input id="rmSeats"
+              type="number" placeholder="60"
+              class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary"></div>
+        </div>
+
+        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+          <div>
+            <p class="text-sm font-bold text-slate-700">เปิดให้จอง</p>
+            <p class="text-xs text-slate-400">ปิดเพื่อระงับการจองชั่วคราว</p>
+          </div>
+          <label class="toggle flex items-center cursor-pointer">
+            <input type="checkbox" id="rmActive" class="hidden" checked>
+            <div class="w-10 h-5 rounded-full transition-all relative" style="background:#7e0000">
+              <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform"></div>
+            </div>
+          </label>
+        </div>
+        <!-- Blackout Period -->
+        <div class="p-3 bg-amber-50 border border-amber-100 rounded-xl">
+          <p class="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1"><span
+              class="material-symbols-outlined text-[14px]">event_busy</span>Blackout Period (ห้องไม่พร้อมใช้งาน)</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block text-[10px] font-bold text-amber-700 mb-1">วันเริ่มต้น</label><input type="date"
+                class="w-full p-2 border border-amber-200 rounded-lg text-xs outline-none bg-white"></div>
+            <div><label class="block text-[10px] font-bold text-amber-700 mb-1">วันสิ้นสุด</label><input type="date"
+                class="w-full p-2 border border-amber-200 rounded-lg text-xs outline-none bg-white"></div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+        <button onclick="closeModals()"
+          class="py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm">ยกเลิก</button>
+        <button onclick="saveRoom()" class="py-3 font-bold rounded-xl text-white text-sm hover:opacity-90"
+          style="background:#7e0000">บันทึกข้อมูล</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ USER ROLE MODAL ═══════════ -->
+  <div id="userModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl">
+      <div class="p-5 border-b border-slate-100">
+        <h3 class="font-bold text-slate-800">เปลี่ยน Role ผู้ใช้</h3>
+        <p class="text-xs text-slate-500 mt-0.5" id="userModalSub"></p>
+      </div>
+      <div class="p-5 space-y-3">
+        <label class="flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all" id="roleL1">
+          <input type="radio" name="urole" value="lecturer" class="accent-red-800">
+          <div>
+            <p class="text-sm font-bold">อาจารย์ (Lecturer)</p>
+            <p class="text-xs text-slate-400">สามารถจอง ดูปฏิทิน ยกเลิกการจองตนเอง</p>
+          </div>
+        </label>
+        <label class="flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all" id="roleL2">
+          <input type="radio" name="urole" value="admin" class="accent-red-800">
+          <div>
+            <p class="text-sm font-bold">เจ้าหน้าที่ (Admin)</p>
+            <p class="text-xs text-slate-400">อนุมัติ/ปฏิเสธ จัดการห้อง ดูรายงาน</p>
+          </div>
+        </label>
+      </div>
+      <div class="p-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+        <button onclick="closeModals()"
+          class="py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm">ยกเลิก</button>
+        <button onclick="saveUserRole()" class="py-2.5 font-bold rounded-xl text-white text-sm"
+          style="background:#7e0000">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ DAY MODAL (Calendar) ═══════════ -->
+  <div id="dayModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl">
+      <div class="p-5 flex justify-between items-center" style="background:linear-gradient(135deg,#1e293b,#334155)">
+        <div>
+          <h3 class="font-bold text-white text-base" id="dayModalTitle"></h3>
+          <p class="text-slate-400 text-xs mt-0.5">รายการจองทุกห้อง</p>
+        </div>
+        <button onclick="closeModals()"
+          class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"><span
+            class="material-symbols-outlined text-white text-[17px]">close</span></button>
+      </div>
+      <div id="dayModalBody" class="p-5 space-y-3 max-h-[55vh] overflow-y-auto"></div>
+      <div class="p-4 border-t border-slate-100"><button onclick="closeModals()"
+          class="w-full py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm">ปิด</button></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TOAST ═══════════ -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 opacity-0 pointer-events-none">
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-medium">
+      <span class="material-symbols-outlined text-[18px]" id="toastIcon">check_circle</span>
+      <span id="toastMsg">สำเร็จ</span>
+    </div>
+  </div>
+
+  <script>
+    // ══════════════════════════════════════════
+    // DATA
+    // ══════════════════════════════════════════
+    const MONTHS_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const DAYS_TH = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+    const DAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    let rooms = [
+      { id: '406-3', name: 'ห้องประชุม 1', type: 'ห้องประชุม', seats: 60, active: true, img: 'https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&q=80&w=600' },
+      { id: '406-5', name: 'ห้องประชุม 2', type: 'ห้องประชุม', seats: 15, active: true, img: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=600' },
+      { id: '408-1', name: 'ห้องประชุม 3', type: 'ห้องประชุม', seats: 10, active: true, img: 'https://images.unsplash.com/photo-1577412647305-991150c7d163?auto=format&fit=crop&q=80&w=600' },
+      { id: '408-2/1', name: 'ห้องบรรยาย 1', type: 'ห้องเรียน', seats: 20, active: true, img: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=600' },
+      { id: '408-2/2', name: 'ห้องบรรยาย 2', type: 'ห้องเรียน', seats: 20, active: false, img: 'https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&q=80&w=600' },
+    ];
+
+    let users = [
+      { id: 'u01', name: 'อ.ดร.สมชาย ใจดี', dept: 'ไฟฟ้า', role: 'lecturer', email: 'somchai@tu.ac.th', lastLogin: '19 เม.ย. 2569' },
+      { id: 'u02', name: 'ผศ.ดร.วิมล ดีงาม', dept: 'คอมพิวเตอร์', role: 'lecturer', email: 'wimon@tu.ac.th', lastLogin: '18 เม.ย. 2569' },
+      { id: 'u03', name: 'นางสาวรัตนา เจ้าหน้าที่', dept: 'ธุรการ', role: 'admin', email: 'ratana@tu.ac.th', lastLogin: '19 เม.ย. 2569' },
+      { id: 'u04', name: 'รศ.ดร.ประสิทธิ์ เก่งดี', dept: 'ไฟฟ้า', role: 'lecturer', email: 'prasit@tu.ac.th', lastLogin: '17 เม.ย. 2569' },
+      { id: 'u05', name: 'อ.ศิริพร มั่นใจ', dept: 'คอมพิวเตอร์', role: 'lecturer', email: 'siriporn@tu.ac.th', lastLogin: '15 เม.ย. 2569' },
+    ];
+
+    let bookings = [
+      { id: 'BK-0021', userId: 'u01', userName: 'อ.ดร.สมชาย ใจดี', roomId: '406-3', roomName: 'ห้องประชุม 1 (406-3)', purpose: 'สอนปกติ', subject: 'EE402 Computer Network', course: 'ปริญญาตรีภาคปกติ', status: 'pending', dateFrom: '25 เม.ย. 2569', dateTo: '25 เม.ย. 2569', ts: '13:00', te: '16:00', created: '19 เม.ย. 2569 10:30', adminNote: '', calKey: '2026-3-25', ch: 13, dur: 3 },
+      { id: 'BK-0020', userId: 'u02', userName: 'ผศ.ดร.วิมล ดีงาม', roomId: '408-2/1', roomName: 'ห้องบรรยาย 1 (408-2/1)', purpose: 'สอนชดเชย', subject: 'EE301 Digital Circuit', course: 'ปริญญาตรีภาคปกติ', status: 'pending', dateFrom: '22 เม.ย. 2569', dateTo: '22 เม.ย. 2569', ts: '09:00', te: '12:00', created: '18 เม.ย. 2569 14:20', adminNote: '', calKey: '2026-3-22', ch: 9, dur: 3 },
+      { id: 'BK-0019', userId: 'u04', userName: 'รศ.ดร.ประสิทธิ์ เก่งดี', roomId: '406-5', roomName: 'ห้องประชุม 2 (406-5)', purpose: 'จัดอบรม', subject: 'การเขียน Research Paper', course: '—', status: 'pending', dateFrom: '23 เม.ย. 2569', dateTo: '23 เม.ย. 2569', ts: '10:00', te: '12:00', created: '17 เม.ย. 2569 09:00', adminNote: '', calKey: '2026-3-23', ch: 10, dur: 2 },
+      { id: 'BK-0018', userId: 'u01', userName: 'อ.ดร.สมชาย ใจดี', roomId: '406-3', roomName: 'ห้องประชุม 1 (406-3)', purpose: 'สอนปกติ', subject: 'EE402 Computer Network', course: 'ปริญญาตรีภาคปกติ', status: 'approved', dateFrom: '19 เม.ย. 2569', dateTo: '19 เม.ย. 2569', ts: '09:00', te: '12:00', created: '14 เม.ย. 2569 11:00', adminNote: '', calKey: '2026-3-19', ch: 9, dur: 3 },
+      { id: 'BK-0017', userId: 'u05', userName: 'อ.ศิริพร มั่นใจ', roomId: '408-2/2', roomName: 'ห้องบรรยาย 2 (408-2/2)', purpose: 'สอนเสริม', subject: 'EE210 Signals & Systems', course: 'ปริญญาตรีภาคปกติ', status: 'rejected', dateFrom: '20 เม.ย. 2569', dateTo: '20 เม.ย. 2569', ts: '13:00', te: '15:00', created: '13 เม.ย. 2569 08:30', adminNote: 'ห้องอยู่ระหว่างการปรับปรุง กรุณาเลือกห้องอื่น', calKey: '2026-3-20', ch: 13, dur: 2 },
+      { id: 'BK-0016', userId: 'u02', userName: 'ผศ.ดร.วิมล ดีงาม', roomId: '406-3', roomName: 'ห้องประชุม 1 (406-3)', purpose: 'ประชุม', subject: 'ประชุมคณะกรรมการหลักสูตร', course: '—', status: 'approved', dateFrom: '21 เม.ย. 2569', dateTo: '21 เม.ย. 2569', ts: '14:00', te: '16:00', created: '10 เม.ย. 2569 15:00', adminNote: '', calKey: '2026-3-21', ch: 14, dur: 2 },
+    ];
+
+    let curView = 'dashboard', curActionId = null, curUserId = null;
+    let calDate = new Date(2026, 3, 19), calRoomFilter = 'all';
+
+    // ══════════════════════════════════════════
+    // ROUTER
+    // ══════════════════════════════════════════
+    function go(v) {
+      curView = v;
+      document.querySelectorAll('[data-view]').forEach(el => {
+        el.className = `nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium ${el.dataset.view === v ? 'nav-active' : 'text-slate-600'}`;
+      });
+      updatePendingBadge();
+      const app = document.getElementById('app');
+      app.innerHTML = `<div class="view-enter">${render()}</div>`;
+      app.scrollTop = 0;
+      if (v === 'calendar') initCalendar();
+    }
+
+    function render() {
+      switch (curView) {
+        case 'dashboard': return vDashboard();
+        case 'approvals': return vApprovals();
+        case 'all-bookings': return vAllBookings();
+        case 'rooms': return vRooms();
+        case 'users': return vUsers();
+        case 'reports': return vReports();
+        case 'calendar': return vCalendar();
+      }
+      return '';
+    }
+
+    function toBE(y) { return y + 543; }
+    function isToday(y, m, d) { const t = new Date(); return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d; }
+
+    function updatePendingBadge() {
+      const b = document.getElementById('pendingBadge');
+      const c = bookings.filter(x => x.status === 'pending').length;
+      if (b) b.textContent = c || '';
+    }
+
+    function badge(s) {
+      const m = { pending: ['badge-pending', 'เงิน', 'รออนุมัติ'], approved: ['badge-approved', 'check_circle', 'อนุมัติแล้ว'], rejected: ['badge-rejected', 'cancel', 'ไม่อนุมัติ'] }[s];
+      return `<span class="${m[0]} px-2.5 py-1 rounded-full text-xs font-bold">${m[2]}</span>`;
+    }
+
+    function showToast(msg, icon = 'check_circle') {
+      const t = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      document.getElementById('toastIcon').textContent = icon;
+      t.style.opacity = '1'; t.style.pointerEvents = 'auto';
+      setTimeout(() => { t.style.opacity = '0'; t.style.pointerEvents = 'none'; }, 3000);
+    }
+
+    // ══════════════════════════════════════════
+    // DASHBOARD
+    // ══════════════════════════════════════════
+    function vDashboard() {
+      const pending = bookings.filter(b => b.status === 'pending').length;
+      const approved = bookings.filter(b => b.status === 'approved').length;
+      const rejected = bookings.filter(b => b.status === 'rejected').length;
+      const total = bookings.length;
+      const activeRooms = rooms.filter(r => r.active).length;
+
+      const stats = [
+        { icon: 'pending_actions', label: 'รออนุมัติ', val: pending, color: '#f59e0b', bg: '#fef9c3', action: "go('approvals')" },
+        { icon: 'check_circle', label: 'อนุมัติแล้ว', val: approved, color: '#10b981', bg: '#d1fae5', action: null },
+        { icon: 'cancel', label: 'ไม่อนุมัติ', val: rejected, color: '#ef4444', bg: '#fee2e2', action: null },
+        { icon: 'meeting_room', label: 'ห้องเปิดใช้', val: activeRooms + '/' + rooms.length, color: '#7e0000', bg: '#fff1f2', action: "go('rooms')" },
+      ];
+
+      const statHtml = stats.map(s => `
+    <div class="stat-card bg-white rounded-2xl border border-slate-200 shadow-sm p-5 ${s.action ? 'cursor-pointer' : ''}"
+         ${s.action ? `onclick="${s.action}"` : ''}>
+      <div class="flex items-start justify-between mb-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:${s.bg}">
+          <span class="material-symbols-outlined text-[22px]" style="color:${s.color}">${s.icon}</span>
+        </div>
+        ${s.action ? `<span class="material-symbols-outlined text-slate-300 text-[16px]">chevron_right</span>` : ''}
+      </div>
+      <div class="text-2xl font-black text-slate-800">${s.val}</div>
+      <div class="text-xs text-slate-500 font-medium mt-0.5">${s.label}</div>
+    </div>`).join('');
+
+      const pendingList = bookings.filter(b => b.status === 'pending').slice(0, 5);
+      const pendingRows = pendingList.length === 0
+        ? `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-sm">ไม่มีรายการรออนุมัติ</td></tr>`
+        : pendingList.map(b => `
+      <tr>
+        <td><span class="text-xs text-slate-400">${b.id}</span></td>
+        <td><div class="font-medium text-slate-800 text-xs">${b.userName}</div></td>
+        <td><div class="text-xs text-slate-700">${b.roomName}</div><div class="text-[11px] text-slate-400">${b.subject}</div></td>
+        <td class="text-xs text-slate-600">${b.dateFrom} · ${b.ts}–${b.te}</td>
+        <td>
+          <div class="flex gap-1.5">
+            <button onclick="openApprove('${b.id}')" class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white hover:opacity-90" style="background:#10b981">อนุมัติ</button>
+            <button onclick="openReject('${b.id}')"  class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100">ปฏิเสธ</button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+      const recentAll = bookings.slice().reverse().slice(0, 4);
+      const activityHtml = recentAll.map(b => {
+        const clr = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' }[b.status];
+        const lbl = { pending: 'ส่งคำขอจอง', approved: 'ได้รับการอนุมัติ', rejected: 'ถูกปฏิเสธ' }[b.status];
+        return `<div class="flex items-start gap-3">
+      <div class="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style="background:${clr}"></div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold text-slate-700 truncate">${b.userName} — ${lbl}</p>
+        <p class="text-[11px] text-slate-400 truncate">${b.roomName} · ${b.dateFrom}</p>
+      </div>
+      <span class="text-[10px] text-slate-400 flex-shrink-0">${b.created.split(' ')[1]}</span>
+    </div>`;
+      }).join('');
+
+      // Utilization mini chart
+      const utilData = [
+        { room: '406-3', pct: 72, used: 18 }, { room: '406-5', pct: 45, used: 11 }, { room: '408-1', pct: 30, used: 8 }, { room: '408-2/1', pct: 58, used: 15 }, { room: '408-2/2', pct: 15, used: 4 }
+      ];
+      const utilHtml = utilData.map(u => `
+    <div class="flex items-center gap-3">
+      <div class="text-xs font-bold text-slate-600 w-16 flex-shrink-0">${u.room}</div>
+      <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div class="util-bar h-full rounded-full" style="width:0%;background:${u.pct > 60 ? '#7e0000' : u.pct > 40 ? '#f59e0b' : '#10b981'}" data-w="${u.pct}"></div>
+      </div>
+      <div class="text-xs font-bold text-slate-700 w-8 text-right">${u.pct}%</div>
+    </div>`).join('');
+
+      setTimeout(() => {
+        document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+      }, 100);
+
+      return `
+  <div class="p-6 sm:p-8">
+    <div class="flex justify-between items-start mb-6">
+      <div><h2 class="text-2xl font-bold text-slate-800">แดชบอร์ดเจ้าหน้าที่</h2><p class="text-slate-500 text-sm mt-0.5">ภาพรวมระบบจองห้อง ณ วันนี้</p></div>
+      <div class="text-right"><p class="text-xs text-slate-400">วันที่</p><p class="text-sm font-bold text-slate-700">เสาร์ที่ 19 เมษายน 2569</p></div>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">${statHtml}</div>
+    <div class="grid grid-cols-12 gap-5">
+      <!-- Pending Table -->
+      <div class="col-span-12 xl:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-amber-500 text-[18px]">pending_actions</span>
+            <h3 class="font-bold text-slate-800 text-sm">รายการรออนุมัติ</h3>
+          </div>
+          <button onclick="go('approvals')" class="text-xs font-bold hover:underline" style="color:#7e0000">ดูทั้งหมด →</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table w-full">
+            <thead><tr><th>ID</th><th>ผู้จอง</th><th>ห้อง / วิชา</th><th>วันเวลา</th><th>การจัดการ</th></tr></thead>
+            <tbody>${pendingRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Right col -->
+      <div class="col-span-12 xl:col-span-4 space-y-5">
+        <!-- Activity -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-400 text-[18px]">history</span> กิจกรรมล่าสุด
+          </h3>
+          <div class="space-y-3">${activityHtml}</div>
+        </div>
+        <!-- Utilization -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-400 text-[18px]">donut_small</span> อัตราการใช้งานเดือนนี้
+          </h3>
+          <div class="space-y-3">${utilHtml}</div>
+          <button onclick="go('reports')" class="mt-4 text-xs font-bold hover:underline" style="color:#7e0000">ดูรายงานเพิ่มเติม →</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // APPROVALS
+    // ══════════════════════════════════════════
+    function vApprovals() {
+      const pending = bookings.filter(b => b.status === 'pending');
+      const rows = pending.length === 0
+        ? `<div class="text-center py-20 text-slate-400"><span class="material-symbols-outlined text-5xl block mb-2">task_alt</span><p class="font-medium">ไม่มีรายการรออนุมัติ</p></div>`
+        : pending.map(b => `
+      <div class="bg-white border border-slate-200 border-l-4 border-l-amber-400 rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-wrap justify-between items-start gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              ${badge('pending')}
+              <span class="text-xs text-slate-400">${b.id}</span>
+              <span class="text-xs text-slate-400">· ส่งเมื่อ ${b.created}</span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base">${b.roomName}</h3>
+            <p class="text-sm text-slate-600 mt-0.5">${b.purpose}: <span class="font-medium">${b.subject}</span></p>
+            ${b.course !== '—' ? `<p class="text-xs text-slate-500">หลักสูตร: ${b.course}</p>` : ''}
+            <div class="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">person</span>${b.userName}</span>
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${b.dateFrom}</span>
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${b.ts} – ${b.te}</span>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-shrink-0">
+            <button onclick="openApprove('${b.id}')" class="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center gap-1.5 hover:opacity-90 transition-all" style="background:#10b981">
+              <span class="material-symbols-outlined text-[16px]">check_circle</span>อนุมัติ
+            </button>
+            <button onclick="openReject('${b.id}')"  class="px-5 py-2.5 rounded-xl font-bold text-sm text-red-600 bg-red-50 border border-red-100 flex items-center gap-1.5 hover:bg-red-100 transition-all">
+              <span class="material-symbols-outlined text-[16px]">cancel</span>ปฏิเสธ
+            </button>
+          </div>
+        </div>
+      </div>`).join('');
+
+      return `
+  <div class="p-6 sm:p-8 max-w-5xl">
+    <header class="mb-6">
+      <h2 class="text-2xl font-bold text-slate-800">รายการรออนุมัติ</h2>
+      <p class="text-slate-500 text-sm mt-0.5">พบ <span class="font-bold" style="color:#7e0000">${pending.length} รายการ</span> ที่รอการอนุมัติ</p>
+    </header>
+    <div class="space-y-4">${rows}</div>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // ALL BOOKINGS
+    // ══════════════════════════════════════════
+    let abFilter = 'all', abSearch = '';
+    function vAllBookings() {
+      const tabs = [['all', 'ทั้งหมด'], ['pending', 'รออนุมัติ'], ['approved', 'อนุมัติแล้ว'], ['rejected', 'ไม่อนุมัติ']];
+      const tabHtml = tabs.map(([k, l]) => `
+    <button onclick="setAbFilter('${k}')" data-abf="${k}"
+      class="pb-3 px-1 border-b-2 text-sm font-bold transition-all ${abFilter === k ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}"
+      style="${abFilter === k ? '--tw-border-opacity:1;border-color:#7e0000;color:#7e0000' : ''}">
+      ${l} <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${abFilter === k ? 'text-white' : 'bg-slate-200 text-slate-500'}" ${abFilter === k ? 'style="background:#7e0000"' : ''}>
+        ${k === 'all' ? bookings.length : bookings.filter(b => b.status === k).length}
+      </span>
+    </button>`).join('');
+
+      const filtered = (abFilter === 'all' ? bookings : bookings.filter(b => b.status === abFilter))
+        .filter(b => abSearch === '' || b.userName.includes(abSearch) || b.roomName.includes(abSearch) || b.subject.includes(abSearch) || b.id.includes(abSearch));
+
+      const rows = filtered.length === 0
+        ? `<tr><td colspan="6" class="text-center py-10 text-slate-400 text-sm">ไม่พบรายการ</td></tr>`
+        : filtered.map(b => `
+      <tr>
+        <td class="text-xs text-slate-400 font-medium">${b.id}</td>
+        <td class="text-xs font-medium text-slate-700">${b.userName}</td>
+        <td><div class="text-xs font-bold text-slate-800">${b.roomName}</div><div class="text-[11px] text-slate-400">${b.subject}</div></td>
+        <td class="text-xs text-slate-600">${b.dateFrom}<br><span class="text-slate-400">${b.ts}–${b.te}</span></td>
+        <td>${badge(b.status)}</td>
+        <td>
+          <div class="flex gap-1.5">
+            ${b.status === 'pending' ? `
+              <button onclick="openApprove('${b.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white" style="background:#10b981">อนุมัติ</button>
+              <button onclick="openReject('${b.id}')"  class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-600 bg-red-50 border border-red-100">ปฏิเสธ</button>`
+            : `<span class="text-[11px] text-slate-400">${b.adminNote || '—'}</span>`}
+          </div>
+        </td>
+      </tr>`).join('');
+
+      return `
+  <div class="p-6 sm:p-8">
+    <header class="mb-5"><h2 class="text-2xl font-bold text-slate-800">รายการจองทั้งหมด</h2></header>
+    <div class="flex flex-wrap gap-4 justify-between mb-4">
+      <div class="flex gap-5 border-b border-slate-200">${tabHtml}</div>
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[16px]">search</span>
+        <input type="text" id="abQ" placeholder="ค้นหา..." value="${abSearch}" oninput="abSearch=this.value;redrawAb()"
+          class="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm outline-none w-52 bg-white focus:border-primary">
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="data-table w-full" id="abTable">
+          <thead><tr><th>ID</th><th>ผู้จอง</th><th>ห้อง / วิชา</th><th>วันเวลา</th><th>สถานะ</th><th>การจัดการ</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+    }
+    function setAbFilter(f) { abFilter = f; go('all-bookings'); }
+    function redrawAb() {
+      const filtered = (abFilter === 'all' ? bookings : bookings.filter(b => b.status === abFilter))
+        .filter(b => abSearch === '' || b.userName.includes(abSearch) || b.roomName.includes(abSearch) || b.subject.includes(abSearch) || b.id.includes(abSearch));
+      const tbody = document.querySelector('#abTable tbody');
+      if (!tbody) return;
+      tbody.innerHTML = filtered.length === 0
+        ? `<tr><td colspan="6" class="text-center py-10 text-slate-400 text-sm">ไม่พบรายการ</td></tr>`
+        : filtered.map(b => `<tr>
+        <td class="text-xs text-slate-400">${b.id}</td>
+        <td class="text-xs font-medium text-slate-700">${b.userName}</td>
+        <td><div class="text-xs font-bold text-slate-800">${b.roomName}</div><div class="text-[11px] text-slate-400">${b.subject}</div></td>
+        <td class="text-xs text-slate-600">${b.dateFrom}<br><span class="text-slate-400">${b.ts}–${b.te}</span></td>
+        <td>${badge(b.status)}</td>
+        <td>${b.status === 'pending' ? `<button onclick="openApprove('${b.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white mr-1" style="background:#10b981">อนุมัติ</button><button onclick="openReject('${b.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-600 bg-red-50 border border-red-100">ปฏิเสธ</button>` : `<span class="text-[11px] text-slate-400">${b.adminNote || '—'}</span>`}</td>
+      </tr>`).join('');
+    }
+
+    // ══════════════════════════════════════════
+    // ROOMS
+    // ══════════════════════════════════════════
+    function vRooms() {
+      const cards = rooms.map(r => `
+    <div class="room-card bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="h-32 relative overflow-hidden">
+        <img src="${r.img}" class="w-full h-full object-cover ${r.active ? '' : 'grayscale opacity-60'}">
+        <div class="absolute inset-0 flex items-end p-3" style="background:linear-gradient(to top,rgba(0,0,0,.55),transparent)">
+          <span class="text-white font-bold text-sm">${r.name}</span>
+        </div>
+        <div class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${r.active ? 'bg-emerald-500 text-white' : 'bg-slate-500 text-white'}">${r.active ? 'เปิด' : 'ปิด'}</div>
+        <div class="absolute top-2 left-2 bg-black/40 text-white text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur-sm">${r.id}</div>
+      </div>
+      <div class="p-4">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${r.type}</span>
+          <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${r.seats} ที่นั่ง</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-3 line-clamp-1"></p>
+        <div class="flex gap-2">
+          <button onclick="openRoomModal('${r.id}')" class="flex-1 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">edit</span>แก้ไข
+          </button>
+          <button onclick="toggleRoomActive('${r.id}')" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${r.active ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100'}">
+            <span class="material-symbols-outlined text-[14px]">${r.active ? 'block' : 'check'}</span>${r.active ? 'ระงับ' : 'เปิดใช้'}
+          </button>
+        </div>
+      </div>
+    </div>`).join('');
+
+      return `
+  <div class="p-6 sm:p-8">
+    <div class="flex justify-between items-center mb-6">
+      <div><h2 class="text-2xl font-bold text-slate-800">จัดการห้อง</h2><p class="text-slate-500 text-sm mt-0.5">ห้องทั้งหมด ${rooms.length} ห้อง · เปิดใช้งาน ${rooms.filter(r => r.active).length} ห้อง</p></div>
+      <button onclick="openRoomModal(null)" class="px-5 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:opacity-90" style="background:#7e0000">
+        <span class="material-symbols-outlined text-[17px]">add</span> เพิ่มห้องใหม่
+      </button>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">${cards}</div>
+    <!-- Blackout Notice -->
+    <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+      <span class="material-symbols-outlined text-amber-600 text-[20px] mt-0.5">event_busy</span>
+      <div>
+        <p class="text-sm font-bold text-amber-800">Blackout Period ที่กำหนดไว้</p>
+        <p class="text-xs text-amber-700 mt-0.5">ห้อง 408-2/2 · ปิดปรับปรุง: 15 เม.ย. 2569 – 30 เม.ย. 2569</p>
+        <p class="text-xs text-amber-700">ห้อง 406-3   · ปิดทำความสะอาด: 1 พ.ค. 2569 (ทั้งวัน)</p>
+      </div>
+    </div>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // USERS
+    // ══════════════════════════════════════════
+    let userSearch = '';
+    function vUsers() {
+      const filtered = users.filter(u => userSearch === '' || u.name.includes(userSearch) || u.email.includes(userSearch));
+      const rows = filtered.map(u => `
+    <tr>
+      <td>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="${u.role === 'admin' ? 'background:#fff1f2' : 'background:#f1f5f9'}">
+            <span class="material-symbols-outlined text-[15px]" style="color:${u.role === 'admin' ? '#7e0000' : '#64748b'}">${u.role === 'admin' ? 'admin_panel_settings' : 'school'}</span>
+          </div>
+          <div><div class="text-sm font-bold text-slate-800">${u.name}</div><div class="text-xs text-slate-400">${u.email}</div></div>
+        </div>
+      </td>
+      <td class="text-xs text-slate-600">${u.dept}</td>
+      <td>
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${u.role === 'admin' ? 'badge-rejected' : 'badge-approved'}">${u.role === 'admin' ? '⚙ Admin' : '👨‍🏫 Lecturer'}</span>
+      </td>
+      <td class="text-xs text-slate-500">${u.lastLogin}</td>
+      <td>
+        <button onclick="openUserModal('${u.id}')" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-200 flex items-center gap-1">
+          <span class="material-symbols-outlined text-[13px]">manage_accounts</span>เปลี่ยน Role
+        </button>
+      </td>
+    </tr>`).join('');
+
+      return `
+  <div class="p-6 sm:p-8">
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+      <div><h2 class="text-2xl font-bold text-slate-800">จัดการผู้ใช้</h2><p class="text-slate-500 text-sm mt-0.5">ผู้ใช้ในระบบทั้งหมด ${users.length} คน</p></div>
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[16px]">search</span>
+        <input type="text" placeholder="ค้นหาชื่อหรืออีเมล..." oninput="userSearch=this.value;redrawUsers()"
+          class="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm outline-none w-56 bg-white focus:border-primary">
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="data-table w-full" id="userTable">
+          <thead><tr><th>ผู้ใช้</th><th>ภาควิชา</th><th>Role</th><th>Login ล่าสุด</th><th>การจัดการ</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3">
+      <span class="material-symbols-outlined text-blue-500 text-[18px]">info</span>
+      <p class="text-xs text-blue-700">ผู้ใช้ใหม่จะได้รับ Role เป็น <span class="font-bold">Lecturer</span> โดยอัตโนมัติเมื่อ Login ผ่าน TU Account ครั้งแรก เจ้าหน้าที่สามารถเปลี่ยนเป็น Admin ได้ที่นี่</p>
+    </div>
+  </div>`;
+    }
+    function redrawUsers() {
+      const filtered = users.filter(u => userSearch === '' || u.name.includes(userSearch) || u.email.includes(userSearch));
+      const tbody = document.querySelector('#userTable tbody');
+      if (tbody) tbody.innerHTML = filtered.map(u => `<tr>
+    <td><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full flex items-center justify-center" style="${u.role === 'admin' ? 'background:#fff1f2' : 'background:#f1f5f9'}"><span class="material-symbols-outlined text-[15px]" style="color:${u.role === 'admin' ? '#7e0000' : '#64748b'}">${u.role === 'admin' ? 'admin_panel_settings' : 'school'}</span></div><div><div class="text-sm font-bold text-slate-800">${u.name}</div><div class="text-xs text-slate-400">${u.email}</div></div></div></td>
+    <td class="text-xs text-slate-600">${u.dept}</td>
+    <td><span class="px-2.5 py-1 rounded-full text-xs font-bold ${u.role === 'admin' ? 'badge-rejected' : 'badge-approved'}">${u.role === 'admin' ? '⚙ Admin' : '👨‍🏫 Lecturer'}</span></td>
+    <td class="text-xs text-slate-500">${u.lastLogin}</td>
+    <td><button onclick="openUserModal('${u.id}')" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-200 flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">manage_accounts</span>เปลี่ยน Role</button></td>
+  </tr>`).join('');
+    }
+
+    // ══════════════════════════════════════════
+    // REPORTS
+    // ══════════════════════════════════════════
+    function vReports() {
+      const utilRows = [
+        { room: '406-3', name: 'ห้องประชุม 1', hrs: 54, sessions: 18, teach: 12, train: 6, pct: 72 },
+        { room: '406-5', name: 'ห้องประชุม 2', hrs: 33, sessions: 11, teach: 8, train: 3, pct: 45 },
+        { room: '408-1', name: 'ห้องประชุม 3', hrs: 24, sessions: 8, teach: 5, train: 3, pct: 30 },
+        { room: '408-2/1', name: 'ห้องบรรยาย 1', hrs: 45, sessions: 15, teach: 14, train: 1, pct: 58 },
+        { room: '408-2/2', name: 'ห้องบรรยาย 2', hrs: 12, sessions: 4, teach: 4, train: 0, pct: 15 },
+      ];
+      const tableRows = utilRows.map(r => `
+    <tr>
+      <td class="font-bold text-slate-800 text-sm">${r.room} <span class="text-slate-400 font-normal text-xs">(${r.name})</span></td>
+      <td class="text-center font-bold text-slate-700">${r.sessions}</td>
+      <td class="text-center text-slate-600">${r.hrs}</td>
+      <td class="text-center text-slate-600">${r.teach}</td>
+      <td class="text-center text-slate-600">${r.train}</td>
+      <td>
+        <div class="flex items-center gap-2">
+          <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div class="util-bar h-full rounded-full" style="width:0%;background:${r.pct > 60 ? '#7e0000' : r.pct > 40 ? '#f59e0b' : '#10b981'}" data-w="${r.pct}"></div>
+          </div>
+          <span class="text-xs font-bold w-8">${r.pct}%</span>
+        </div>
+      </td>
+    </tr>`).join('');
+
+      setTimeout(() => { document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; }); }, 100);
+
+      const monthly = [
+        { m: 'ม.ค.', v: 28 }, { m: 'ก.พ.', v: 35 }, { m: 'มี.ค.', v: 42 }, { m: 'เม.ย.', v: 56 }, { m: 'พ.ค.', v: 31 },
+      ];
+      const maxV = Math.max(...monthly.map(x => x.v));
+      const barChart = monthly.map(m => `
+    <div class="flex flex-col items-center gap-1">
+      <span class="text-xs font-bold text-slate-700">${m.v}</span>
+      <div class="w-10 rounded-t-lg transition-all" style="height:${Math.round((m.v / maxV) * 80)}px;background:${m.m === 'เม.ย.' ? '#7e0000' : '#e2e8f0'}"></div>
+      <span class="text-[11px] text-slate-500">${m.m}</span>
+    </div>`).join('');
+
+      return `
+  <div class="p-6 sm:p-8">
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+      <div><h2 class="text-2xl font-bold text-slate-800">รายงานสถิติ</h2><p class="text-slate-500 text-sm mt-0.5">ข้อมูลการใช้งานห้องประจำเดือน เมษายน 2569</p></div>
+      <div class="flex gap-2 flex-wrap">
+        <select class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-primary">
+          <option>เมษายน 2569</option><option>มีนาคม 2569</option><option>กุมภาพันธ์ 2569</option>
+        </select>
+        <button class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 flex items-center gap-2 transition-all">
+          <span class="material-symbols-outlined text-[16px]">download</span>Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      ${[['56', 'ครั้ง', 'การจองทั้งหมด', '#7e0000', '#fff1f2', 'event'], ['168', 'ชม.', 'ชั่วโมงรวม', '#10b981', '#d1fae5', 'schedule'], ['44', '%', 'อัตราการใช้งาน', '#f59e0b', '#fef9c3', 'donut_small'], ['3', 'วัน', 'ห้องที่ใช้มากสุด', '#3b82f6', '#dbeafe', 'star']].map(([v, u, l, c, bg, ic]) => `
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style="background:${bg}"><span class="material-symbols-outlined text-[19px]" style="color:${c}">${ic}</span></div>
+        <div class="text-2xl font-black text-slate-800">${v} <span class="text-sm font-normal text-slate-400">${u}</span></div>
+        <div class="text-xs text-slate-500 mt-0.5">${l}</div>
+      </div>`).join('')}
+    </div>
+
+    <div class="grid grid-cols-12 gap-5 mb-5">
+      <!-- Bar chart -->
+      <div class="col-span-12 lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h3 class="font-bold text-slate-800 text-sm mb-4">จำนวนการจองรายเดือน</h3>
+        <div class="flex items-end gap-3 h-24 justify-center">${barChart}</div>
+      </div>
+      <!-- Donut-style breakdown -->
+      <div class="col-span-12 lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col items-center justify-center">
+        <h3 class="font-bold text-slate-800 text-sm mb-4 self-start">ประเภทการใช้งาน</h3>
+        <div class="donut mb-4"></div>
+        <div class="space-y-2 w-full">
+          ${[['สอนปกติ/ชดเชย', '#10b981', '62%'], ['จัดอบรม/ติว', '#f59e0b', '17%'], ['ประชุม/อื่นๆ', '#ef4444', '8%'], ['ว่าง', '#e2e8f0', '13%']].map(([l, c, p]) => `
+          <div class="flex items-center gap-2 text-xs"><span class="w-2.5 h-2.5 rounded-sm flex-shrink-0" style="background:${c}"></span><span class="flex-1 text-slate-600">${l}</span><span class="font-bold text-slate-700">${p}</span></div>`).join('')}
+        </div>
+      </div>
+      <!-- Course breakdown -->
+      <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h3 class="font-bold text-slate-800 text-sm mb-4">แยกตามหลักสูตร</h3>
+        <div class="space-y-3">
+          ${[['ปริญญาตรีภาคปกติ', 72], ['TEP-TEPE', 15], ['ปริญญาโท', 10], ['TU-PINE', 3]].map(([l, p]) => `
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-slate-600">${l}</span><span class="font-bold text-slate-700">${p}%</span></div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="util-bar h-full rounded-full" style="width:0%;background:#7e0000" data-w="${p}"></div></div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-sm">สถิติรายห้อง</h3>
+        <span class="text-xs text-slate-400">เดือนเมษายน 2569</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table w-full">
+          <thead><tr><th>ห้อง</th><th class="text-center">ครั้งที่จอง</th><th class="text-center">ชั่วโมงรวม</th><th class="text-center">สอน</th><th class="text-center">อบรม</th><th>อัตราการใช้งาน</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+    }
+
+    // ══════════════════════════════════════════
+    // CALENDAR
+    // ══════════════════════════════════════════
+    function vCalendar() {
+      const rOpts = `<option value="all">ห้องทั้งหมด</option>` + rooms.map(r => `<option value="${r.id}" ${calRoomFilter === r.id ? 'selected' : ''}>${r.id} - ${r.name}</option>`).join('');
+      return `
+  <div class="flex flex-col" style="height:100%;min-height:0">
+    <div class="bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap gap-3 items-center justify-between sticky top-0 z-10">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex bg-slate-100 rounded-xl p-1 items-center gap-0.5">
+          <button onclick="calNav(-1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center transition-all"><span class="material-symbols-outlined text-[17px] text-slate-500">chevron_left</span></button>
+          <button onclick="calToday()" class="px-3 h-8 rounded-lg hover:bg-white text-xs font-bold text-slate-600 transition-all">วันนี้</button>
+          <button onclick="calNav(1)"  class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center transition-all"><span class="material-symbols-outlined text-[17px] text-slate-500">chevron_right</span></button>
+        </div>
+        <span class="font-bold text-slate-800 text-sm" id="calHdr"></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-3 text-[11px] font-bold text-slate-500">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>อนุมัติ</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>รออนุมัติ</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>ปฏิเสธ</span>
+        </div>
+        <select onchange="calRoomFilter=this.value;calRender()" class="px-3 py-1.5 border border-slate-200 rounded-xl text-xs outline-none bg-white focus:border-primary">${rOpts}</select>
+      </div>
+    </div>
+    <div class="flex-1 overflow-auto p-4">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="cal-grid bg-slate-50 border-b border-slate-200">
+          ${DAYS_TH.map(d => `<div class="py-3 text-center text-xs font-bold text-slate-400">${d}</div>`).join('')}
+        </div>
+        <div id="calGrid" class="cal-grid"></div>
+      </div>
+    </div>
+  </div>`;
+    }
+
+    function initCalendar() { calRender(); }
+    function calKey(y, m, d) { return `${y}-${m}-${d}`; }
+    function calGetBk(key) {
+      const all = bookings.filter(b => b.calKey === key);
+      return calRoomFilter === 'all' ? all : all.filter(b => b.roomId === calRoomFilter);
+    }
+    function calRender() {
+      const h = document.getElementById('calHdr');
+      if (h) h.textContent = `${MONTHS_TH[calDate.getMonth()]} ${toBE(calDate.getFullYear())}`;
+      const g = document.getElementById('calGrid'); if (!g) return;
+      const y = calDate.getFullYear(), m = calDate.getMonth();
+      const fd = new Date(y, m, 1).getDay(), dm = new Date(y, m + 1, 0).getDate();
+      let html = '';
+      for (let i = 0; i < fd; i++) html += `<div class="cal-day p-2 border-r border-b border-slate-100 bg-slate-50/50"></div>`;
+      for (let d = 1; d <= dm; d++) {
+        const key = calKey(y, m, d), bks = calGetBk(key), tod = isToday(y, m, d);
+        const chips = bks.slice(0, 2).map(b => {
+          const cls = b.status === 'approved' ? 'chip-approved' : b.status === 'pending' ? 'chip-pending' : 'bg-slate-100 border-l-2 border-slate-400 text-slate-500';
+          return `<div class="px-1.5 py-0.5 rounded-r text-[10px] font-bold truncate ${cls}">${b.roomId} ${b.ts}</div>`;
+        }).join('');
+        const more = bks.length > 2 ? `<div class="text-[10px] text-slate-400 pl-1">+${bks.length - 2}</div>` : '';
+        const td = `${d} ${MONTHS_TH[m]} ${toBE(y)}`;
+        html += `<div class="cal-day p-2 border-r border-b border-slate-100 ${tod ? 'bg-red-50/40' : ''}" onclick="calShowDay('${td}','${key}')">
+      <span class="${tod ? 'today-ring' : 'font-bold text-sm'}">${d}</span>
+      <div class="mt-1 space-y-0.5">${chips}${more}</div>
+    </div>`;
+      }
+      g.innerHTML = html;
+    }
+    function calNav(d) { calDate = new Date(calDate.getFullYear(), calDate.getMonth() + d, 1); calRender(); }
+    function calToday() { calDate = new Date(); calRender(); }
+    function calShowDay(dateStr, key) {
+      const items = calGetBk(key);
+      document.getElementById('dayModalTitle').textContent = `รายการจอง – ${dateStr}`;
+      document.getElementById('dayModalBody').innerHTML = items.length === 0
+        ? `<div class="text-center py-8 text-slate-400 text-sm"><span class="material-symbols-outlined text-3xl block mb-1">event_busy</span>ไม่มีรายการจองในวันนี้</div>`
+        : items.map(b => `
+    <div class="p-4 rounded-2xl border-2 flex justify-between items-start gap-3 ${b.status === 'approved' ? 'border-green-100 bg-green-50/30' : b.status === 'pending' ? 'border-amber-100 bg-amber-50/30' : 'border-slate-200 bg-slate-50'}">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1.5">${badge(b.status)}</div>
+        <p class="font-bold text-slate-800 text-sm">${b.roomName}</p>
+        <p class="text-xs text-slate-600 mt-0.5">เวลา ${b.ts} – ${b.te} น.</p>
+        <p class="text-xs text-slate-500 mt-0.5">${b.userName} · ${b.subject}</p>
+      </div>
+      ${b.status === 'pending' ? `<div class="flex gap-1.5 flex-shrink-0">
+        <button onclick="closeModals();openApprove('${b.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white" style="background:#10b981">อนุมัติ</button>
+        <button onclick="closeModals();openReject('${b.id}')"  class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-600 bg-red-50 border border-red-100">ปฏิเสธ</button>
+      </div>`: ''}
+    </div>`).join('');
+      showModal('dayModal');
+    }
+
+    // ══════════════════════════════════════════
+    // MODALS
+    // ══════════════════════════════════════════
+    function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModals() {
+      ['approveModal', 'rejectModal', 'roomModal', 'userModal', 'dayModal'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+    }
+
+    function openApprove(id) {
+      curActionId = id;
+      const b = bookings.find(x => x.id === id);
+      document.getElementById('approveDetail').innerHTML = `<p class="font-bold text-slate-800">${b.roomName}</p><p class="text-slate-600">${b.subject} · ${b.userName}</p><p class="text-slate-500 text-xs mt-1">${b.dateFrom} · ${b.ts}–${b.te}</p>`;
+      document.getElementById('approveNote').value = '';
+      showModal('approveModal');
+    }
+    function doApprove() {
+      const note = document.getElementById('approveNote').value;
+      const b = bookings.find(x => x.id === curActionId);
+      if (b) { b.status = 'approved'; b.adminNote = note; }
+      closeModals(); updatePendingBadge(); go(curView);
+      showToast('อนุมัติการจองเรียบร้อย · ส่ง Email แจ้งผู้จองแล้ว', 'check_circle');
+    }
+
+    function openReject(id) {
+      curActionId = id;
+      const b = bookings.find(x => x.id === id);
+      document.getElementById('rejectDetail').innerHTML = `<p class="font-bold text-slate-800">${b.roomName}</p><p class="text-slate-600">${b.subject} · ${b.userName}</p><p class="text-slate-500 text-xs mt-1">${b.dateFrom} · ${b.ts}–${b.te}</p>`;
+      document.getElementById('rejectReason').value = '';
+      showModal('rejectModal');
+    }
+    function doReject() {
+      const reason = document.getElementById('rejectReason').value.trim();
+      if (!reason) { document.getElementById('rejectReason').style.borderColor = '#ef4444'; return; }
+      const b = bookings.find(x => x.id === curActionId);
+      if (b) { b.status = 'rejected'; b.adminNote = reason; }
+      closeModals(); updatePendingBadge(); go(curView);
+      showToast('ปฏิเสธการจองเรียบร้อย · ส่ง Email แจ้งผู้จองแล้ว', 'cancel');
+    }
+
+    let editingRoomId = null;
+    function openRoomModal(id) {
+      editingRoomId = id;
+      const r = id ? rooms.find(x => x.id === id) : null;
+      document.getElementById('roomModalTitle').textContent = r ? `แก้ไขห้อง ${r.id}` : 'เพิ่มห้องใหม่';
+      document.getElementById('rmId').value = r?.id || '';
+      document.getElementById('rmName').value = r?.name || '';
+      document.getElementById('rmType').value = r?.type || 'ห้องประชุม';
+      document.getElementById('rmSeats').value = r?.seats || '';
+      document.getElementById('rmActive').checked = r ? r.active : true;
+      document.getElementById('rmId').disabled = !!r;
+      showModal('roomModal');
+    }
+    function saveRoom() {
+      const id = document.getElementById('rmId').value.trim();
+      const name = document.getElementById('rmName').value.trim();
+      if (!id || !name) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
+      if (editingRoomId) {
+        const r = rooms.find(x => x.id === editingRoomId);
+        if (r) { r.name = name; r.type = document.getElementById('rmType').value; r.seats = +document.getElementById('rmSeats').value; r.amenities = document.getElementById('rmAmen').value; r.active = document.getElementById('rmActive').checked; }
+      } else {
+        rooms.push({ id, name, type: document.getElementById('rmType').value, seats: +document.getElementById('rmSeats').value, active: document.getElementById('rmActive').checked, amenities: document.getElementById('rmAmen').value, img: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=600' });
+      }
+      closeModals(); go('rooms');
+      showToast('บันทึกข้อมูลห้องเรียบร้อย', 'check_circle');
+    }
+    function toggleRoomActive(id) {
+      const r = rooms.find(x => x.id === id);
+      if (r) r.active = !r.active;
+      go('rooms');
+      showToast(`${r.active ? 'เปิดใช้งาน' : 'ระงับ'}ห้อง ${id} แล้ว`, r.active ? 'check_circle' : 'block');
+    }
+
+    function openUserModal(id) {
+      curUserId = id;
+      const u = users.find(x => x.id === id);
+      document.getElementById('userModalSub').textContent = `${u.name} (${u.email})`;
+      document.querySelectorAll('[name=urole]').forEach(r => r.checked = r.value === u.role);
+      showModal('userModal');
+    }
+    function saveUserRole() {
+      const role = document.querySelector('[name=urole]:checked')?.value;
+      const u = users.find(x => x.id === curUserId);
+      if (u && role) u.role = role;
+      closeModals(); go('users');
+      showToast(`เปลี่ยน Role เป็น ${role} เรียบร้อย`, 'manage_accounts');
+    }
+
+    function showSwitchModal() {
+      showToast('สลับไปหน้า Lecturer (Demo)', 'swap_horiz');
+    }
+
+    // Global click close
+    window.addEventListener('click', e => {
+      ['approveModal', 'rejectModal', 'roomModal', 'userModal', 'dayModal'].forEach(id => {
+        if (e.target === document.getElementById(id)) closeModals();
+      });
+    });
+
+    // Boot
+    go('dashboard');
+  </script>
+</body>
+
+</html>
