@@ -29,4 +29,5 @@ urlpatterns = [
     ),
     # DRF API
     path("api/v1/bookings/", include("bookings.urls")),
+    path("api/rooms/", include("rooms.urls")),
 ]
