@@ -52,3 +52,5 @@ ENV/
 
 # Docker
 *.override.yml
+
+/detail
