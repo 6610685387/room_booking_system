@@ -28,6 +28,6 @@ urlpatterns = [
         "admin/bookings/<int:booking_id>/reject/", reject_booking, name="reject_booking"
     ),
     # DRF API
-    path("api/v1/bookings/", include("bookings.urls")),
+    path("api/bookings/", include("bookings.urls")),
     path("api/rooms/", include("rooms.urls")),
 ]
