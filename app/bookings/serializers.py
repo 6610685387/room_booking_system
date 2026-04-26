@@ -65,51 +65,27 @@ class BookingWriteSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-        if data["start_datetime"] >= data["end_datetime"]:
-            raise serializers.ValidationError("start_datetime ต้องน้อยกว่า end_datetime")
-        purpose = data.get("purpose_type")
-        if purpose == "teaching" and not data.get("teaching_info"):
+        # 1. เช็กความสอดคล้องของ purpose_type กับ info ที่ส่งมา
+        purpose_type = data.get("purpose_type")
+        if purpose_type == "teaching" and not data.get("teaching_info"):
             raise serializers.ValidationError(
-                "กรุณาระบุ teaching_info สำหรับการจองประเภทสอน"
+                {"teaching_info": "This field is required for teaching purpose."}
             )
-        if purpose == "training" and not data.get("training_info"):
+        if purpose_type == "training" and not data.get("training_info"):
             raise serializers.ValidationError(
-                "กรุณาระบุ training_info สำหรับการจองประเภทอบรม"
-            )
-        exclude_id = self.instance.booking_id if self.instance else None
-        if Booking.has_conflict(
-            room_id=data["room"].room_id,
-            start_dt=data["start_datetime"],
-            end_dt=data["end_datetime"],
-            exclude_booking_id=exclude_id,
-        ):
-            raise serializers.ValidationError(
-                "ห้องนี้ถูกจองในช่วงเวลาดังกล่าวแล้ว กรุณาเลือกเวลาอื่น"
+                {"training_info": "This field is required for training purpose."}
             )
         return data
 
     def create(self, validated_data):
-        teaching_data = validated_data.pop("teaching_info", None)
-        training_data = validated_data.pop("training_info", None)
-        booking = Booking.objects.create(**validated_data)
-        if teaching_data:
-            TeachingInfo.objects.create(booking=booking, **teaching_data)
-        if training_data:
-            TrainingInfo.objects.create(booking=booking, **training_data)
-        return booking
+        teaching_info_data = validated_data.pop("teaching_info", None)
+        training_info_data = validated_data.pop("training_info", None)
 
-    def update(self, instance, validated_data):
-        teaching_data = validated_data.pop("teaching_info", None)
-        training_data = validated_data.pop("training_info", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        if teaching_data:
-            TeachingInfo.objects.update_or_create(
-                booking=instance, defaults=teaching_data
-            )
-        if training_data:
-            TrainingInfo.objects.update_or_create(
-                booking=instance, defaults=training_data
-            )
-        return instance
+        booking = Booking.objects.create(**validated_data)
+
+        if teaching_info_data:
+            TeachingInfo.objects.create(booking=booking, **teaching_info_data)
+        elif training_info_data:
+            TrainingInfo.objects.create(booking=booking, **training_info_data)
+
+        return booking
