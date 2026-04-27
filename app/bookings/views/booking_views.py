@@ -80,10 +80,10 @@ class BookingViewSet(viewsets.ViewSet):
             return Response({"error": msg}, status=400)
 
         with transaction.atomic():
-            # Lock the room to prevent race conditions (Must Fix #1 & #2)
+            # Lock the room to prevent race conditions
             room = get_object_or_404(Room.objects.select_for_update(), pk=room_id)
             
-            # Check for conflicts inside the lock (Must Fix #1)
+            # Check for conflicts inside the lock
             report = build_conflict_report(
                 room_id, d_start, d_end, days_of_week, time_start, time_end
             )
