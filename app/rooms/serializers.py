@@ -25,3 +25,9 @@ class BlackoutPeriodSerializer(serializers.ModelSerializer):
         if data["start_date"] > data["end_date"]:
             raise serializers.ValidationError("start_date ต้องไม่มากกว่า end_date")
         return data
+
+
+class BlackoutPeriodReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlackoutPeriod
+        fields = ["blackout_id", "room_id", "start_date", "end_date", "reason"]
