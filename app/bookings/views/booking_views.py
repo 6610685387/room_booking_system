@@ -15,10 +15,22 @@ from bookings.serializers import BookingWriteSerializer
 from bookings.services.conflict_check_service import build_conflict_report
 from bookings.services.recurring import generate_recurring_slots
 from bookings.validators import validate_date_range, validate_days_of_week
+from bookings.permissions import IsOwnerOrAdmin, IsOwner
 
 
 class BookingViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        # ตรวจสอบความเป็นเจ้าของหรือ Admin สำหรับการดูรายละเอียด
+        if self.action == 'retrieve':
+            return [IsAuthenticated(), IsOwnerOrAdmin()]
+        
+        # ตรวจสอบความเป็นเจ้าของเท่านั้นสำหรับการยกเลิก (SYS-20)
+        if self.action == 'cancel':
+            return [IsAuthenticated(), IsOwner()]
+        
+        # Action ทั่วไป (list, create, check_conflict, my_bookings, cancel_recurring) ใช้เพียงการ Login
+        # Note: cancel_recurring มีการกรอง booker=request.user ในตัวอยู่แล้ว
+        return [IsAuthenticated()]
 
     @action(detail=False, methods=["post"], url_path="check-conflict")
     def check_conflict(self, request):
@@ -188,9 +200,7 @@ class BookingViewSet(viewsets.ViewSet):
         GET /api/bookings/{id}/
         """
         bk = get_object_or_404(Booking.objects.select_related("room", "booker", "teaching_info", "training_info"), pk=pk)
-
-        if request.user.role != "Admin" and bk.booker_id != request.user.user_id:
-            return Response({"error": "Forbidden"}, status=403)
+        self.check_object_permissions(request, bk)
 
         now_bkk = localtime(timezone.now())
         local_start = localtime(bk.start_datetime)
@@ -236,11 +246,12 @@ class BookingViewSet(viewsets.ViewSet):
         """
         PATCH /api/bookings/{id}/cancel/
         """
+        # Note for Role 4: Saving this booking will trigger a post_save signal.
+        # Please catch status == "Cancelled" to send an email notification.
+
         with transaction.atomic():
             bk = get_object_or_404(Booking.objects.select_for_update(), pk=pk)
-
-            if bk.booker_id != request.user.user_id:
-                return Response({"error": "Forbidden"}, status=403)
+            self.check_object_permissions(request, bk)
 
             now_bkk = localtime(timezone.now())
             local_start = localtime(bk.start_datetime)
@@ -267,6 +278,9 @@ class BookingViewSet(viewsets.ViewSet):
         """
         PATCH /api/bookings/recurring/{group_id}/cancel/
         """
+        # Note for Role 4: Saving this booking will trigger a post_save signal.
+        # Please catch status == "Cancelled" to send an email notification.
+        
         now_bkk = localtime(timezone.now())
         cancelled_count = 0
         skipped_count = 0
@@ -274,6 +288,7 @@ class BookingViewSet(viewsets.ViewSet):
 
         with transaction.atomic():
             # Apply select_for_update to lock the bookings being cancelled
+            # การจองกลุ่มนี้ต้องเป็นของผู้ใช้ (SYS-20)
             bookings = Booking.objects.select_for_update().filter(
                 recurring_group_id=group_id,
                 booker=request.user

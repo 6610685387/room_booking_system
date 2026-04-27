@@ -141,7 +141,7 @@ class BookingAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("เลยเวลาเริ่มต้นไปแล้ว", response.data["error"])
 
-    def test_cancel_others_booking_fail(self):
+    def test_cancel_others_booking_fail_lecturer(self):
         # Create a future booking for admin
         future_date = date.today() + timedelta(days=5)
         start_dt = make_aware(datetime.combine(future_date, time(10, 0)), BKK)
@@ -151,3 +151,68 @@ class BookingAPITest(APITestCase):
         url = reverse("booking-cancel", args=[booking.booking_id])
         response = self.client.patch(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_retrieve_others_booking_fail_lecturer(self):
+        # Create a booking for admin
+        start_dt = make_aware(datetime.combine(date(2026, 5, 4), time(10, 0)), BKK)
+        end_dt = make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK)
+        booking = Booking.objects.create(room=self.room, booker=self.admin, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
+
+        url = reverse("booking-detail", args=[booking.booking_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_retrieve_others_booking_success(self):
+        # Create a booking for lecturer
+        start_dt = make_aware(datetime.combine(date(2026, 5, 4), time(10, 0)), BKK)
+        end_dt = make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK)
+        booking = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
+
+        # Login as admin
+        self.client.force_authenticate(user=self.admin)
+        url = reverse("booking-detail", args=[booking.booking_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["booking_id"], booking.booking_id)
+
+    def test_admin_cancel_others_booking_fail(self):
+        # Create a future booking for lecturer
+        future_date = date.today() + timedelta(days=5)
+        start_dt = make_aware(datetime.combine(future_date, time(10, 0)), BKK)
+        end_dt = make_aware(datetime.combine(future_date, time(12, 0)), BKK)
+        booking = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
+
+        # Login as admin
+        self.client.force_authenticate(user=self.admin)
+        url = reverse("booking-cancel", args=[booking.booking_id])
+        response = self.client.patch(url)
+        # Should be 403 because Admin can only cancel their own booking via this API (SYS-20)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+def test_cancel_recurring_booking(self):
+        # สร้าง Group และ Booking 2 วันในอนาคต
+        group = RecurringGroup.objects.create(
+            booker=self.lecturer, room=self.room, day_pattern="Mon",
+            date_start=date.today() + timedelta(days=1), date_end=date.today() + timedelta(days=8),
+            time_start=time(10, 0), time_end=time(12, 0)
+        )
+        
+        start_dt_1 = make_aware(datetime.combine(date.today() + timedelta(days=1), time(10, 0)), BKK)
+        end_dt_1 = make_aware(datetime.combine(date.today() + timedelta(days=1), time(12, 0)), BKK)
+        booking1 = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt_1, end_datetime=end_dt_1, status="Pending", purpose_type="teaching", recurring_group=group)
+
+        start_dt_2 = make_aware(datetime.combine(date.today() + timedelta(days=8), time(10, 0)), BKK)
+        end_dt_2 = make_aware(datetime.combine(date.today() + timedelta(days=8), time(12, 0)), BKK)
+        booking2 = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt_2, end_datetime=end_dt_2, status="Approved", purpose_type="teaching", recurring_group=group)
+
+        # ยิง API ยกเลิกทั้งกลุ่ม
+        url = reverse("booking-cancel-recurring", args=[group.group_id])
+        response = self.client.patch(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["cancelled_count"], 2)
+        
+        booking1.refresh_from_db()
+        booking2.refresh_from_db()
+        self.assertEqual(booking1.status, "Cancelled")
+        self.assertEqual(booking2.status, "Cancelled")
