@@ -8,9 +8,11 @@ from rest_framework.views import APIView
 from bookings.models import Booking
 from .models import BlackoutPeriod, Room
 from .serializers import BlackoutPeriodReadSerializer, RoomSerializer
+from .docs import room_list_schema, room_schedule_schema, room_blackout_schema
 
 # Create your views here.
 
+@room_list_schema
 class RoomListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -31,6 +33,7 @@ class RoomListView(APIView):
         return Response(serializer.data, status=200)
 
 
+@room_schedule_schema
 class RoomScheduleView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -132,7 +135,7 @@ class RoomScheduleView(APIView):
             "slots":         slots,
         }, status=200)
 
-
+@room_blackout_schema
 class RoomBlackoutView(APIView):
     permission_classes = [IsAuthenticated]
 
