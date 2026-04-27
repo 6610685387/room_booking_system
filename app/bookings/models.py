@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from rooms.models import Room
+from django.core.exceptions import ValidationError
 
 
 class RecurringGroup(models.Model):
@@ -101,6 +102,10 @@ class TeachingInfo(models.Model):
     subject_name = models.CharField(max_length=200)
     program_type = models.CharField(max_length=20, choices=PROGRAM_CHOICES)
 
+    def clean(self):
+        if self.booking.purpose_type != 'teaching':
+            raise ValidationError("รายการจองนี้ไม่ได้ระบุวัตถุประสงค์เป็น 'การสอน'")
+
     class Meta:
         db_table = "teaching_info"
 
@@ -113,3 +118,7 @@ class TrainingInfo(models.Model):
 
     class Meta:
         db_table = "training_info"
+
+    def clean(self):
+        if self.booking.purpose_type != 'training':
+            raise ValidationError("รายการจองนี้ไม่ได้ระบุวัตถุประสงค์เป็น 'การอบรม'")
