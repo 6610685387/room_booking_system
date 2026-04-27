@@ -17,7 +17,9 @@ from bookings.services.recurring import generate_recurring_slots
 from bookings.validators import validate_date_range, validate_days_of_week
 from bookings.permissions import IsOwnerOrAdmin, IsOwner
 
+from bookings.docs import booking_viewset_schema
 
+@booking_viewset_schema
 class BookingViewSet(viewsets.ViewSet):
     def get_permissions(self):
         # ตรวจสอบความเป็นเจ้าของหรือ Admin สำหรับการดูรายละเอียด
