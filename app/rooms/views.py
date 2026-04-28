@@ -11,6 +11,8 @@ from .serializers import BlackoutPeriodReadSerializer, RoomSerializer
 from .docs import room_list_schema, room_schedule_schema, room_blackout_schema
 
 # Create your views here.
+BKK_TZ = ZoneInfo("Asia/Bangkok")
+
 
 @room_list_schema
 class RoomListView(APIView):
@@ -43,7 +45,6 @@ class RoomScheduleView(APIView):
         Get room schedule for a specific week starting on Monday.
         """
         DAY_ABBR = {0:"Mon", 1:"Tue", 2:"Wed", 3:"Thu", 4:"Fri", 5:"Sat", 6:"Sun"}
-        BKK_TZ  = ZoneInfo("Asia/Bangkok")
 
         # Step 1: Validate room exists
         room = get_object_or_404(Room, pk=room_id)
@@ -111,17 +112,19 @@ class RoomScheduleView(APIView):
             })
 
         # Step 6: Build blackout_days for this week (SYS-15)
-        week_end_date = week_start_date + timedelta(days=6)
         blackout_periods = BlackoutPeriod.objects.filter(
-            room_id         = room_id,
-            start_date__lte = week_end_date,    # blackout เริ่มก่อนหรือระหว่างสัปดาห์
-            end_date__gte   = week_start_date,  # blackout จบหลังหรือระหว่างสัปดาห์
+            room_id           = room_id,
+            start_datetime__lt = next_week_start_dt,    # เริ่มก่อนจบสัปดาห์นี้
+            end_datetime__gte  = week_start_dt,         # จบหลังเริ่มสัปดาห์นี้
         )
         blackout_set = set()
         for bp in blackout_periods:
+            # ใช้ localtime เพื่อให้ .date() ตรงกับเวลาไทย (SYS-15.1)
+            bp_start_date = localtime(bp.start_datetime, BKK_TZ).date()
+            bp_end_date   = localtime(bp.end_datetime,   BKK_TZ).date()
             for day_offset in range(7):   # 0=จันทร์ ... 6=อาทิตย์
                 check_date = week_start_date + timedelta(days=day_offset)
-                if bp.start_date <= check_date <= bp.end_date:
+                if bp_start_date <= check_date <= bp_end_date:
                     blackout_set.add(check_date.isoformat())
         
         blackout_days = sorted(list(blackout_set))
@@ -148,7 +151,7 @@ class RoomBlackoutView(APIView):
         room = get_object_or_404(Room, pk=room_id)
 
         # Step 2: Base queryset
-        qs = BlackoutPeriod.objects.filter(room_id=room_id).order_by("start_date")
+        qs = BlackoutPeriod.objects.filter(room_id=room_id).order_by("start_datetime")
 
         # Step 3: Apply optional date range filters
         from_str = request.query_params.get("from", None)
@@ -157,16 +160,18 @@ class RoomBlackoutView(APIView):
         if from_str is not None:
             try:
                 from_date = date.fromisoformat(from_str)
+                from_dt = make_aware(datetime.combine(from_date, time(0, 0, 0)), BKK_TZ)
             except ValueError:
                 return Response({"error": "from format must be YYYY-MM-DD"}, status=400)
-            qs = qs.filter(end_date__gte=from_date)    # blackout จบหลัง from (overlap)
+            qs = qs.filter(end_datetime__gte=from_dt)    # blackout จบหลังเริ่มจากวันที่กำหนด
 
         if to_str is not None:
             try:
                 to_date = date.fromisoformat(to_str)
+                next_day_dt = make_aware(datetime.combine(to_date + timedelta(days=1), time(0, 0, 0)), BKK_TZ)
             except ValueError:
                 return Response({"error": "to format must be YYYY-MM-DD"}, status=400)
-            qs = qs.filter(start_date__lte=to_date)    # blackout เริ่มก่อน to (overlap)
+            qs = qs.filter(start_datetime__lt=next_day_dt)    # blackout เริ่มก่อนจบวันที่กำหนด
 
         # Step 4: Serialize and return
         serializer = BlackoutPeriodReadSerializer(qs, many=True)
