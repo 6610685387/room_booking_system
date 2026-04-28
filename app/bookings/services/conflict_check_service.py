@@ -1,5 +1,6 @@
-from datetime import date
-from django.utils.timezone import localtime
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+from django.utils.timezone import localtime, make_aware
 from bookings.models import Booking
 from rooms.models import BlackoutPeriod
 from bookings.services.recurring import generate_recurring_slots
@@ -16,6 +17,8 @@ def build_conflict_report(
     สร้างรายงาน Conflict สำหรับช่วงเวลาที่ต้องการจองแบบ Recurring
     แก้ปัญหา N+1 โดยการ Bulk Fetch ข้อมูลมาตรวจสอบใน Memory
     """
+    BKK_TZ = ZoneInfo("Asia/Bangkok")
+
     # Step 1: Generate all slots
     all_slots = generate_recurring_slots(
         date_start, date_end, days_of_week, time_start, time_end
@@ -47,10 +50,14 @@ def build_conflict_report(
         end_datetime__gt=min_start_dt,
     ).select_related("booker"))
 
+    # Optimized Query: Use direct DateTime comparison for better indexing performance
+    dt_start = make_aware(datetime.combine(date_start, time(0, 0, 0)), BKK_TZ)
+    dt_next_end = make_aware(datetime.combine(date_end + timedelta(days=1), time(0, 0, 0)), BKK_TZ)
+
     existing_blackouts = list(BlackoutPeriod.objects.filter(
         room_id=room_id,
-        start_datetime__date__lte=date_end,
-        end_datetime__date__gte=date_start,
+        start_datetime__lt=dt_next_end,
+        end_datetime__gte=dt_start,
     ))
 
     # Step 3: Classify each slot in memory
