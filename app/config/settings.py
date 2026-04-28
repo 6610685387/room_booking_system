@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "bookings",
     "rooms",
     "account",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -160,3 +161,15 @@ CSRF_TRUSTED_ORIGINS = config(
     default="http://localhost:8000,http://127.0.0.1:8000",
     cast=Csv(),
 )
+
+# DRF Spectacular (API Docs)
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Room Booking API',
+    'DESCRIPTION': 'API Specification สำหรับระบบจองห้อง (Role 1)',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
