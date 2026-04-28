@@ -8,3 +8,4 @@ dj-database-url==3.0.1
 whitenoise==6.11.0
 python-dotenv
 requests
+Pillow==10.2.0
