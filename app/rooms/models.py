@@ -10,6 +10,7 @@ class Room(models.Model):
     ]
 
     room_id = models.AutoField(primary_key=True)
+    room_image = models.ImageField(upload_to='room_images/', null=True, blank=True)
     room_code = models.CharField(max_length=20, unique=True)
     room_name = models.CharField(max_length=100)
     room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES)
@@ -37,8 +38,8 @@ class BlackoutPeriod(models.Model):
     room = models.ForeignKey(
         Room, on_delete=models.CASCADE, related_name="blackout_periods"
     )
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
     reason = models.TextField()
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -50,4 +51,4 @@ class BlackoutPeriod(models.Model):
         db_table = "blackout_periods"
 
     def __str__(self):
-        return f"{self.room.room_code} blackout {self.start_date} to {self.end_date}"
+        return f"{self.room.room_code} blackout {self.start_datetime} to {self.end_datetime}"
