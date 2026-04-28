@@ -113,15 +113,18 @@ class RoomScheduleView(APIView):
         # Step 6: Build blackout_days for this week (SYS-15)
         week_end_date = week_start_date + timedelta(days=6)
         blackout_periods = BlackoutPeriod.objects.filter(
-            room_id         = room_id,
-            start_date__lte = week_end_date,    # blackout เริ่มก่อนหรือระหว่างสัปดาห์
-            end_date__gte   = week_start_date,  # blackout จบหลังหรือระหว่างสัปดาห์
+            room_id               = room_id,
+            start_datetime__date__lte = week_end_date,    # blackout เริ่มก่อนหรือระหว่างสัปดาห์
+            end_datetime__date__gte   = week_start_date,  # blackout จบหลังหรือระหว่างสัปดาห์
         )
         blackout_set = set()
         for bp in blackout_periods:
+            # ใช้ localtime เพื่อให้ .date() ตรงกับเวลาไทย (SYS-15.1)
+            bp_start_date = localtime(bp.start_datetime, BKK_TZ).date()
+            bp_end_date   = localtime(bp.end_datetime,   BKK_TZ).date()
             for day_offset in range(7):   # 0=จันทร์ ... 6=อาทิตย์
                 check_date = week_start_date + timedelta(days=day_offset)
-                if bp.start_date <= check_date <= bp.end_date:
+                if bp_start_date <= check_date <= bp_end_date:
                     blackout_set.add(check_date.isoformat())
         
         blackout_days = sorted(list(blackout_set))
@@ -148,7 +151,7 @@ class RoomBlackoutView(APIView):
         room = get_object_or_404(Room, pk=room_id)
 
         # Step 2: Base queryset
-        qs = BlackoutPeriod.objects.filter(room_id=room_id).order_by("start_date")
+        qs = BlackoutPeriod.objects.filter(room_id=room_id).order_by("start_datetime")
 
         # Step 3: Apply optional date range filters
         from_str = request.query_params.get("from", None)
@@ -159,14 +162,14 @@ class RoomBlackoutView(APIView):
                 from_date = date.fromisoformat(from_str)
             except ValueError:
                 return Response({"error": "from format must be YYYY-MM-DD"}, status=400)
-            qs = qs.filter(end_date__gte=from_date)    # blackout จบหลัง from (overlap)
+            qs = qs.filter(end_datetime__date__gte=from_date)    # blackout จบหลัง from (overlap)
 
         if to_str is not None:
             try:
                 to_date = date.fromisoformat(to_str)
             except ValueError:
                 return Response({"error": "to format must be YYYY-MM-DD"}, status=400)
-            qs = qs.filter(start_date__lte=to_date)    # blackout เริ่มก่อน to (overlap)
+            qs = qs.filter(start_datetime__date__lte=to_date)    # blackout เริ่มก่อน to (overlap)
 
         # Step 4: Serialize and return
         serializer = BlackoutPeriodReadSerializer(qs, many=True)

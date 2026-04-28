@@ -60,17 +60,17 @@ class RoomAPITest(APITestCase):
         # Not a Sunday (2026-04-27 is Monday)
         response = self.client.get(url, {"week_start": "2026-04-27"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "week_start must be a Sunday")
+        self.assertEqual(response.data["error"], "week_start must be a Sunday") # Corrected error message
 
     def test_room_schedule_data(self):
         # 2026-04-26 is a Sunday
-        week_start = "2026-04-26"
+        week_start = "2026-04-26" # Correctly set to Sunday for testing logic path
         url = reverse("room-schedule", args=[self.room1.room_id])
         
         # Create a booking (2026-04-28 is Tuesday, inside the week)
         start_dt = make_aware(datetime.combine(date(2026, 4, 28), time(10, 0)), BKK)
         end_dt = make_aware(datetime.combine(date(2026, 4, 28), time(12, 0)), BKK)
-        booking = Booking.objects.create(
+        booking = Booking.objects.create( # Define booking variable here
             room=self.room1, booker=self.user,
             start_datetime=start_dt, end_datetime=end_dt,
             status="Approved", purpose_type="teaching"
@@ -80,8 +80,10 @@ class RoomAPITest(APITestCase):
         )
         
         # Create a blackout (Thu - Fri, inside the week)
+        s_bo = make_aware(datetime.combine(date(2026, 4, 30), time(0, 0)), BKK)
+        e_bo = make_aware(datetime.combine(date(2026, 5, 1), time(23, 59)), BKK)
         BlackoutPeriod.objects.create(
-            room=self.room1, start_date=date(2026, 4, 30), end_date=date(2026, 5, 1),
+            room=self.room1, start_datetime=s_bo, end_datetime=e_bo,
             reason="Holiday", created_by=self.user
         )
 
@@ -95,18 +97,22 @@ class RoomAPITest(APITestCase):
         # Blackout 2026-04-30 (Thu) and 2026-05-01 (Fri)
         self.assertIn("2026-04-30", response.data["blackout_days"])
         self.assertIn("2026-05-01", response.data["blackout_days"])
-        self.assertEqual(len(response.data["blackout_days"]), 2)
+        self.assertEqual(len(response.data["blackout_days"]), 2) # Expecting 2 days now
 
     def test_room_blackout_list(self):
         url = reverse("room-blackouts", args=[self.room1.room_id])
         
-        # Create blackouts
+        # Create blackouts using datetime
+        s1 = make_aware(datetime.combine(date(2026, 5, 1), time(0, 0)), BKK)
+        e1 = make_aware(datetime.combine(date(2026, 5, 5), time(23, 59)), BKK)
         BlackoutPeriod.objects.create(
-            room=self.room1, start_date=date(2026, 5, 1), end_date=date(2026, 5, 5),
+            room=self.room1, start_datetime=s1, end_datetime=e1,
             reason="Reason 1", created_by=self.user
         )
+        s2 = make_aware(datetime.combine(date(2026, 6, 1), time(0, 0)), BKK)
+        e2 = make_aware(datetime.combine(date(2026, 6, 5), time(23, 59)), BKK)
         BlackoutPeriod.objects.create(
-            room=self.room1, start_date=date(2026, 6, 1), end_date=date(2026, 6, 5),
+            room=self.room1, start_datetime=s2, end_datetime=e2,
             reason="Reason 2", created_by=self.user
         )
 

@@ -49,8 +49,8 @@ def build_conflict_report(
 
     existing_blackouts = list(BlackoutPeriod.objects.filter(
         room_id=room_id,
-        start_date__lte=date_end,
-        end_date__gte=date_start,
+        start_datetime__date__lte=date_end,
+        end_datetime__date__gte=date_start,
     ))
 
     # Step 3: Classify each slot in memory
@@ -60,7 +60,6 @@ def build_conflict_report(
 
     for (s_dt, e_dt) in all_slots:
         date_str = localtime(s_dt).strftime("%Y-%m-%d")
-        slot_date = localtime(s_dt).date()
         
         conflict_detail = None
         
@@ -79,7 +78,8 @@ def build_conflict_report(
         # Check Blackout conflict if no booking conflict
         if not conflict_detail:
             for bl in existing_blackouts:
-                if bl.start_date <= slot_date <= bl.end_date:
+                # Overlap check for DateTime blackouts
+                if bl.start_datetime < e_dt and bl.end_datetime > s_dt:
                     conflict_detail = {
                         "conflict_type": "blackout",
                         "reason":        bl.reason,

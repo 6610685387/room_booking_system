@@ -22,12 +22,12 @@ class BlackoutPeriodSerializer(serializers.ModelSerializer):
         read_only_fields = ["blackout_id"]
 
     def validate(self, data):
-        if data["start_date"] > data["end_date"]:
-            raise serializers.ValidationError("start_date ต้องไม่มากกว่า end_date")
+        if data["start_datetime"] > data["end_datetime"]:
+            raise serializers.ValidationError("start_datetime ต้องไม่มากกว่า end_datetime")
         return data
 
 
 class BlackoutPeriodReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlackoutPeriod
-        fields = ["blackout_id", "room_id", "start_date", "end_date", "reason"]
+        fields = ["blackout_id", "room_id", "start_datetime", "end_datetime", "reason"]

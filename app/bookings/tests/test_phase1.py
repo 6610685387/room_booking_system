@@ -66,8 +66,8 @@ class Phase1RefactorTest(TestCase):
         # Blackout: Sunday 10 May
         BlackoutPeriod.objects.create(
             room=self.room,
-            start_date=date(2026, 5, 10),
-            end_date=date(2026, 5, 10),
+            start_datetime=self._dt("2026-05-10", "00:00"),
+            end_datetime=self._dt("2026-05-10", "23:59"),
             reason="Big Cleaning Day",
             created_by=self.lecturer
         )
