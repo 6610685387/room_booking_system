@@ -6,6 +6,8 @@ from rooms.models import Room, BlackoutPeriod, FavouriteRoom
 from account.models import User
 from bookings.models import Booking
 from bookings.services.conflict_check_service import find_alternative_rooms
+from django.test.utils import CaptureQueriesContext
+from django.db import connection
 
 BKK = ZoneInfo("Asia/Bangkok")
 
@@ -186,3 +188,26 @@ class ConflictSuggestionTest(TestCase):
         # alt2 (capacity 80)
         self.assertEqual(suggestions[1]["room_code"], "406-5")
         self.assertTrue(suggestions[1]["is_favourite"])
+
+    def test_find_alternative_rooms_queries(self):
+        # สร้างห้องจำลอง 10 ห้องเพื่อพิสูจน์ N+1
+        for i in range(10, 20):
+            Room.objects.create(
+                room_code=f"ROOM-{i}", room_name=f"ห้อง {i}",
+                room_type="Meeting Room", capacity=60, is_active=True
+            )
+            
+        # ล็อกจำนวน Query ให้ตึงขึ้นตามคำแนะนำ
+        with CaptureQueriesContext(connection) as captured:
+            result = find_alternative_rooms(
+                original_room_id=self.room_target.room_id,
+                date_start=date(2026, 5, 5),
+                date_end=date(2026, 5, 5),
+                days_of_week=["Tue"],
+                time_start="10:00",
+                time_end="12:00",
+                user_id=self.user.user_id
+            )
+            
+        self.assertLessEqual(len(captured.captured_queries), 5)
+        self.assertEqual(len(result), 12)

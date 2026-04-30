@@ -309,7 +309,6 @@ class BookingAPITest(APITestCase):
         self.assertEqual(response_my.data[0]["additional_requests"], "Request mic")
 
     def test_cancel_recurring_booking(self):
-
         # สร้าง Group และ Booking 2 วันในอนาคต
         group = RecurringGroup.objects.create(
             booker=self.lecturer, room=self.room, day_pattern="Mon",
@@ -336,3 +335,76 @@ class BookingAPITest(APITestCase):
         booking2.refresh_from_db()
         self.assertEqual(booking1.status, "Cancelled")
         self.assertEqual(booking2.status, "Cancelled")
+
+    def test_create_booking_invalid_info_combination(self):
+        url = reverse("booking-list")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "10:00",
+            "time_end": "12:00",
+            "purpose_type": "teaching",
+            "teaching_info": {
+                "subject_code": "CS101",
+                "subject_name": "Intro to CS",
+                "program_type": "Bachelor"
+            },
+            "training_info": {
+                "topic": "Should not be here"
+            }
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("training_info", response.data)
+
+    def test_create_booking_missing_required_info(self):
+        """เทสกรณี: ส่ง purpose_type แต่ไม่ยอมส่ง info ที่จำเป็นมาให้"""
+        url = reverse("booking-list")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "10:00",
+            "time_end": "12:00",
+            "purpose_type": "training",
+            # เจตนาไม่ส่ง "training_info" มา
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("training_info", response.data) # ต้องฟ้องว่าต้องการฟิลด์นี้
+
+    def test_create_booking_invalid_purpose_type(self):
+        """เทสกรณี: ส่ง purpose_type ผิดแปลกไปจาก Choices"""
+        url = reverse("booking-list")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "10:00",
+            "time_end": "12:00",
+            "purpose_type": "party", # <--- ค่านี้ไม่มีในระบบ
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("purpose_type", response.data)
+
+    def test_create_booking_missing_teaching_info(self):
+        """เทส Edge Case: purpose เป็น teaching แต่ไม่ส่ง teaching_info"""
+        url = reverse("booking-list")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "10:00",
+            "time_end": "12:00",
+            "purpose_type": "teaching",
+            # ไม่ส่ง teaching_info
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("teaching_info", response.data)
