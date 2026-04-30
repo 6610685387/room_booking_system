@@ -8,7 +8,10 @@ from rest_framework.views import APIView
 from bookings.models import Booking
 from .models import BlackoutPeriod, Room, FavouriteRoom
 from .serializers import BlackoutPeriodReadSerializer, RoomSerializer
-from .docs import room_list_schema, room_schedule_schema, room_blackout_schema
+from .docs import (
+    room_list_schema, room_schedule_schema, room_blackout_schema,
+    room_favourite_toggle_schema, room_favourite_list_schema
+)
 
 # Create your views here.
 BKK_TZ = ZoneInfo("Asia/Bangkok")
@@ -191,6 +194,7 @@ class RoomBlackoutView(APIView):
         serializer = BlackoutPeriodReadSerializer(qs, many=True)
         return Response(serializer.data, status=200)
 
+@room_favourite_toggle_schema
 class FavouriteRoomToggleView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -211,6 +215,7 @@ class FavouriteRoomToggleView(APIView):
         return Response({"room_id": room_id, "is_favourite": True}, status=201)
 
 
+@room_favourite_list_schema
 class FavouriteRoomListView(APIView):
     permission_classes = [IsAuthenticated]
 

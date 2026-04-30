@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, inline_serializer
 from rest_framework import serializers
+from drf_spectacular.types import OpenApiTypes
 
 # We use explicit classes for complex nested responses to avoid "inline_serializer" 
 # instantiation issues with ListField and improve reliability.
@@ -19,12 +20,21 @@ class ConflictSummarySerializer(serializers.Serializer):
     conflict_count = serializers.IntegerField()
     blackout_count = serializers.IntegerField()
 
+class SuggestedRoomSerializer(serializers.Serializer):
+    room_id = serializers.IntegerField()
+    room_code = serializers.CharField()
+    room_name = serializers.CharField()
+    capacity = serializers.IntegerField()
+    room_type = serializers.CharField()
+    is_favourite = serializers.BooleanField(help_text="ระบุว่าเป็นห้องที่ผู้ใช้กดโปรดไว้หรือไม่") 
+
 class ConflictReportSerializer(serializers.Serializer):
     has_conflict = serializers.BooleanField()
     summary = ConflictSummarySerializer()
     available_dates = serializers.ListField(child=serializers.CharField())
     conflicts = ConflictDetailSerializer(many=True)
     blackouts = ConflictDetailSerializer(many=True)
+    suggested_rooms = SuggestedRoomSerializer(many=True)
 
 class MyBookingResponseSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
@@ -36,6 +46,7 @@ class MyBookingResponseSerializer(serializers.Serializer):
     purpose_type = serializers.CharField()
     recurring_group_id = serializers.IntegerField(allow_null=True)
     subject = serializers.CharField()
+    additional_requests = serializers.CharField(allow_null=True)
     reject_reason = serializers.CharField(allow_null=True)
     can_cancel = serializers.BooleanField()
     created_at = serializers.DateTimeField()
@@ -65,6 +76,8 @@ class BookingDetailResponseSerializer(serializers.Serializer):
     teaching_info = serializers.DictField(allow_null=True)
     training_info = serializers.DictField(allow_null=True)
     recurring_group_id = serializers.IntegerField(allow_null=True)
+    additional_requests = serializers.CharField(allow_null=True)
+    admin_notes = serializers.CharField(allow_null=True)
     reject_reason = serializers.CharField(allow_null=True)
     can_cancel = serializers.BooleanField()
     created_at = serializers.DateTimeField()
@@ -100,6 +113,7 @@ booking_viewset_schema = extend_schema_view(
                 "time_end": serializers.TimeField(format="%H:%M", help_text="HH:MM เช่น 12:00"),
                 "purpose_type": serializers.ChoiceField(choices=["teaching", "training"]),
                 "skip_conflicts": serializers.BooleanField(default=False, help_text="True = ข้ามวันที่มีปัญหา, False = ยกเลิกทั้งหมดถ้าเจอชน"),
+                "additional_requests": serializers.CharField(required=False, allow_null=True),
                 "teaching_info": inline_serializer(
                     name="TeachingInfoInput",
                     fields={
@@ -149,12 +163,14 @@ booking_viewset_schema = extend_schema_view(
     retrieve=extend_schema(
         summary="4. ดูรายละเอียดการจอง (ระบุ ID)",
         description="ดูข้อมูลการจองเฉพาะ ID นั้นๆ (ต้องเป็นเจ้าของ หรือ Admin)",
+        parameters=[OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)],
         responses={200: BookingDetailResponseSerializer}
     ),
     cancel=extend_schema(
         summary="5. ยกเลิกการจอง (1 รายการ)",
         description="ยกเลิกการจองที่เวลายังไม่เริ่มต้น",
         request=None,
+        parameters=[OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH)],
         responses={
             200: inline_serializer(
                 name="BookingCancelResponse",
