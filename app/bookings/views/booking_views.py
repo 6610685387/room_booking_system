@@ -63,12 +63,13 @@ class BookingViewSet(viewsets.ViewSet):
             room_id, d_start, d_end, days_of_week, time_start, time_end
         )
 
-        # ถ้ามี conflict → หาห้องสำรองแนะนำ
+        # [NEW] ถ้ามี conflict → หาห้องสำรองแนะนำ
         suggested_rooms = []
         if report["has_conflict"]:
             suggested_rooms = find_alternative_rooms(
-                room_id, d_start, d_end, days_of_week, time_start, time_end
+                room_id, d_start, d_end, days_of_week, time_start, time_end, request.user.user_id
             )
+
 
         return Response({
             **report,

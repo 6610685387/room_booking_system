@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from django.utils.timezone import localtime, make_aware
 from bookings.models import Booking
-from rooms.models import BlackoutPeriod, Room
+from rooms.models import BlackoutPeriod, Room, FavouriteRoom
 from bookings.services.recurring import generate_recurring_slots
 
 def build_conflict_report(
@@ -127,11 +127,12 @@ def find_alternative_rooms(
     days_of_week: list[str],
     time_start: str,
     time_end: str,
-    max_suggestions: int = 3,
+    user_id: int,
 ) -> list[dict]:
     """
     หาห้องอื่นที่ว่างครบทุกวันในช่วงเวลาเดียวกัน (ท่าที่ 1: Perfect Match)
     Returns list of room dicts ที่ available_count == total_dates (ว่างทุกวัน)
+    เรียงลำดับตาม capacity และบอกสถานะ Favourite
     """
     try:
         original_room = Room.objects.get(pk=original_room_id)
@@ -144,10 +145,11 @@ def find_alternative_rooms(
         capacity__gte=min_capacity,
     ).exclude(pk=original_room_id).order_by("capacity")
 
+    # ดึงห้องโปรดของผู้ใช้เก็บไว้เป็น set เพื่อค้นหาอย่างรวดเร็ว (O(1))
+    favourite_room_ids = set(FavouriteRoom.objects.filter(user=user_id).values_list('room_id', flat=True))
+
     suggestions = []
     for room in candidate_rooms:
-        if len(suggestions) >= max_suggestions:
-            break
         report = build_conflict_report(
             room.room_id, date_start, date_end, days_of_week, time_start, time_end
         )
@@ -160,6 +162,7 @@ def find_alternative_rooms(
                 "room_name": room.room_name,
                 "capacity": room.capacity,
                 "room_type": room.room_type,
+                "is_favourite": room.room_id in favourite_room_ids,
             })
 
     return suggestions

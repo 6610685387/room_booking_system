@@ -2,7 +2,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from account.models import User
-from rooms.models import Room, BlackoutPeriod
+from rooms.models import Room, BlackoutPeriod, FavouriteRoom
 from bookings.models import Booking, RecurringGroup, TeachingInfo
 from datetime import date, datetime, time, timedelta
 import zoneinfo
@@ -71,6 +71,46 @@ class BookingAPITest(APITestCase):
         self.assertIn("suggested_rooms", response.data)
         self.assertEqual(len(response.data["suggested_rooms"]), 1)
         self.assertEqual(response.data["suggested_rooms"][0]["room_code"], "406-4")
+        self.assertIn("is_favourite", response.data["suggested_rooms"][0])
+        self.assertFalse(response.data["suggested_rooms"][0]["is_favourite"])
+
+    def test_check_conflict_view_with_favourite_room(self):
+        # 1. จำลองการจองให้ห้องเป้าหมายเต็ม
+        start_dt = make_aware(datetime.combine(date(2026, 5, 4), time(10, 0)), BKK)
+        end_dt = make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK)
+        Booking.objects.create(
+            room=self.room, booker=self.admin,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Approved", purpose_type="training"
+        )
+        
+        # 2. สร้างห้องสำรองที่ว่างอยู่
+        room_alt = Room.objects.create(
+            room_code="406-4", room_name="ห้องประชุม 2",
+            room_type="Meeting Room", capacity=60, is_active=True
+        )
+
+        # 3. ให้ User (self.lecturer) กด Favourite ห้องสำรองนี้ไว้
+        FavouriteRoom.objects.create(user=self.lecturer, room=room_alt)
+
+        # 4. ยิง API Check Conflict
+        url = reverse("booking-check-conflict")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "11:00",
+            "time_end": "13:00"
+        }
+        response = self.client.post(url, data, format='json')
+        
+        # 5. ตรวจสอบผลลัพธ์
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["has_conflict"])
+        self.assertEqual(len(response.data["suggested_rooms"]), 1)
+        self.assertEqual(response.data["suggested_rooms"][0]["room_code"], "406-4")
+        self.assertTrue(response.data["suggested_rooms"][0]["is_favourite"]) # ต้องเป็น True
 
     def test_create_booking_success(self):
         url = reverse("booking-list")

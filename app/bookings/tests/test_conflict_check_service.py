@@ -2,7 +2,7 @@ from zoneinfo import ZoneInfo
 from django.utils.timezone import make_aware
 from django.test import TestCase
 from datetime import datetime, date
-from rooms.models import Room, BlackoutPeriod
+from rooms.models import Room, BlackoutPeriod, FavouriteRoom
 from account.models import User
 from bookings.models import Booking
 from bookings.services.conflict_check_service import find_alternative_rooms
@@ -66,7 +66,8 @@ class ConflictSuggestionTest(TestCase):
             date_end=date(2026, 5, 5),
             days_of_week=["Tue"],
             time_start="10:00",
-            time_end="12:00"
+            time_end="12:00",
+            user_id=self.user.user_id
         )
 
         # Expected: room_alt1 should be suggested.
@@ -75,6 +76,7 @@ class ConflictSuggestionTest(TestCase):
         # room_inactive is inactive.
         self.assertEqual(len(suggestions), 1)
         self.assertEqual(suggestions[0]["room_code"], "406-4")
+        self.assertFalse(suggestions[0]["is_favourite"])
 
     def test_find_alternative_rooms_no_available(self):
         # Occupy all rooms
@@ -92,7 +94,8 @@ class ConflictSuggestionTest(TestCase):
             date_end=date(2026, 5, 5),
             days_of_week=["Tue"],
             time_start="10:00",
-            time_end="12:00"
+            time_end="12:00",
+            user_id=self.user.user_id
         )
         self.assertEqual(len(suggestions), 0)
 
@@ -121,6 +124,65 @@ class ConflictSuggestionTest(TestCase):
             date_end=date(2026, 5, 5),
             days_of_week=["Tue"],
             time_start="10:00",
-            time_end="12:00"
+            time_end="12:00",
+            user_id=self.user.user_id
         )
         self.assertEqual(len(suggestions), 0)
+
+    def test_find_alternative_rooms_unlimited_suggestions(self):
+        # target has conflict
+        Booking.objects.create(
+            room=self.room_target, booker=self.user,
+            start_datetime=self._dt("2026-05-05", "10:00"),
+            end_datetime=self._dt("2026-05-05", "12:00"),
+            status="Approved", purpose_type="teaching"
+        )
+        # Add more rooms
+        for i in range(6, 11):
+            Room.objects.create(
+                room_code=f"406-{i}", room_name=f"ห้องประชุม {i}",
+                room_type="Meeting Room", capacity=60, is_active=True
+            )
+        
+        suggestions = find_alternative_rooms(
+            original_room_id=self.room_target.room_id,
+            date_start=date(2026, 5, 5),
+            date_end=date(2026, 5, 5),
+            days_of_week=["Tue"],
+            time_start="10:00",
+            time_end="12:00",
+            user_id=self.user.user_id
+        )
+        # Original alt1, alt2 (2) + New 5 rooms (5) = 7 suggestions
+        self.assertEqual(len(suggestions), 7)
+
+    def test_find_alternative_rooms_is_favourite(self):
+        # target has conflict
+        Booking.objects.create(
+            room=self.room_target, booker=self.user,
+            start_datetime=self._dt("2026-05-05", "10:00"),
+            end_datetime=self._dt("2026-05-05", "12:00"),
+            status="Approved", purpose_type="teaching"
+        )
+        # set alt2 as favourite
+        FavouriteRoom.objects.create(user=self.user, room=self.room_alt2)
+
+        suggestions = find_alternative_rooms(
+            original_room_id=self.room_target.room_id,
+            date_start=date(2026, 5, 5),
+            date_end=date(2026, 5, 5),
+            days_of_week=["Tue"],
+            time_start="10:00",
+            time_end="12:00",
+            user_id=self.user.user_id
+        )
+        # alt1, alt2
+        self.assertEqual(len(suggestions), 2)
+        
+        # alt1 (capacity 60) should come first due to order_by("capacity")
+        self.assertEqual(suggestions[0]["room_code"], "406-4")
+        self.assertFalse(suggestions[0]["is_favourite"])
+        
+        # alt2 (capacity 80)
+        self.assertEqual(suggestions[1]["room_code"], "406-5")
+        self.assertTrue(suggestions[1]["is_favourite"])
