@@ -21,15 +21,29 @@ class RoomListView(APIView):
     def get(self, request) -> Response:
         """
         GET /api/rooms/
-        List all rooms with optional is_active filter.
+        List all rooms with optional filters: is_active, min_capacity, room_type.
         """
         qs = Room.objects.all().order_by("room_code")
-        is_active_param = request.query_params.get("is_active", None)
         
+        # กรอง is_active
+        is_active_param = request.query_params.get("is_active", None)
         if is_active_param == "true":
             qs = qs.filter(is_active=True)
         elif is_active_param == "false":
             qs = qs.filter(is_active=False)
+
+        # [NEW] กรองความจุขั้นต่ำ
+        min_capacity_param = request.query_params.get("min_capacity", None)
+        if min_capacity_param is not None:
+            try:
+                qs = qs.filter(capacity__gte=int(min_capacity_param))
+            except ValueError:
+                return Response({"error": "min_capacity ต้องเป็นตัวเลข"}, status=400)
+
+        # [NEW] กรองประเภทห้อง
+        room_type_param = request.query_params.get("room_type", None)
+        if room_type_param is not None:
+            qs = qs.filter(room_type=room_type_param)
             
         serializer = RoomSerializer(qs, many=True)
         return Response(serializer.data, status=200)

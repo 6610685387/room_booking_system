@@ -46,6 +46,40 @@ class RoomAPITest(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["room_code"], "101")
 
+    def test_filter_min_capacity(self):
+        url = reverse("room-list")
+        # room1 has capacity 60, room2 has 40
+        response = self.client.get(url, {"min_capacity": "50"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["room_code"], "406-3")
+
+    def test_filter_room_type(self):
+        url = reverse("room-list")
+        # room1 is Meeting Room, room2 is Classroom
+        response = self.client.get(url, {"room_type": "Classroom"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["room_code"], "101")
+
+    def test_filter_invalid_capacity(self):
+        url = reverse("room-list")
+        response = self.client.get(url, {"min_capacity": "abc"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_filter_combined(self):
+        url = reverse("room-list")
+        # room1: Meeting Room, 60, active=True
+        # room2: Classroom, 40, active=False
+        response = self.client.get(url, {
+            "min_capacity": "30",
+            "room_type": "Classroom",
+            "is_active": "false"
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["room_code"], "101")
+
     def test_room_schedule_validation(self):
         url = reverse("room-schedule", args=[self.room1.room_id])
         
