@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from django.utils.timezone import localtime, make_aware
 from bookings.models import Booking
-from rooms.models import BlackoutPeriod
+from rooms.models import BlackoutPeriod, Room, FavouriteRoom
 from bookings.services.recurring import generate_recurring_slots
 
 def build_conflict_report(
@@ -119,3 +119,103 @@ def build_conflict_report(
         "conflicts":       conflicts,
         "blackouts":       blackouts,
     }
+
+def find_alternative_rooms(
+    original_room_id: int,
+    date_start: date,
+    date_end: date,
+    days_of_week: list[str],
+    time_start: str,
+    time_end: str,
+    user_id: int,
+) -> list[dict]:
+    try:
+        original_room = Room.objects.get(pk=original_room_id)
+        min_capacity = original_room.capacity
+    except Room.DoesNotExist:
+        return []
+
+    candidate_rooms = list(Room.objects.filter(
+        is_active=True,
+        capacity__gte=min_capacity,
+    ).exclude(pk=original_room_id).order_by("capacity"))
+
+    candidate_room_ids = [room.room_id for room in candidate_rooms]
+    if not candidate_room_ids:
+        return []
+
+    all_slots = generate_recurring_slots(
+        date_start, date_end, days_of_week, time_start, time_end
+    )
+    if not all_slots:
+        return []
+
+    min_start_dt = all_slots[0][0]
+    max_end_dt = all_slots[-1][1]
+
+    # Bulk fetch bookings for ALL candidate rooms
+    existing_bookings = Booking.objects.filter(
+        room_id__in=candidate_room_ids,
+        status__in=["Pending", "Approved"],
+        start_datetime__lt=max_end_dt,
+        end_datetime__gt=min_start_dt,
+    ).values('room_id', 'start_datetime', 'end_datetime')
+
+    # Bulk fetch blackouts for ALL candidate rooms
+    BKK_TZ = ZoneInfo("Asia/Bangkok")
+    dt_start = make_aware(datetime.combine(date_start, time(0, 0, 0)), BKK_TZ)
+    dt_next_end = make_aware(datetime.combine(date_end + timedelta(days=1), time(0, 0, 0)), BKK_TZ)
+
+    existing_blackouts = BlackoutPeriod.objects.filter(
+        room_id__in=candidate_room_ids,
+        start_datetime__lt=dt_next_end,
+        end_datetime__gte=dt_start,
+    ).values('room_id', 'start_datetime', 'end_datetime')
+
+    # Group by room_id in memory
+    from collections import defaultdict
+    bookings_by_room = defaultdict(list)
+    for b in existing_bookings:
+        bookings_by_room[b['room_id']].append(b)
+
+    blackouts_by_room = defaultdict(list)
+    for b in existing_blackouts:
+        blackouts_by_room[b['room_id']].append(b)
+
+    favourite_room_ids = set(FavouriteRoom.objects.filter(user=user_id).values_list('room_id', flat=True))
+
+    suggestions = []
+    for room in candidate_rooms:
+        has_conflict = False
+        room_bookings = bookings_by_room[room.room_id]
+        room_blackouts = blackouts_by_room[room.room_id]
+
+        for (s_dt, e_dt) in all_slots:
+            conflict_found = False
+            for b in room_bookings:
+                if b['start_datetime'] < e_dt and b['end_datetime'] > s_dt:
+                    has_conflict = True
+                    conflict_found = True
+                    break
+            
+            if not conflict_found:
+                for bl in room_blackouts:
+                    if bl['start_datetime'] < e_dt and bl['end_datetime'] > s_dt:
+                        has_conflict = True
+                        conflict_found = True
+                        break
+            
+            if has_conflict:
+                break 
+
+        if not has_conflict:
+            suggestions.append({
+                "room_id": room.room_id,
+                "room_code": room.room_code,
+                "room_name": room.room_name,
+                "capacity": room.capacity,
+                "room_type": room.room_type,
+                "is_favourite": room.room_id in favourite_room_ids,
+            })
+
+    return suggestions

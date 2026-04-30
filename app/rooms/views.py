@@ -6,9 +6,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from bookings.models import Booking
-from .models import BlackoutPeriod, Room
+from .models import BlackoutPeriod, Room, FavouriteRoom
 from .serializers import BlackoutPeriodReadSerializer, RoomSerializer
-from .docs import room_list_schema, room_schedule_schema, room_blackout_schema
+from .docs import (
+    room_list_schema, room_schedule_schema, room_blackout_schema,
+    room_favourite_toggle_schema, room_favourite_list_schema
+)
 
 # Create your views here.
 BKK_TZ = ZoneInfo("Asia/Bangkok")
@@ -21,15 +24,29 @@ class RoomListView(APIView):
     def get(self, request) -> Response:
         """
         GET /api/rooms/
-        List all rooms with optional is_active filter.
+        List all rooms with optional filters: is_active, min_capacity, room_type.
         """
         qs = Room.objects.all().order_by("room_code")
-        is_active_param = request.query_params.get("is_active", None)
         
+        # กรอง is_active
+        is_active_param = request.query_params.get("is_active", None)
         if is_active_param == "true":
             qs = qs.filter(is_active=True)
         elif is_active_param == "false":
             qs = qs.filter(is_active=False)
+
+        # [NEW] กรองความจุขั้นต่ำ
+        min_capacity_param = request.query_params.get("min_capacity", None)
+        if min_capacity_param is not None:
+            try:
+                qs = qs.filter(capacity__gte=int(min_capacity_param))
+            except ValueError:
+                return Response({"error": "min_capacity ต้องเป็นตัวเลข"}, status=400)
+
+        # [NEW] กรองประเภทห้อง
+        room_type_param = request.query_params.get("room_type", None)
+        if room_type_param is not None:
+            qs = qs.filter(room_type=room_type_param)
             
         serializer = RoomSerializer(qs, many=True)
         return Response(serializer.data, status=200)
@@ -175,4 +192,42 @@ class RoomBlackoutView(APIView):
 
         # Step 4: Serialize and return
         serializer = BlackoutPeriodReadSerializer(qs, many=True)
+        return Response(serializer.data, status=200)
+
+@room_favourite_toggle_schema
+class FavouriteRoomToggleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, room_id: int) -> Response:
+        """
+        POST /api/rooms/{room_id}/favourite/
+        Toggle: เพิ่มหรือลบ favourite
+        Race Condition ป้องกันด้วย get_or_create + unique_together บน model
+        """
+        room = get_object_or_404(Room, pk=room_id, is_active=True)
+        fav, created = FavouriteRoom.objects.get_or_create(
+            user=request.user,
+            room=room,
+        )
+        if not created:
+            fav.delete()
+            return Response({"room_id": room_id, "is_favourite": False}, status=200)
+        return Response({"room_id": room_id, "is_favourite": True}, status=201)
+
+
+@room_favourite_list_schema
+class FavouriteRoomListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        """
+        GET /api/rooms/favourites/
+        ดึงรายการห้องที่ user กด favourite ไว้ทั้งหมด
+        """
+        fav_room_ids = FavouriteRoom.objects.filter(
+            user=request.user
+        ).values_list("room_id", flat=True)
+
+        rooms = Room.objects.filter(pk__in=fav_room_ids, is_active=True).order_by("room_code")
+        serializer = RoomSerializer(rooms, many=True)
         return Response(serializer.data, status=200)

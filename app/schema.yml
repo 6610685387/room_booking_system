@@ -1,0 +1,895 @@
+openapi: 3.0.3
+info:
+  title: Room Booking API
+  version: 1.0.0
+  description: API Specification สำหรับระบบจองห้อง (Role 1)
+paths:
+  /api/bookings/:
+    post:
+      operationId: bookings_create
+      description: สร้างการจองแบบครั้งเดียว หรือแบบ Recurring
+      summary: 2. สร้างการจองห้อง
+      tags:
+      - bookings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreatePayload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookingCreatePayload'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookingCreatePayload'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCreateResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingConflictError'
+          description: ''
+  /api/bookings/{id}/:
+    get:
+      operationId: bookings_retrieve
+      description: ดูข้อมูลการจองเฉพาะ ID นั้นๆ (ต้องเป็นเจ้าของ หรือ Admin)
+      summary: 4. ดูรายละเอียดการจอง (ระบุ ID)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - bookings
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetailResponse'
+          description: ''
+  /api/bookings/{id}/cancel/:
+    patch:
+      operationId: bookings_cancel_partial_update
+      description: ยกเลิกการจองที่เวลายังไม่เริ่มต้น
+      summary: 5. ยกเลิกการจอง (1 รายการ)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - bookings
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCancelResponse'
+          description: ''
+  /api/bookings/check-conflict/:
+    post:
+      operationId: bookings_check_conflict_create
+      description: ส่งข้อมูลวันที่ เวลา และห้อง เพื่อตรวจสอบว่ามีวันไหนชนหรือติด Blackout
+        บ้าง
+      summary: 1. เช็กห้องว่างและ Conflict
+      tags:
+      - bookings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckConflictPayload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CheckConflictPayload'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CheckConflictPayload'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictReport'
+          description: ''
+  /api/bookings/my/:
+    get:
+      operationId: bookings_my_list
+      description: ดึงรายการจองทั้งหมดของตัวเอง สามารถ filter ด้วย ?status=Pending
+        ได้
+      summary: 3. ดูประวัติการจองของฉัน
+      parameters:
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: กรองตามสถานะ เช่น Pending, Approved
+      tags:
+      - bookings
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyBookingResponse'
+          description: ''
+  /api/bookings/recurring/{group_id}/cancel/:
+    patch:
+      operationId: bookings_recurring_cancel_partial_update
+      description: ยกเลิกการจองทั้งหมดใน group_id นั้น ที่ยังไม่ถึงเวลาเริ่ม
+      summary: 6. ยกเลิกการจองแบบกลุ่ม (Recurring)
+      parameters:
+      - in: path
+        name: group_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - bookings
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringCancelResponse'
+          description: ''
+  /api/rooms/:
+    get:
+      operationId: rooms_list
+      description: แสดงรายการห้อง สามารถกรองด้วย is_active, min_capacity และ room_type
+      summary: ดึงรายชื่อห้องทั้งหมด
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: string
+        description: true หรือ false
+      - in: query
+        name: min_capacity
+        schema:
+          type: integer
+        description: ความจุขั้นต่ำ (เลขจำนวนเต็ม)
+      - in: query
+        name: room_type
+        schema:
+          type: string
+        description: '''Meeting Room'' หรือ ''Classroom'''
+      tags:
+      - rooms
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+          description: ''
+  /api/rooms/{room_id}/blackouts/:
+    get:
+      operationId: rooms_blackouts_list
+      description: ดูช่วงเวลาปิดปรับปรุง/วันหยุดของห้องนั้น สามารถระบุช่วงวันที่ ?from=...&to=...
+      summary: ดึงรายการ Blackout ของห้อง
+      parameters:
+      - in: query
+        name: from
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      - in: path
+        name: room_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: to
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      tags:
+      - rooms
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlackoutPeriodRead'
+          description: ''
+  /api/rooms/{room_id}/favourite/:
+    post:
+      operationId: rooms_favourite_create
+      description: POST ครั้งแรก = favourite (201), POST ซ้ำ = unfavourite (200)
+      summary: Toggle Favourite ห้อง (เพิ่ม/ลบ)
+      parameters:
+      - in: path
+        name: room_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - rooms
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavouriteResponse'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnfavouriteResponse'
+          description: ''
+  /api/rooms/{room_id}/schedule/:
+    get:
+      operationId: rooms_schedule_retrieve
+      description: ดูตารางจองของห้อง ระบุวันเริ่มต้นสัปดาห์ (ต้องเป็นวันอาทิตย์) เช่น
+        ?week_start=2026-05-03
+      summary: ดึงตารางการใช้ห้อง (รายสัปดาห์)
+      parameters:
+      - in: path
+        name: room_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: week_start
+        schema:
+          type: string
+        description: YYYY-MM-DD (ต้องเป็นวันอาทิตย์)
+        required: true
+      tags:
+      - rooms
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomScheduleResponse'
+          description: ''
+  /api/rooms/favourites/:
+    get:
+      operationId: rooms_favourites_list
+      description: |-
+        GET /api/rooms/favourites/
+        ดึงรายการห้องที่ user กด favourite ไว้ทั้งหมด
+      summary: ดูรายการห้องที่ Favourite ไว้
+      tags:
+      - rooms
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+          description: ''
+components:
+  schemas:
+    BlackoutPeriodRead:
+      type: object
+      properties:
+        blackout_id:
+          type: integer
+          readOnly: true
+        room_id:
+          type: integer
+          readOnly: true
+        start_datetime:
+          type: string
+          format: date-time
+        end_datetime:
+          type: string
+          format: date-time
+        reason:
+          type: string
+      required:
+      - blackout_id
+      - end_datetime
+      - reason
+      - room_id
+      - start_datetime
+    BookingBookerDetail:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        displayname_th:
+          type: string
+      required:
+      - displayname_th
+      - user_id
+    BookingCancelResponse:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+        previous_status:
+          type: string
+        status:
+          type: string
+        notify_admin:
+          type: boolean
+        message:
+          type: string
+      required:
+      - booking_id
+      - message
+      - notify_admin
+      - previous_status
+      - status
+    BookingConflictError:
+      type: object
+      properties:
+        error:
+          type: string
+        report:
+          $ref: '#/components/schemas/ConflictReport'
+      required:
+      - error
+      - report
+    BookingCreatePayload:
+      type: object
+      properties:
+        room_id:
+          type: integer
+          description: ID ของห้องที่ต้องการจอง
+        date_start:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        date_end:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        days_of_week:
+          type: array
+          items:
+            type: string
+          description: เช่น ["Mon", "Tue"]
+        time_start:
+          type: string
+          format: time
+          description: HH:MM เช่น 10:00
+        time_end:
+          type: string
+          format: time
+          description: HH:MM เช่น 12:00
+        purpose_type:
+          $ref: '#/components/schemas/PurposeTypeEnum'
+        skip_conflicts:
+          type: boolean
+          default: false
+          description: True = ข้ามวันที่มีปัญหา, False = ยกเลิกทั้งหมดถ้าเจอชน
+        additional_requests:
+          type: string
+          nullable: true
+        teaching_info:
+          $ref: '#/components/schemas/TeachingInfoInput'
+        training_info:
+          $ref: '#/components/schemas/TrainingInfoInput'
+      required:
+      - date_end
+      - date_start
+      - days_of_week
+      - purpose_type
+      - room_id
+      - time_end
+      - time_start
+    BookingCreateResponse:
+      type: object
+      properties:
+        booking_ids:
+          type: array
+          items:
+            type: integer
+        skipped_dates:
+          type: array
+          items:
+            type: string
+        recurring_group_id:
+          type: integer
+        total_created:
+          type: integer
+        total_skipped:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+      required:
+      - booking_ids
+      - message
+      - recurring_group_id
+      - skipped_dates
+      - status
+      - total_created
+      - total_skipped
+    BookingDetailResponse:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+        room:
+          $ref: '#/components/schemas/BookingRoomDetail'
+        booker:
+          $ref: '#/components/schemas/BookingBookerDetail'
+        start_datetime:
+          type: string
+          format: date-time
+        end_datetime:
+          type: string
+          format: date-time
+        status:
+          type: string
+        purpose_type:
+          type: string
+        teaching_info:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        training_info:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        recurring_group_id:
+          type: integer
+          nullable: true
+        additional_requests:
+          type: string
+          nullable: true
+        admin_notes:
+          type: string
+          nullable: true
+        reject_reason:
+          type: string
+          nullable: true
+        can_cancel:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - additional_requests
+      - admin_notes
+      - booker
+      - booking_id
+      - can_cancel
+      - created_at
+      - end_datetime
+      - purpose_type
+      - recurring_group_id
+      - reject_reason
+      - room
+      - start_datetime
+      - status
+      - teaching_info
+      - training_info
+    BookingRoomDetail:
+      type: object
+      properties:
+        room_id:
+          type: integer
+        room_code:
+          type: string
+        room_name:
+          type: string
+        capacity:
+          type: integer
+      required:
+      - capacity
+      - room_code
+      - room_id
+      - room_name
+    CheckConflictPayload:
+      type: object
+      properties:
+        room_id:
+          type: integer
+          description: ID ของห้องที่ต้องการจอง
+        date_start:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        date_end:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        days_of_week:
+          type: array
+          items:
+            type: string
+          description: เช่น ["Mon", "Tue"]
+        time_start:
+          type: string
+          format: time
+          description: HH:MM เช่น 10:00
+        time_end:
+          type: string
+          format: time
+          description: HH:MM เช่น 12:00
+      required:
+      - date_end
+      - date_start
+      - days_of_week
+      - room_id
+      - time_end
+      - time_start
+    ConflictDetail:
+      type: object
+      properties:
+        conflict_type:
+          type: string
+          description: booking หรือ blackout
+        date:
+          type: string
+          description: YYYY-MM-DD
+        start_time:
+          type: string
+        end_time:
+          type: string
+        booker_name:
+          type: string
+        status:
+          type: string
+        reason:
+          type: string
+          description: เหตุผล Blackout
+      required:
+      - conflict_type
+      - date
+    ConflictReport:
+      type: object
+      properties:
+        has_conflict:
+          type: boolean
+        summary:
+          $ref: '#/components/schemas/ConflictSummary'
+        available_dates:
+          type: array
+          items:
+            type: string
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConflictDetail'
+        blackouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConflictDetail'
+        suggested_rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedRoom'
+      required:
+      - available_dates
+      - blackouts
+      - conflicts
+      - has_conflict
+      - suggested_rooms
+      - summary
+    ConflictSummary:
+      type: object
+      properties:
+        total_dates:
+          type: integer
+        available_count:
+          type: integer
+        conflict_count:
+          type: integer
+        blackout_count:
+          type: integer
+      required:
+      - available_count
+      - blackout_count
+      - conflict_count
+      - total_dates
+    FavouriteResponse:
+      type: object
+      properties:
+        room_id:
+          type: integer
+        is_favourite:
+          type: boolean
+      required:
+      - is_favourite
+      - room_id
+    MyBookingResponse:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+        room_code:
+          type: string
+        room_name:
+          type: string
+        start_datetime:
+          type: string
+          format: date-time
+        end_datetime:
+          type: string
+          format: date-time
+        status:
+          type: string
+        purpose_type:
+          type: string
+        recurring_group_id:
+          type: integer
+          nullable: true
+        subject:
+          type: string
+        additional_requests:
+          type: string
+          nullable: true
+        reject_reason:
+          type: string
+          nullable: true
+        can_cancel:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - additional_requests
+      - booking_id
+      - can_cancel
+      - created_at
+      - end_datetime
+      - purpose_type
+      - recurring_group_id
+      - reject_reason
+      - room_code
+      - room_name
+      - start_datetime
+      - status
+      - subject
+    PurposeTypeEnum:
+      enum:
+      - teaching
+      - training
+      type: string
+      description: |-
+        * `teaching` - teaching
+        * `training` - training
+    RecurringCancelResponse:
+      type: object
+      properties:
+        group_id:
+          type: integer
+        cancelled_count:
+          type: integer
+        skipped_count:
+          type: integer
+        skipped_reason:
+          type: string
+        had_approved:
+          type: boolean
+        notify_admin:
+          type: boolean
+        message:
+          type: string
+      required:
+      - cancelled_count
+      - group_id
+      - had_approved
+      - message
+      - notify_admin
+      - skipped_count
+      - skipped_reason
+    Room:
+      type: object
+      properties:
+        room_id:
+          type: integer
+          readOnly: true
+        room_image:
+          type: string
+          format: uri
+          nullable: true
+        room_code:
+          type: string
+          maxLength: 20
+        room_name:
+          type: string
+          maxLength: 100
+        room_type:
+          $ref: '#/components/schemas/RoomTypeEnum'
+        capacity:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_by:
+          type: integer
+          nullable: true
+      required:
+      - capacity
+      - created_at
+      - room_code
+      - room_id
+      - room_name
+      - room_type
+      - updated_at
+    RoomScheduleResponse:
+      type: object
+      properties:
+        room_id:
+          type: integer
+        room_code:
+          type: string
+        week_start:
+          type: string
+          description: YYYY-MM-DD
+        blackout_days:
+          type: array
+          items:
+            type: string
+          description: รายชื่อวันที่ปิดปรับปรุง [YYYY-MM-DD]
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleSlot'
+      required:
+      - blackout_days
+      - room_code
+      - room_id
+      - slots
+      - week_start
+    RoomTypeEnum:
+      enum:
+      - Meeting Room
+      - Classroom
+      type: string
+      description: |-
+        * `Meeting Room` - ห้องประชุม
+        * `Classroom` - ห้องเรียน
+    ScheduleSlot:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+        day:
+          type: string
+          description: Mon, Tue, ...
+        start_time:
+          type: string
+          description: HH:MM
+        end_time:
+          type: string
+          description: HH:MM
+        status:
+          type: string
+        purpose_type:
+          type: string
+        label:
+          type: string
+          description: ชื่อวิชา หรือ หัวข้ออบรม
+      required:
+      - booking_id
+      - day
+      - end_time
+      - label
+      - purpose_type
+      - start_time
+      - status
+    SuggestedRoom:
+      type: object
+      properties:
+        room_id:
+          type: integer
+        room_code:
+          type: string
+        room_name:
+          type: string
+        capacity:
+          type: integer
+        room_type:
+          type: string
+        is_favourite:
+          type: boolean
+          description: ระบุว่าเป็นห้องที่ผู้ใช้กดโปรดไว้หรือไม่
+      required:
+      - capacity
+      - is_favourite
+      - room_code
+      - room_id
+      - room_name
+      - room_type
+    TeachingInfoInput:
+      type: object
+      properties:
+        subject_code:
+          type: string
+        subject_name:
+          type: string
+        program_type:
+          type: string
+      required:
+      - program_type
+      - subject_code
+      - subject_name
+    TrainingInfoInput:
+      type: object
+      properties:
+        topic:
+          type: string
+      required:
+      - topic
+    UnfavouriteResponse:
+      type: object
+      properties:
+        room_id:
+          type: integer
+        is_favourite:
+          type: boolean
+      required:
+      - is_favourite
+      - room_id
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

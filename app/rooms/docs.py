@@ -22,9 +22,11 @@ class RoomScheduleResponseSerializer(serializers.Serializer):
 room_list_schema = extend_schema_view(
     get=extend_schema(
         summary="ดึงรายชื่อห้องทั้งหมด",
-        description="แสดงรายการห้อง สามารถกรองเฉพาะห้องที่เปิดใช้งานด้วย ?is_active=true",
+        description="แสดงรายการห้อง สามารถกรองด้วย is_active, min_capacity และ room_type",
         parameters=[
-            OpenApiParameter(name="is_active", description="true หรือ false", required=False, type=str)
+            OpenApiParameter(name="is_active", description="true หรือ false", required=False, type=str),
+            OpenApiParameter(name="min_capacity", description="ความจุขั้นต่ำ (เลขจำนวนเต็ม)", required=False, type=int),
+            OpenApiParameter(name="room_type", description="'Meeting Room' หรือ 'Classroom'", required=False, type=str),
         ],
         responses={200: RoomSerializer(many=True)}
     )
@@ -51,4 +53,25 @@ room_blackout_schema = extend_schema_view(
         ],
         responses={200: BlackoutPeriodReadSerializer(many=True)}
     )
+)
+
+room_favourite_toggle_schema = extend_schema(
+    summary="Toggle Favourite ห้อง (เพิ่ม/ลบ)",
+    description="POST ครั้งแรก = favourite (201), POST ซ้ำ = unfavourite (200)",
+    request=None,
+    responses={
+        201: inline_serializer(name="FavouriteResponse", fields={
+            "room_id": serializers.IntegerField(),
+            "is_favourite": serializers.BooleanField(),
+        }),
+        200: inline_serializer(name="UnfavouriteResponse", fields={
+            "room_id": serializers.IntegerField(),
+            "is_favourite": serializers.BooleanField(),
+        }),
+    }
+)
+
+room_favourite_list_schema = extend_schema(
+    summary="ดูรายการห้องที่ Favourite ไว้",
+    responses={200: RoomSerializer(many=True)}
 )

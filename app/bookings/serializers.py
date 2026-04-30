@@ -44,6 +44,8 @@ class BookingReadSerializer(serializers.ModelSerializer):
             "teaching_info",
             "training_info",
             "recurring_group",
+            "additional_requests",
+            "admin_notes",
             "created_at",
         ]
 
@@ -62,19 +64,21 @@ class BookingWriteSerializer(serializers.ModelSerializer):
             "teaching_info",
             "training_info",
             "recurring_group",
+            "additional_requests",
         ]
 
     def validate(self, data):
-        # 1. เช็กความสอดคล้องของ purpose_type กับ info ที่ส่งมา
         purpose_type = data.get("purpose_type")
-        if purpose_type == "teaching" and not data.get("teaching_info"):
-            raise serializers.ValidationError(
-                {"teaching_info": "This field is required for teaching purpose."}
-            )
-        if purpose_type == "training" and not data.get("training_info"):
-            raise serializers.ValidationError(
-                {"training_info": "This field is required for training purpose."}
-            )
+        if purpose_type == "teaching":
+            if not data.get("teaching_info"):
+                raise serializers.ValidationError({"teaching_info": "This field is required for teaching purpose."})
+            if data.get("training_info"):
+                raise serializers.ValidationError({"training_info": "This field must not be provided for teaching purpose."})
+        elif purpose_type == "training":
+            if not data.get("training_info"):
+                raise serializers.ValidationError({"training_info": "This field is required for training purpose."})
+            if data.get("teaching_info"):
+                raise serializers.ValidationError({"teaching_info": "This field must not be provided for training purpose."})
         return data
 
     def create(self, validated_data):

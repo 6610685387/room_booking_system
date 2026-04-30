@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from rooms.models import Room
 from bookings.models import Booking, RecurringGroup
 from bookings.serializers import BookingWriteSerializer
-from bookings.services.conflict_check_service import build_conflict_report
+from bookings.services.conflict_check_service import build_conflict_report, find_alternative_rooms
 from bookings.services.recurring import generate_recurring_slots
 from bookings.validators import validate_date_range, validate_days_of_week
 from bookings.permissions import IsOwnerOrAdmin, IsOwner
@@ -62,7 +62,19 @@ class BookingViewSet(viewsets.ViewSet):
         report = build_conflict_report(
             room_id, d_start, d_end, days_of_week, time_start, time_end
         )
-        return Response(report, status=200)
+
+        # [NEW] ถ้ามี conflict → หาห้องสำรองแนะนำ
+        suggested_rooms = []
+        if report["has_conflict"]:
+            suggested_rooms = find_alternative_rooms(
+                room_id, d_start, d_end, days_of_week, time_start, time_end, request.user.user_id
+            )
+
+
+        return Response({
+            **report,
+            "suggested_rooms": suggested_rooms,
+        }, status=200)
 
     def create(self, request):
         """
@@ -190,6 +202,7 @@ class BookingViewSet(viewsets.ViewSet):
                 "purpose_type": bk.purpose_type,
                 "recurring_group_id": bk.recurring_group_id,
                 "subject": subject,
+                "additional_requests": bk.additional_requests,
                 "reject_reason": bk.reject_reason,
                 "can_cancel": can_cancel,
                 "created_at": localtime(bk.created_at).isoformat()
@@ -227,6 +240,8 @@ class BookingViewSet(viewsets.ViewSet):
             "teaching_info": None,
             "training_info": None,
             "recurring_group_id": bk.recurring_group_id,
+            "additional_requests": bk.additional_requests,
+            "admin_notes": bk.admin_notes,
             "reject_reason": bk.reject_reason,
             "can_cancel": can_cancel,
             "created_at": localtime(bk.created_at).isoformat()
