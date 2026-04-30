@@ -40,6 +40,38 @@ class BookingAPITest(APITestCase):
         self.assertFalse(response.data["has_conflict"])
         self.assertEqual(response.data["summary"]["available_count"], 1)
 
+    def test_check_conflict_view_with_suggestions(self):
+        # 1. Create conflict in self.room
+        start_dt = make_aware(datetime.combine(date(2026, 5, 4), time(10, 0)), BKK)
+        end_dt = make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK)
+        Booking.objects.create(
+            room=self.room, booker=self.admin,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Approved", purpose_type="training"
+        )
+        
+        # 2. Create an alternative room that is free
+        room_alt = Room.objects.create(
+            room_code="406-4", room_name="ห้องประชุม 2",
+            room_type="Meeting Room", capacity=60, is_active=True
+        )
+
+        url = reverse("booking-check-conflict")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "11:00",
+            "time_end": "13:00"
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["has_conflict"])
+        self.assertIn("suggested_rooms", response.data)
+        self.assertEqual(len(response.data["suggested_rooms"]), 1)
+        self.assertEqual(response.data["suggested_rooms"][0]["room_code"], "406-4")
+
     def test_create_booking_success(self):
         url = reverse("booking-list")
         data = {
