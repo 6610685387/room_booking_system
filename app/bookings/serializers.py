@@ -44,6 +44,8 @@ class BookingReadSerializer(serializers.ModelSerializer):
             "teaching_info",
             "training_info",
             "recurring_group",
+            "additional_requests",
+            "admin_notes",
             "created_at",
         ]
 
@@ -62,6 +64,7 @@ class BookingWriteSerializer(serializers.ModelSerializer):
             "teaching_info",
             "training_info",
             "recurring_group",
+            "additional_requests",
         ]
 
     def validate(self, data):

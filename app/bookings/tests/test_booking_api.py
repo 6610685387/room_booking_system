@@ -261,7 +261,55 @@ class BookingAPITest(APITestCase):
         # Should be 403 because Admin can only cancel their own booking via this API (SYS-20)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-def test_cancel_recurring_booking(self):
+    def test_create_booking_additional_requests(self):
+        url = reverse("booking-list")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "days_of_week": ["Mon"],
+            "time_start": "10:00",
+            "time_end": "12:00",
+            "purpose_type": "teaching",
+            "teaching_info": {
+                "subject_code": "CS101",
+                "subject_name": "Intro to CS",
+                "program_type": "Bachelor"
+            },
+            "additional_requests": "Request projector"
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify DB
+        booking = Booking.objects.first()
+        self.assertEqual(booking.additional_requests, "Request projector")
+
+    def test_retrieve_booking_expose_fields(self):
+        start_dt = make_aware(datetime.combine(date(2026, 5, 4), time(10, 0)), BKK)
+        end_dt = make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK)
+        booking = Booking.objects.create(
+            room=self.room, booker=self.lecturer,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Approved", purpose_type="training",
+            additional_requests="Request mic",
+            admin_notes="Approved with mic"
+        )
+
+        url = reverse("booking-detail", args=[booking.booking_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["additional_requests"], "Request mic")
+        self.assertEqual(response.data["admin_notes"], "Approved with mic")
+
+        # Check my_bookings too
+        url_my = reverse("booking-my-bookings")
+        response_my = self.client.get(url_my)
+        self.assertEqual(response_my.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_my.data[0]["additional_requests"], "Request mic")
+
+    def test_cancel_recurring_booking(self):
+
         # สร้าง Group และ Booking 2 วันในอนาคต
         group = RecurringGroup.objects.create(
             booker=self.lecturer, room=self.room, day_pattern="Mon",

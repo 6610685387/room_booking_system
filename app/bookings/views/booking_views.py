@@ -202,6 +202,7 @@ class BookingViewSet(viewsets.ViewSet):
                 "purpose_type": bk.purpose_type,
                 "recurring_group_id": bk.recurring_group_id,
                 "subject": subject,
+                "additional_requests": bk.additional_requests,
                 "reject_reason": bk.reject_reason,
                 "can_cancel": can_cancel,
                 "created_at": localtime(bk.created_at).isoformat()
@@ -239,6 +240,8 @@ class BookingViewSet(viewsets.ViewSet):
             "teaching_info": None,
             "training_info": None,
             "recurring_group_id": bk.recurring_group_id,
+            "additional_requests": bk.additional_requests,
+            "admin_notes": bk.admin_notes,
             "reject_reason": bk.reject_reason,
             "can_cancel": can_cancel,
             "created_at": localtime(bk.created_at).isoformat()
