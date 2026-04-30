@@ -3,7 +3,7 @@ from rest_framework import permissions
 class IsOwnerOrAdmin(permissions.BasePermission):
     """
     อนุญาตให้เข้าถึง Object ได้เฉพาะคนที่เป็นเจ้าของ (booker) หรือเป็น Admin
-    ใช้สำหรับ Action 'retrieve' (SYS-21)
+    ใช้สำหรับ Action 'retrieve'
     """
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:
@@ -17,7 +17,7 @@ class IsOwnerOrAdmin(permissions.BasePermission):
 class IsOwner(permissions.BasePermission):
     """
     อนุญาตให้เข้าถึง Object ได้เฉพาะคนที่เป็นเจ้าของ (booker) เท่านั้น
-    แม้จะเป็น Admin ก็ต้องเป็นเจ้าของถึงจะทำได้ (ใช้สำหรับ 'cancel') (SYS-20)
+    แม้จะเป็น Admin ก็ต้องเป็นเจ้าของถึงจะทำได้ (ใช้สำหรับ 'cancel')
     """
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:

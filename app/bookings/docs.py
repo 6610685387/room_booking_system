@@ -2,9 +2,6 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiPara
 from rest_framework import serializers
 from drf_spectacular.types import OpenApiTypes
 
-# We use explicit classes for complex nested responses to avoid "inline_serializer" 
-# instantiation issues with ListField and improve reliability.
-
 class ConflictDetailSerializer(serializers.Serializer):
     conflict_type = serializers.CharField(help_text="booking หรือ blackout")
     date = serializers.CharField(help_text="YYYY-MM-DD")

@@ -258,7 +258,7 @@ class BookingAPITest(APITestCase):
         self.client.force_authenticate(user=self.admin)
         url = reverse("booking-cancel", args=[booking.booking_id])
         response = self.client.patch(url)
-        # Should be 403 because Admin can only cancel their own booking via this API (SYS-20)
+        # Should be 403 because Admin can only cancel their own booking via this API
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_booking_additional_requests(self):
@@ -370,7 +370,7 @@ class BookingAPITest(APITestCase):
             "time_start": "10:00",
             "time_end": "12:00",
             "purpose_type": "training",
-            # เจตนาไม่ส่ง "training_info" มา
+            # ตั้งใจไม่ส่ง "training_info" 
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -386,7 +386,7 @@ class BookingAPITest(APITestCase):
             "days_of_week": ["Mon"],
             "time_start": "10:00",
             "time_end": "12:00",
-            "purpose_type": "party", # <--- ค่านี้ไม่มีในระบบ
+            "purpose_type": "party", # ค่านี้ไม่มีในระบบ
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

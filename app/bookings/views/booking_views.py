@@ -26,7 +26,7 @@ class BookingViewSet(viewsets.ViewSet):
         if self.action == 'retrieve':
             return [IsAuthenticated(), IsOwnerOrAdmin()]
         
-        # ตรวจสอบความเป็นเจ้าของเท่านั้นสำหรับการยกเลิก (SYS-20)
+        # ตรวจสอบความเป็นเจ้าของเท่านั้นสำหรับการยกเลิก
         if self.action == 'cancel':
             return [IsAuthenticated(), IsOwner()]
         
@@ -63,7 +63,7 @@ class BookingViewSet(viewsets.ViewSet):
             room_id, d_start, d_end, days_of_week, time_start, time_end
         )
 
-        # [NEW] ถ้ามี conflict → หาห้องสำรองแนะนำ
+        # ถ้ามี conflict → หาห้องสำรองแนะนำ
         suggested_rooms = []
         if report["has_conflict"]:
             suggested_rooms = find_alternative_rooms(
@@ -305,7 +305,7 @@ class BookingViewSet(viewsets.ViewSet):
 
         with transaction.atomic():
             # Apply select_for_update to lock the bookings being cancelled
-            # การจองกลุ่มนี้ต้องเป็นของผู้ใช้ (SYS-20)
+            # การจองกลุ่มนี้ต้องเป็นของผู้ใช้ 
             bookings = Booking.objects.select_for_update().filter(
                 recurring_group_id=group_id,
                 booker=request.user
