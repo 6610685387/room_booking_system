@@ -65,6 +65,8 @@ class Booking(models.Model):
     purpose_type = models.CharField(max_length=10, choices=PURPOSE_CHOICES)
     reject_reason = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    additional_requests = models.TextField(blank=True, null=True, help_text="คำขอเพิ่มเติมจากผู้จอง")
+    admin_notes = models.TextField(blank=True, null=True, help_text="หมายเหตุจากแอดมินตอนอนุมัติ")
 
     class Meta:
         db_table = "bookings"

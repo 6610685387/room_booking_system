@@ -52,3 +52,14 @@ class BlackoutPeriod(models.Model):
 
     def __str__(self):
         return f"{self.room.room_code} blackout {self.start_datetime} to {self.end_datetime}"
+
+
+class FavouriteRoom(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='favourite_rooms')
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='favourited_by')
+
+    class Meta:
+        unique_together = ('user', 'room') 
+
+    def __str__(self):
+        return f"{self.user} favourites {self.room}"

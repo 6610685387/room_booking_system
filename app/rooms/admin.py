@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Room, BlackoutPeriod
+from .models import Room, BlackoutPeriod, FavouriteRoom
 
 
 @admin.register(Room)
@@ -13,3 +13,9 @@ class RoomAdmin(admin.ModelAdmin):
 class BlackoutPeriodAdmin(admin.ModelAdmin):
     list_display = ("room", "start_datetime", "end_datetime", "reason")
     search_fields = ("room__room_name",)
+
+
+@admin.register(FavouriteRoom)
+class FavouriteRoomAdmin(admin.ModelAdmin):
+    list_display = ("user", "room")
+    search_fields = ("user__username", "room__room_name")

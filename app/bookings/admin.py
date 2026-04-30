@@ -13,6 +13,8 @@ class BookingAdmin(admin.ModelAdmin):
         "start_datetime",
         "end_datetime",
         "created_at",
+        "additional_requests", 
+        "admin_notes",
     )
     list_filter = ("status", "purpose_type", "room")
     search_fields = (
