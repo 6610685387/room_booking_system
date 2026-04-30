@@ -35,7 +35,7 @@ class RoomListView(APIView):
         elif is_active_param == "false":
             qs = qs.filter(is_active=False)
 
-        # [NEW] กรองความจุขั้นต่ำ
+        # กรองความจุขั้นต่ำ
         min_capacity_param = request.query_params.get("min_capacity", None)
         if min_capacity_param is not None:
             try:
@@ -43,7 +43,7 @@ class RoomListView(APIView):
             except ValueError:
                 return Response({"error": "min_capacity ต้องเป็นตัวเลข"}, status=400)
 
-        # [NEW] กรองประเภทห้อง
+        # กรองประเภทห้อง
         room_type_param = request.query_params.get("room_type", None)
         if room_type_param is not None:
             qs = qs.filter(room_type=room_type_param)
@@ -82,7 +82,7 @@ class RoomScheduleView(APIView):
                 status=400
             )
         
-        if week_start_date.weekday() != 6:    # 6 = Sunday (SYS-10)
+        if week_start_date.weekday() != 6:
             return Response(
                 {"error": "week_start must be a Sunday"},
                 status=400
@@ -96,7 +96,7 @@ class RoomScheduleView(APIView):
         # Step 4: Fetch bookings in this week
         bookings = Booking.objects.filter(
             room_id             = room_id,
-            status__in          = ["Pending", "Approved"],    # SYS-12
+            status__in          = ["Pending", "Approved"],   
             start_datetime__gte = week_start_dt,
             start_datetime__lt  = next_week_start_dt,
         ).select_related("teaching_info", "training_info").order_by("start_datetime")
@@ -107,7 +107,7 @@ class RoomScheduleView(APIView):
             local_start = localtime(booking.start_datetime, BKK_TZ)
             local_end   = localtime(booking.end_datetime,   BKK_TZ)
             
-            # Build label (SYS-13)
+            # Build label
             label = ""
             if booking.purpose_type == "teaching":
                 ti = getattr(booking, "teaching_info", None)
@@ -120,7 +120,7 @@ class RoomScheduleView(APIView):
 
             slots.append({
                 "booking_id":   booking.booking_id,
-                "day":          DAY_ABBR[local_start.weekday()],   # SYS-14
+                "day":          DAY_ABBR[local_start.weekday()],  
                 "start_time":   local_start.strftime("%H:%M"),
                 "end_time":     local_end.strftime("%H:%M"),
                 "status":       booking.status,
@@ -128,7 +128,7 @@ class RoomScheduleView(APIView):
                 "label":        label,
             })
 
-        # Step 6: Build blackout_days for this week (SYS-15)
+        # Step 6: Build blackout_days for this week
         blackout_periods = BlackoutPeriod.objects.filter(
             room_id           = room_id,
             start_datetime__lt = next_week_start_dt,    # เริ่มก่อนจบสัปดาห์นี้
@@ -136,7 +136,7 @@ class RoomScheduleView(APIView):
         )
         blackout_set = set()
         for bp in blackout_periods:
-            # ใช้ localtime เพื่อให้ .date() ตรงกับเวลาไทย (SYS-15.1)
+            # ใช้ localtime เพื่อให้ .date() ตรงกับเวลาไทย 
             bp_start_date = localtime(bp.start_datetime, BKK_TZ).date()
             bp_end_date   = localtime(bp.end_datetime,   BKK_TZ).date()
             for day_offset in range(7):   # 0=จันทร์ ... 6=อาทิตย์

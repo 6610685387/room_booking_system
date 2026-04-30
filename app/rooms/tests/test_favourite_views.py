@@ -102,13 +102,13 @@ class FavouriteRoomTests(APITestCase):
 
         url = reverse("room-favourite-list")
 
-        # [MODIFY] ใช้ CaptureQueriesContext เพื่อจับจำนวน Query แทนการฟิกซ์เลขเป๊ะๆ
+        # ใช้ CaptureQueriesContext เพื่อจับจำนวน Query แทนการฟิกซ์เลขเป๊ะๆ
         with CaptureQueriesContext(connection) as captured_queries:
             response = self.client.get(url)
             
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 3)
         
-        # ตรวจสอบว่า Query ต้อง "ไม่เกิน 3 ครั้ง" (หรือปรับเป็น 4 ได้ถ้ามีการตั้งค่า Middleware ในโปรเจกต์เยอะ)
+        # ตรวจสอบว่า Query ต้อง "ไม่เกิน 3 ครั้ง" 
         # สิ่งนี้จะช่วยกันลูป N+1 ได้อย่างมีประสิทธิภาพ (ถ้าติด N+1 จริง Query จะพุ่งไป 4+) แต่ก็ไม่เปราะบางเกินไป
         self.assertLessEqual(len(captured_queries.captured_queries), 3)
