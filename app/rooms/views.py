@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from bookings.models import Booking
-from .models import BlackoutPeriod, Room
+from .models import BlackoutPeriod, Room, FavouriteRoom
 from .serializers import BlackoutPeriodReadSerializer, RoomSerializer
 from .docs import room_list_schema, room_schedule_schema, room_blackout_schema
 
@@ -189,4 +189,40 @@ class RoomBlackoutView(APIView):
 
         # Step 4: Serialize and return
         serializer = BlackoutPeriodReadSerializer(qs, many=True)
+        return Response(serializer.data, status=200)
+
+class FavouriteRoomToggleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, room_id: int) -> Response:
+        """
+        POST /api/rooms/{room_id}/favourite/
+        Toggle: เพิ่มหรือลบ favourite
+        Race Condition ป้องกันด้วย get_or_create + unique_together บน model
+        """
+        room = get_object_or_404(Room, pk=room_id, is_active=True)
+        fav, created = FavouriteRoom.objects.get_or_create(
+            user=request.user,
+            room=room,
+        )
+        if not created:
+            fav.delete()
+            return Response({"room_id": room_id, "is_favourite": False}, status=200)
+        return Response({"room_id": room_id, "is_favourite": True}, status=201)
+
+
+class FavouriteRoomListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        """
+        GET /api/rooms/favourites/
+        ดึงรายการห้องที่ user กด favourite ไว้ทั้งหมด
+        """
+        fav_room_ids = FavouriteRoom.objects.filter(
+            user=request.user
+        ).values_list("room_id", flat=True)
+
+        rooms = Room.objects.filter(pk__in=fav_room_ids, is_active=True).order_by("room_code")
+        serializer = RoomSerializer(rooms, many=True)
         return Response(serializer.data, status=200)
