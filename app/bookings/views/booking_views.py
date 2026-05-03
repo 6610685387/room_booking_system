@@ -12,24 +12,28 @@ from django.core.exceptions import ValidationError
 from rooms.models import Room
 from bookings.models import Booking, RecurringGroup
 from bookings.serializers import BookingWriteSerializer
-from bookings.services.conflict_check_service import build_conflict_report, find_alternative_rooms
+from bookings.services.conflict_check_service import (
+    build_conflict_report,
+    find_alternative_rooms,
+)
 from bookings.services.recurring import generate_recurring_slots
 from bookings.validators import validate_date_range, validate_days_of_week
 from bookings.permissions import IsOwnerOrAdmin, IsOwner
 
 from bookings.docs import booking_viewset_schema
 
+
 @booking_viewset_schema
 class BookingViewSet(viewsets.ViewSet):
     def get_permissions(self):
         # ตรวจสอบความเป็นเจ้าของหรือ Admin สำหรับการดูรายละเอียด
-        if self.action == 'retrieve':
+        if self.action == "retrieve":
             return [IsAuthenticated(), IsOwnerOrAdmin()]
-        
+
         # ตรวจสอบความเป็นเจ้าของเท่านั้นสำหรับการยกเลิก
-        if self.action == 'cancel':
+        if self.action == "cancel":
             return [IsAuthenticated(), IsOwner()]
-        
+
         # Action ทั่วไป (list, create, check_conflict, my_bookings, cancel_recurring) ใช้เพียงการ Login
         # Note: cancel_recurring มีการกรอง booker=request.user ในตัวอยู่แล้ว
         return [IsAuthenticated()]
@@ -47,7 +51,9 @@ class BookingViewSet(viewsets.ViewSet):
         time_end = request.data.get("time_end")
 
         if not all([room_id, date_start, date_end, days_of_week, time_start, time_end]):
-            return Response({"error": "Bad Request: Missing required fields"}, status=400)
+            return Response(
+                {"error": "Bad Request: Missing required fields"}, status=400
+            )
 
         try:
             d_start = date.fromisoformat(date_start)
@@ -56,7 +62,7 @@ class BookingViewSet(viewsets.ViewSet):
             validate_days_of_week(days_of_week)
             get_object_or_404(Room, pk=room_id)
         except (ValueError, ValidationError) as e:
-            msg = str(e.message) if hasattr(e, 'message') else str(e)
+            msg = str(e.message) if hasattr(e, "message") else str(e)
             return Response({"error": msg}, status=400)
 
         report = build_conflict_report(
@@ -67,14 +73,22 @@ class BookingViewSet(viewsets.ViewSet):
         suggested_rooms = []
         if report["has_conflict"]:
             suggested_rooms = find_alternative_rooms(
-                room_id, d_start, d_end, days_of_week, time_start, time_end, request.user.user_id
+                room_id,
+                d_start,
+                d_end,
+                days_of_week,
+                time_start,
+                time_end,
+                request.user.user_id,
             )
 
-
-        return Response({
-            **report,
-            "suggested_rooms": suggested_rooms,
-        }, status=200)
+        return Response(
+            {
+                **report,
+                "suggested_rooms": suggested_rooms,
+            },
+            status=200,
+        )
 
     def create(self, request):
         """
@@ -90,8 +104,20 @@ class BookingViewSet(viewsets.ViewSet):
         purpose_type = payload.get("purpose_type")
         skip_conflicts = payload.get("skip_conflicts", False)
 
-        if not all([room_id, date_start, date_end, days_of_week, time_start, time_end, purpose_type]):
-            return Response({"error": "Bad Request: Missing required fields"}, status=400)
+        if not all(
+            [
+                room_id,
+                date_start,
+                date_end,
+                days_of_week,
+                time_start,
+                time_end,
+                purpose_type,
+            ]
+        ):
+            return Response(
+                {"error": "Bad Request: Missing required fields"}, status=400
+            )
 
         try:
             d_start = date.fromisoformat(date_start)
@@ -102,23 +128,26 @@ class BookingViewSet(viewsets.ViewSet):
             datetime.strptime(time_start, "%H:%M").time()
             datetime.strptime(time_end, "%H:%M").time()
         except (ValueError, ValidationError) as e:
-            msg = str(e.message) if hasattr(e, 'message') else str(e)
+            msg = str(e.message) if hasattr(e, "message") else str(e)
             return Response({"error": msg}, status=400)
 
         with transaction.atomic():
             # Lock the room to prevent race conditions
             room = get_object_or_404(Room.objects.select_for_update(), pk=room_id)
-            
+
             # Check for conflicts inside the lock
             report = build_conflict_report(
                 room_id, d_start, d_end, days_of_week, time_start, time_end
             )
 
             if report["has_conflict"] and not skip_conflicts:
-                return Response({
-                    "error": "มี conflict ในช่วงเวลาที่เลือก และ skip_conflicts=False",
-                    "report": report
-                }, status=409)
+                return Response(
+                    {
+                        "error": "มี conflict ในช่วงเวลาที่เลือก และ skip_conflicts=False",
+                        "report": report,
+                    },
+                    status=409,
+                )
 
             if report["summary"]["available_count"] == 0:
                 return Response({"error": "ไม่มีวันว่างให้จองเลย"}, status=400)
@@ -133,47 +162,60 @@ class BookingViewSet(viewsets.ViewSet):
                 date_start=d_start,
                 date_end=d_end,
                 time_start=t_start_obj,
-                time_end=t_end_obj
+                time_end=t_end_obj,
             )
 
             booking_ids = []
-            all_slots = generate_recurring_slots(d_start, d_end, days_of_week, time_start, time_end)
+            all_slots = generate_recurring_slots(
+                d_start, d_end, days_of_week, time_start, time_end
+            )
 
-            for (s_dt, e_dt) in all_slots:
+            for s_dt, e_dt in all_slots:
                 slot_date_str = localtime(s_dt).strftime("%Y-%m-%d")
                 if slot_date_str not in report["available_dates"]:
                     continue
 
                 slot_data = request.data.copy()
-                slot_data['room'] = room_id
-                slot_data['start_datetime'] = s_dt
-                slot_data['end_datetime'] = e_dt
-                slot_data['recurring_group'] = group.group_id
-                
+                slot_data["room"] = room_id
+                slot_data["start_datetime"] = s_dt
+                slot_data["end_datetime"] = e_dt
+                slot_data["recurring_group"] = group.group_id
+
                 serializer = BookingWriteSerializer(data=slot_data)
                 serializer.is_valid(raise_exception=True)
                 serializer.save(booker=request.user, status="Pending")
                 booking_ids.append(serializer.instance.booking_id)
 
-        total_skipped = report["summary"]["conflict_count"] + report["summary"]["blackout_count"]
-        skipped_dates = [c["date"] for c in report.get("conflicts", [])] + [b["date"] for b in report.get("blackouts", [])]
-        
-        return Response({
-            "booking_ids": booking_ids,
-            "skipped_dates": sorted(skipped_dates),
-            "recurring_group_id": group.group_id,
-            "total_created": len(booking_ids),
-            "total_skipped": total_skipped,
-            "status": "Pending",
-            "message": f"จองสำเร็จ {len(booking_ids)} รายการ (ข้าม {total_skipped} วันที่มีปัญหา)"
-        }, status=status.HTTP_201_CREATED)
+        total_skipped = (
+            report["summary"]["conflict_count"] + report["summary"]["blackout_count"]
+        )
+        skipped_dates = [c["date"] for c in report.get("conflicts", [])] + [
+            b["date"] for b in report.get("blackouts", [])
+        ]
+
+        return Response(
+            {
+                "booking_ids": booking_ids,
+                "skipped_dates": sorted(skipped_dates),
+                "recurring_group_id": group.group_id,
+                "total_created": len(booking_ids),
+                "total_skipped": total_skipped,
+                "status": "Pending",
+                "message": f"จองสำเร็จ {len(booking_ids)} รายการ (ข้าม {total_skipped} วันที่มีปัญหา)",
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=False, methods=["get"], url_path="my")
     def my_bookings(self, request):
         """
         GET /api/bookings/my/
         """
-        qs = Booking.objects.filter(booker=request.user).select_related("room", "teaching_info", "training_info").order_by("-start_datetime")
+        qs = (
+            Booking.objects.filter(booker=request.user)
+            .select_related("room", "teaching_info", "training_info")
+            .order_by("-start_datetime")
+        )
 
         status_param = request.query_params.get("status")
         if status_param:
@@ -184,29 +226,35 @@ class BookingViewSet(viewsets.ViewSet):
 
         for bk in qs:
             local_start = localtime(bk.start_datetime)
-            can_cancel = (bk.status in ["Pending", "Approved"]) and (local_start > now_bkk)
+            can_cancel = (bk.status in ["Pending", "Approved"]) and (
+                local_start > now_bkk
+            )
 
             subject = ""
             if bk.purpose_type == "teaching" and hasattr(bk, "teaching_info"):
-                subject = f"{bk.teaching_info.subject_code} {bk.teaching_info.subject_name}"
+                subject = (
+                    f"{bk.teaching_info.subject_code} {bk.teaching_info.subject_name}"
+                )
             elif bk.purpose_type == "training" and hasattr(bk, "training_info"):
                 subject = bk.training_info.topic
 
-            results.append({
-                "booking_id": bk.booking_id,
-                "room_code": bk.room.room_code,
-                "room_name": bk.room.room_name,
-                "start_datetime": local_start.isoformat(),
-                "end_datetime": localtime(bk.end_datetime).isoformat(),
-                "status": bk.status,
-                "purpose_type": bk.purpose_type,
-                "recurring_group_id": bk.recurring_group_id,
-                "subject": subject,
-                "additional_requests": bk.additional_requests,
-                "reject_reason": bk.reject_reason,
-                "can_cancel": can_cancel,
-                "created_at": localtime(bk.created_at).isoformat()
-            })
+            results.append(
+                {
+                    "booking_id": bk.booking_id,
+                    "room_code": bk.room.room_code,
+                    "room_name": bk.room.room_name,
+                    "start_datetime": local_start.isoformat(),
+                    "end_datetime": localtime(bk.end_datetime).isoformat(),
+                    "status": bk.status,
+                    "purpose_type": bk.purpose_type,
+                    "recurring_group_id": bk.recurring_group_id,
+                    "subject": subject,
+                    "additional_requests": bk.additional_requests,
+                    "reject_reason": bk.reject_reason,
+                    "can_cancel": can_cancel,
+                    "created_at": localtime(bk.created_at).isoformat(),
+                }
+            )
 
         return Response(results, status=200)
 
@@ -214,7 +262,12 @@ class BookingViewSet(viewsets.ViewSet):
         """
         GET /api/bookings/{id}/
         """
-        bk = get_object_or_404(Booking.objects.select_related("room", "booker", "teaching_info", "training_info"), pk=pk)
+        bk = get_object_or_404(
+            Booking.objects.select_related(
+                "room", "booker", "teaching_info", "training_info"
+            ),
+            pk=pk,
+        )
         self.check_object_permissions(request, bk)
 
         now_bkk = localtime(timezone.now())
@@ -227,11 +280,11 @@ class BookingViewSet(viewsets.ViewSet):
                 "room_id": bk.room.room_id,
                 "room_code": bk.room.room_code,
                 "room_name": bk.room.room_name,
-                "capacity": bk.room.capacity
+                "capacity": bk.room.capacity,
             },
             "booker": {
                 "user_id": bk.booker.user_id,
-                "displayname_th": bk.booker.displayname_th
+                "displayname_th": bk.booker.displayname_th,
             },
             "start_datetime": local_start.isoformat(),
             "end_datetime": localtime(bk.end_datetime).isoformat(),
@@ -244,14 +297,14 @@ class BookingViewSet(viewsets.ViewSet):
             "admin_notes": bk.admin_notes,
             "reject_reason": bk.reject_reason,
             "can_cancel": can_cancel,
-            "created_at": localtime(bk.created_at).isoformat()
+            "created_at": localtime(bk.created_at).isoformat(),
         }
 
         if bk.purpose_type == "teaching" and hasattr(bk, "teaching_info"):
             data["teaching_info"] = {
                 "subject_code": bk.teaching_info.subject_code,
                 "subject_name": bk.teaching_info.subject_name,
-                "program_type": bk.teaching_info.program_type
+                "program_type": bk.teaching_info.program_type,
             }
         elif bk.purpose_type == "training" and hasattr(bk, "training_info"):
             data["training_info"] = {"topic": bk.training_info.topic}
@@ -274,30 +327,41 @@ class BookingViewSet(viewsets.ViewSet):
             local_start = localtime(bk.start_datetime)
 
             if local_start <= now_bkk:
-                return Response({"error": "เลยเวลาเริ่มต้นไปแล้ว ไม่สามารถยกเลิกได้"}, status=400)
+                return Response(
+                    {"error": "เลยเวลาเริ่มต้นไปแล้ว ไม่สามารถยกเลิกได้"}, status=400
+                )
             if bk.status not in ["Pending", "Approved"]:
-                return Response({"error": f"สถานะปัจจุบันคือ {bk.status} ไม่สามารถยกเลิกได้"}, status=400)
+                return Response(
+                    {"error": f"สถานะปัจจุบันคือ {bk.status} ไม่สามารถยกเลิกได้"},
+                    status=400,
+                )
 
             previous_status = bk.status
+            bk._pre_status = bk.status
             bk.status = "Cancelled"
             bk.save()
 
-        return Response({
-            "booking_id": bk.booking_id,
-            "previous_status": previous_status,
-            "status": "Cancelled",
-            "notify_admin": (previous_status == "Approved"),
-            "message": "ยกเลิกการจองเรียบร้อยแล้ว"
-        }, status=200)
+        return Response(
+            {
+                "booking_id": bk.booking_id,
+                "previous_status": previous_status,
+                "status": "Cancelled",
+                "notify_admin": (previous_status == "Approved"),
+                "message": "ยกเลิกการจองเรียบร้อยแล้ว",
+            },
+            status=200,
+        )
 
-    @action(detail=False, methods=["patch"], url_path=r"recurring/(?P<group_id>\d+)/cancel")
+    @action(
+        detail=False, methods=["patch"], url_path=r"recurring/(?P<group_id>\d+)/cancel"
+    )
     def cancel_recurring(self, request, group_id=None):
         """
         PATCH /api/bookings/recurring/{group_id}/cancel/
         """
         # Note for Role 4: Saving this booking will trigger a post_save signal.
         # Please catch status == "Cancelled" to send an email notification.
-        
+
         now_bkk = localtime(timezone.now())
         cancelled_count = 0
         skipped_count = 0
@@ -305,14 +369,15 @@ class BookingViewSet(viewsets.ViewSet):
 
         with transaction.atomic():
             # Apply select_for_update to lock the bookings being cancelled
-            # การจองกลุ่มนี้ต้องเป็นของผู้ใช้ 
+            # การจองกลุ่มนี้ต้องเป็นของผู้ใช้
             bookings = Booking.objects.select_for_update().filter(
-                recurring_group_id=group_id,
-                booker=request.user
+                recurring_group_id=group_id, booker=request.user
             )
 
             if not bookings.exists():
-                return Response({"error": "ไม่พบข้อมูล หรือคุณไม่มีสิทธิ์ยกเลิก"}, status=404)
+                return Response(
+                    {"error": "ไม่พบข้อมูล หรือคุณไม่มีสิทธิ์ยกเลิก"}, status=404
+                )
 
             for bk in bookings:
                 local_start = localtime(bk.start_datetime)
@@ -320,17 +385,21 @@ class BookingViewSet(viewsets.ViewSet):
                     if bk.status == "Approved":
                         had_approved = True
                     bk.status = "Cancelled"
+                    bk._pre_status = bk.status
                     bk.save()
                     cancelled_count += 1
                 else:
                     skipped_count += 1
 
-        return Response({
-            "group_id": int(group_id),
-            "cancelled_count": cancelled_count,
-            "skipped_count": skipped_count,
-            "skipped_reason": "start_datetime ผ่านไปแล้ว หรือสถานะถูกเปลี่ยนไปแล้ว",
-            "had_approved": had_approved,
-            "notify_admin": had_approved,
-            "message": f"ยกเลิก {cancelled_count} รายการ (ข้าม {skipped_count} รายการที่ยกเลิกไม่ได้)"
-        }, status=200)
+        return Response(
+            {
+                "group_id": int(group_id),
+                "cancelled_count": cancelled_count,
+                "skipped_count": skipped_count,
+                "skipped_reason": "start_datetime ผ่านไปแล้ว หรือสถานะถูกเปลี่ยนไปแล้ว",
+                "had_approved": had_approved,
+                "notify_admin": had_approved,
+                "message": f"ยกเลิก {cancelled_count} รายการ (ข้าม {skipped_count} รายการที่ยกเลิกไม่ได้)",
+            },
+            status=200,
+        )

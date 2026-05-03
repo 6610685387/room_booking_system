@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login สำเร็จ · เจ้าหน้าที่</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: 'Sarabun', 'Segoe UI', sans-serif;
       background: #f9fafb;
@@ -80,6 +88,7 @@
       text-align: left;
       margin-bottom: 28px;
     }
+
     .http-block .label {
       font-size: 11px;
       font-weight: 700;
@@ -88,6 +97,7 @@
       letter-spacing: 0.8px;
       margin-bottom: 10px;
     }
+
     .http-row {
       display: flex;
       justify-content: space-between;
@@ -96,11 +106,30 @@
       border-bottom: 1px solid #f3f4f6;
       font-size: 13px;
     }
-    .http-row:last-child { border-bottom: none; }
-    .http-key { color: #6b7280; min-width: 110px; }
-    .http-val { color: #1f2937; font-weight: 500; text-align: right; }
-    .http-val.red { color: #991b1b; }
-    .http-val.green { color: #065f46; }
+
+    .http-row:last-child {
+      border-bottom: none;
+    }
+
+    .http-key {
+      color: #6b7280;
+      min-width: 110px;
+    }
+
+    .http-val {
+      color: #1f2937;
+      font-weight: 500;
+      text-align: right;
+    }
+
+    .http-val.red {
+      color: #991b1b;
+    }
+
+    .http-val.green {
+      color: #065f46;
+    }
+
     .http-val.code {
       font-family: 'Courier New', monospace;
       font-size: 12px;
@@ -117,6 +146,7 @@
       text-align: left;
       margin-bottom: 28px;
     }
+
     .user-info .label {
       font-size: 11px;
       font-weight: 700;
@@ -125,14 +155,22 @@
       letter-spacing: 0.8px;
       margin-bottom: 10px;
     }
+
     .info-row {
       display: flex;
       justify-content: space-between;
       padding: 4px 0;
       font-size: 13px;
     }
-    .info-key { color: #6b7280; }
-    .info-val { color: #1f2937; font-weight: 500; }
+
+    .info-key {
+      color: #6b7280;
+    }
+
+    .info-val {
+      color: #1f2937;
+      font-weight: 500;
+    }
 
     /* permissions list */
     .perms {
@@ -143,6 +181,7 @@
       text-align: left;
       margin-bottom: 28px;
     }
+
     .perms .label {
       font-size: 11px;
       font-weight: 700;
@@ -151,6 +190,7 @@
       letter-spacing: 0.8px;
       margin-bottom: 10px;
     }
+
     .perm-item {
       display: flex;
       align-items: center;
@@ -159,8 +199,10 @@
       color: #374151;
       padding: 3px 0;
     }
+
     .perm-dot {
-      width: 6px; height: 6px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #8B0000;
       flex-shrink: 0;
@@ -179,89 +221,111 @@
       text-align: center;
       font-family: inherit;
     }
-    .btn-primary { background: #8B0000; color: #fff; margin-bottom: 10px; }
-    .btn-primary:hover { background: #6e0000; }
+
+    .btn-primary {
+      background: #8B0000;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .btn-primary:hover {
+      background: #6e0000;
+    }
+
     .btn-secondary {
       background: #fff;
       color: #6b7280;
       border: 1px solid #e5e7eb;
     }
-    .btn-secondary:hover { background: #f9fafb; }
+
+    .btn-secondary:hover {
+      background: #f9fafb;
+    }
   </style>
 </head>
+
 <body>
 
-<div class="card">
-  <div class="card-top"></div>
+  <div class="card">
+    <div class="card-top"></div>
 
-  <div class="icon-circle">🏢</div>
+    <div class="icon-circle">🏢</div>
 
-  <div class="role-badge">เจ้าหน้าที่ (Admin)</div>
+    <div class="role-badge">เจ้าหน้าที่ (Admin)</div>
 
-  <h1>Login สำเร็จ!</h1>
-  <p class="sub">
-    ยืนยันตัวตนผ่าน TU REST API เรียบร้อย<br/>
-    ท่านมีสิทธิ์ <strong>จัดการและอนุมัติการจองห้อง</strong>
-  </p>
+    <h1>Login สำเร็จ!</h1>
+    <p class="sub">
+      ยืนยันตัวตนผ่าน TU REST API เรียบร้อย<br />
+      ท่านมีสิทธิ์ <strong>จัดการและอนุมัติการจองห้อง</strong>
+    </p>
 
-  <!-- HTTP Response Info -->
-  <div class="http-block">
-    <div class="label">HTTP Response · TU Auth API</div>
-    <div class="http-row">
-      <span class="http-key">POST</span>
-      <span class="http-val code">/api/v1/auth/Ad/verify</span>
+    <!-- HTTP Response Info -->
+    <div class="http-block">
+      <div class="label">HTTP Response · TU Auth API</div>
+      <div class="http-row">
+        <span class="http-key">POST</span>
+        <span class="http-val code">/api/v1/auth/Ad/verify</span>
+      </div>
+      <div class="http-row">
+        <span class="http-key">status</span>
+        <span class="http-val green">true ✓</span>
+      </div>
+      <div class="http-row">
+        <span class="http-key">type</span>
+        <span class="http-val">employee</span>
+      </div>
+      <div class="http-row">
+        <span class="http-key">role (ระบบ)</span>
+        <span class="http-val red">Admin ★</span>
+      </div>
+      <div class="http-row">
+        <span class="http-key">ที่มาของสิทธิ์</span>
+        <span class="http-val">ECE_ADMIN_USERNAMES</span>
+      </div>
     </div>
-    <div class="http-row">
-      <span class="http-key">status</span>
-      <span class="http-val green">true ✓</span>
+
+    <!-- User info -->
+    <div class="user-info">
+      <div class="label">ข้อมูลผู้ใช้งาน</div>
+      <div class="info-row">
+        <span class="info-key">ชื่อ-นามสกุล</span>
+        <span class="info-val">{{ user.displayname_th }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Username</span>
+        <span class="info-val">{{ user.username }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Email</span>
+        <span class="info-val">{{ user.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">ภาควิชา</span>
+        <span class="info-val">{{ user.department }}</span>
+      </div>
     </div>
-    <div class="http-row">
-      <span class="http-key">type</span>
-      <span class="http-val">employee</span>
+
+    <!-- Permissions -->
+    <div class="perms">
+      <div class="label">สิทธิ์การใช้งาน</div>
+      <div class="perm-item">
+        <div class="perm-dot"></div>อนุมัติและปฏิเสธการจองห้อง
+      </div>
+      <div class="perm-item">
+        <div class="perm-dot"></div>จัดการห้อง (เปิด/ปิด/ระงับ)
+      </div>
+      <div class="perm-item">
+        <div class="perm-dot"></div>ดูรายงานการใช้งานห้องทั้งหมด
+      </div>
+      <div class="perm-item">
+        <div class="perm-dot"></div>ตั้งค่า Blackout period
+      </div>
     </div>
-    <div class="http-row">
-      <span class="http-key">role (ระบบ)</span>
-      <span class="http-val red">Admin ★</span>
-    </div>
-    <div class="http-row">
-      <span class="http-key">ที่มาของสิทธิ์</span>
-      <span class="http-val">ECE_ADMIN_USERNAMES</span>
-    </div>
+
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">ไปยังหน้าจัดการ →</a>
+    <a href="/logout/" class="btn btn-secondary">ออกจากระบบ</a>
   </div>
-
-  <!-- User info -->
-  <div class="user-info">
-    <div class="label">ข้อมูลผู้ใช้งาน</div>
-    <div class="info-row">
-      <span class="info-key">ชื่อ-นามสกุล</span>
-      <span class="info-val">{{ user.displayname_th }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Username</span>
-      <span class="info-val">{{ user.username }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Email</span>
-      <span class="info-val">{{ user.email }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">ภาควิชา</span>
-      <span class="info-val">{{ user.department }}</span>
-    </div>
-  </div>
-
-  <!-- Permissions -->
-  <div class="perms">
-    <div class="label">สิทธิ์การใช้งาน</div>
-    <div class="perm-item"><div class="perm-dot"></div>อนุมัติและปฏิเสธการจองห้อง</div>
-    <div class="perm-item"><div class="perm-dot"></div>จัดการห้อง (เปิด/ปิด/ระงับ)</div>
-    <div class="perm-item"><div class="perm-dot"></div>ดูรายงานการใช้งานห้องทั้งหมด</div>
-    <div class="perm-item"><div class="perm-dot"></div>ตั้งค่า Blackout period</div>
-  </div>
-
-  <a href="/admin-dashboard/" class="btn btn-primary">ไปยังหน้าจัดการ →</a>
-  <a href="/logout/" class="btn btn-secondary">ออกจากระบบ</a>
-</div>
 
 </body>
+
 </html>

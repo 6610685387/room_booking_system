@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: 'Sarabun', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .card { background: #fff; border-radius: 8px; max-width: 600px; margin: auto; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .header { background: #1a56db; color: #fff; border-radius: 6px; padding: 20px 24px; margin-bottom: 24px; }
+    .header h1 { margin: 0; font-size: 20px; }
+    .badge { display: inline-block; background: #fef9c3; color: #854d0e; border-radius: 4px; padding: 2px 10px; font-size: 13px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    td { padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    td:first-child { color: #6b7280; width: 40%; }
+    .btn { display: inline-block; margin-top: 20px; background: #1a56db; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+    .footer { margin-top: 24px; font-size: 12px; color: #9ca3af; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>📋 มีการจองห้องใหม่เข้ามา</h1>
+    </div>
+
+    <p>มีการจองห้องใหม่เข้ามาในระบบ กรุณาตรวจสอบและดำเนินการอนุมัติ</p>
+    <span class="badge">รอการอนุมัติ</span>
+
+    <table>
+      <tr><td>หมายเลขการจอง</td><td><strong>#{{ booking.booking_id }}</strong></td></tr>
+      <tr><td>ผู้จอง</td><td>{{ booker_name }} ({{ booking.booker.username }})</td></tr>
+      <tr><td>ห้อง</td><td>{{ room_name }}</td></tr>
+      <tr><td>วันที่</td><td>{{ date_str }}</td></tr>
+      <tr><td>เวลา</td><td>{{ time_str }}</td></tr>
+      <tr><td>วัตถุประสงค์</td><td>{{ purpose_display }}</td></tr>
+      {% if booking.additional_requests %}
+      <tr><td>คำขอเพิ่มเติม</td><td>{{ booking.additional_requests }}</td></tr>
+      {% endif %}
+    </table>
+
+    <a href="{{ site_url }}/admin/bookings/booking/{{ booking.booking_id }}/change/" class="btn">
+      เปิด Admin เพื่ออนุมัติ →
+    </a>
+
+    <div class="footer">อีเมลนี้ส่งโดยอัตโนมัติจากระบบจองห้อง — กรุณาอย่าตอบกลับ</div>
+  </div>
+</body>
+</html>

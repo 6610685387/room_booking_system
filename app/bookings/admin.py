@@ -13,7 +13,7 @@ class BookingAdmin(admin.ModelAdmin):
         "start_datetime",
         "end_datetime",
         "created_at",
-        "additional_requests", 
+        "additional_requests",
         "admin_notes",
     )
     list_filter = ("status", "purpose_type", "room")
@@ -26,6 +26,14 @@ class BookingAdmin(admin.ModelAdmin):
         "training_info__topic",
     )
     readonly_fields = ("created_at",)
+
+    def save_model(self, request, obj, form, change):
+        if change and obj.pk:
+            try:
+                obj._pre_status = Booking.objects.get(pk=obj.pk).status
+            except Booking.DoesNotExist:
+                pass
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(TeachingInfo)

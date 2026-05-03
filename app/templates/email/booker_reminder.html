@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: 'Sarabun', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .card { background: #fff; border-radius: 8px; max-width: 600px; margin: auto; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .header { background: #7c3aed; color: #fff; border-radius: 6px; padding: 20px 24px; margin-bottom: 24px; }
+    .header h1 { margin: 0; font-size: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    td { padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    td:first-child { color: #6b7280; width: 40%; }
+    .highlight { background: #faf5ff; border-left: 4px solid #7c3aed; padding: 12px 16px; border-radius: 4px; margin-top: 16px; font-size: 14px; }
+    .footer { margin-top: 24px; font-size: 12px; color: #9ca3af; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>🔔 Reminder: คุณมีการจองห้องพรุ่งนี้</h1>
+    </div>
+
+    <p>เรียน คุณ{{ booker_name }},</p>
+
+    <div class="highlight">
+      อย่าลืม! คุณมีการจองห้องในวันพรุ่งนี้
+    </div>
+
+    <table>
+      <tr><td>หมายเลขการจอง</td><td><strong>#{{ booking.booking_id }}</strong></td></tr>
+      <tr><td>ห้อง</td><td>{{ room_name }}</td></tr>
+      <tr><td>วันที่</td><td>{{ date_str }}</td></tr>
+      <tr><td>เวลา</td><td>{{ time_str }}</td></tr>
+    </table>
+
+    <p style="font-size:14px; color:#374151;">
+      หากไม่สามารถใช้งานได้ กรุณายกเลิกการจองล่วงหน้าเพื่อให้ผู้อื่นสามารถจองได้
+    </p>
+
+    <div class="footer">อีเมลนี้ส่งโดยอัตโนมัติจากระบบจองห้อง — กรุณาอย่าตอบกลับ</div>
+  </div>
+</body>
+</html>

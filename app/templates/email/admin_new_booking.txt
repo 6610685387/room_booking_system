@@ -1,0 +1,16 @@
+[ระบบจองห้อง] มีการจองใหม่ #{{ booking.booking_id }}
+
+มีการจองห้องใหม่เข้ามาในระบบ กรุณาดำเนินการอนุมัติ
+
+หมายเลขการจอง : #{{ booking.booking_id }}
+ผู้จอง         : {{ booker_name }} ({{ booking.booker.username }})
+ห้อง           : {{ room_name }}
+วันที่          : {{ date_str }}
+เวลา           : {{ time_str }}
+วัตถุประสงค์   : {{ purpose_display }}
+{% if booking.additional_requests %}คำขอเพิ่มเติม  : {{ booking.additional_requests }}{% endif %}
+
+จัดการที่: {{ site_url }}/admin/bookings/booking/{{ booking.booking_id }}/change/
+
+---
+อีเมลนี้ส่งโดยอัตโนมัติ กรุณาอย่าตอบกลับ

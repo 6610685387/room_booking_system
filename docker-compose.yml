@@ -33,6 +33,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - django_network
     expose:
@@ -70,6 +72,55 @@ services:
       - django_network
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - django_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery_worker:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A config worker --loglevel=info --concurrency=2
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - django_network
+    working_dir: /app
+
+  celery_beat:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - django_network
+    working_dir: /app
 
 volumes:
   postgres_data:

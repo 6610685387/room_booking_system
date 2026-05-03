@@ -103,7 +103,9 @@ def _handle_employee_login(request, username, password):
         )
     except Exception as e:
         return render(
-            request, "account/login.html", {"error": f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"}
+            request,
+            "account/login.html",
+            {"error": f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"},
         )
 
     if not data.get("status"):
@@ -120,7 +122,9 @@ def _handle_employee_login(request, username, password):
         return _handle_student_profile(request, username, data)
 
     if account_type != "employee":
-        return render(request, "account/login.html", {"error": "ประเภทบัญชีนี้ไม่รองรับ"})
+        return render(
+            request, "account/login.html", {"error": "ประเภทบัญชีนี้ไม่รองรับ"}
+        )
 
     department = data.get("department", "")
     faculty = data.get("faculty", "")
@@ -176,7 +180,9 @@ def _handle_student_login(request, student_id, password):
         )
     except Exception as e:
         return render(
-            request, "account/login.html", {"error": f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"}
+            request,
+            "account/login.html",
+            {"error": f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"},
         )
 
     if not auth_data.get("status"):
