@@ -1,11 +1,12 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
+router = DefaultRouter()
+router.register(r'room', views.AdminCRUDViewSet)
+
 urlpatterns = [
-    path("", views.dashboard, name="dashboard"),
-    path("create/", views.create_room, name="admin_create"),
-    path("read/", views.get_room, name="admin_read"),
-    path("update/", views.update_room, name="admin_update"),
-    path("delete/", views.delete_room, name="admin_delete"),
+    path("", views.dashboard, name="admin_dashboard"),
     path("blackout/", views.blackout_room, name="blackout"),
+    path("req/", include(router.urls)),
 ]

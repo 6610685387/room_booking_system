@@ -1,21 +1,15 @@
 from django.shortcuts import render
+from rest_framework import viewsets
+from rooms.models import Room
+from rooms.serializers import RoomBriefSerializer
 
 # Create your views here.
 def dashboard(request): #for frontend design
     return render(request, "admindash/dashboard.html")
 
-def create_room(request):
-    if request.method == "POST":
-        return render(request, "admindash/dashboard.html")
-    
-def get_room(request):
-    return 0
-
-def update_room(request):
-    return 0
-
-def delete_room(request):
-    return 0
-
 def blackout_room(request):
     return 0
+
+class AdminCRUDViewSet(viewsets.ModelViewSet):
+    queryset = Room.objects.all()
+    serializer_class = RoomBriefSerializer
