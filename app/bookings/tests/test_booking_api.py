@@ -14,8 +14,8 @@ BKK = zoneinfo.ZoneInfo("Asia/Bangkok")
 class BookingAPITest(APITestCase):
     def setUp(self):
         # Create users
-        self.lecturer = User.objects.create_user(username="lec1", password="password123", role="Lecturer", displayname_th="อาจารย์ ทดสอบ")
-        self.admin = User.objects.create_user(username="admin1", password="password123", role="Admin", displayname_th="เจ้าหน้าที่ ทดสอบ")
+        self.lecturer = User.objects.create_user(username="lec1", password="password123", role=User.Role.LECTURER, displayname_th="อาจารย์ ทดสอบ")
+        self.admin = User.objects.create_user(username="admin1", password="password123", role=User.Role.ADMIN, displayname_th="เจ้าหน้าที่ ทดสอบ")
         
         self.client.force_authenticate(user=self.lecturer)
 
@@ -26,7 +26,7 @@ class BookingAPITest(APITestCase):
         )
 
     def test_check_conflict_available(self):
-        url = reverse("booking-check-conflict")
+        url = reverse("bookings:booking-check-conflict")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-01",
@@ -56,7 +56,7 @@ class BookingAPITest(APITestCase):
             room_type="Meeting Room", capacity=60, is_active=True
         )
 
-        url = reverse("booking-check-conflict")
+        url = reverse("bookings:booking-check-conflict")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -94,7 +94,7 @@ class BookingAPITest(APITestCase):
         FavouriteRoom.objects.create(user=self.lecturer, room=room_alt)
 
         # 4. ยิง API Check Conflict
-        url = reverse("booking-check-conflict")
+        url = reverse("bookings:booking-check-conflict")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -113,7 +113,7 @@ class BookingAPITest(APITestCase):
         self.assertTrue(response.data["suggested_rooms"][0]["is_favourite"]) # ต้องเป็น True
 
     def test_create_booking_success(self):
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -149,7 +149,7 @@ class BookingAPITest(APITestCase):
             status="Approved", purpose_type="training"
         )
 
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -181,7 +181,7 @@ class BookingAPITest(APITestCase):
         # Create a booking for someone else
         Booking.objects.create(room=self.room, booker=self.admin, start_datetime=start_dt + timedelta(days=1), end_datetime=end_dt + timedelta(days=1), status="Approved", purpose_type="training")
 
-        url = reverse("booking-my-bookings")
+        url = reverse("bookings:booking-my-bookings")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
@@ -193,7 +193,7 @@ class BookingAPITest(APITestCase):
         end_dt = make_aware(datetime.combine(future_date, time(12, 0)), BKK)
         booking = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
 
-        url = reverse("booking-cancel", args=[booking.booking_id])
+        url = reverse("bookings:booking-cancel", args=[booking.booking_id])
         response = self.client.patch(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "Cancelled")
@@ -208,7 +208,7 @@ class BookingAPITest(APITestCase):
         end_dt = make_aware(datetime.combine(past_date, time(12, 0)), BKK)
         booking = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
 
-        url = reverse("booking-cancel", args=[booking.booking_id])
+        url = reverse("bookings:booking-cancel", args=[booking.booking_id])
         response = self.client.patch(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("เลยเวลาเริ่มต้นไปแล้ว", response.data["error"])
@@ -220,7 +220,7 @@ class BookingAPITest(APITestCase):
         end_dt = make_aware(datetime.combine(future_date, time(12, 0)), BKK)
         booking = Booking.objects.create(room=self.room, booker=self.admin, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
 
-        url = reverse("booking-cancel", args=[booking.booking_id])
+        url = reverse("bookings:booking-cancel", args=[booking.booking_id])
         response = self.client.patch(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -230,7 +230,7 @@ class BookingAPITest(APITestCase):
         end_dt = make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK)
         booking = Booking.objects.create(room=self.room, booker=self.admin, start_datetime=start_dt, end_datetime=end_dt, status="Approved", purpose_type="training")
 
-        url = reverse("booking-detail", args=[booking.booking_id])
+        url = reverse("bookings:booking-detail", args=[booking.booking_id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -242,7 +242,7 @@ class BookingAPITest(APITestCase):
 
         # Login as admin
         self.client.force_authenticate(user=self.admin)
-        url = reverse("booking-detail", args=[booking.booking_id])
+        url = reverse("bookings:booking-detail", args=[booking.booking_id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["booking_id"], booking.booking_id)
@@ -256,13 +256,13 @@ class BookingAPITest(APITestCase):
 
         # Login as admin
         self.client.force_authenticate(user=self.admin)
-        url = reverse("booking-cancel", args=[booking.booking_id])
+        url = reverse("bookings:booking-cancel", args=[booking.booking_id])
         response = self.client.patch(url)
         # Should be 403 because Admin can only cancel their own booking via this API
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_booking_additional_requests(self):
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -296,14 +296,14 @@ class BookingAPITest(APITestCase):
             admin_notes="Approved with mic"
         )
 
-        url = reverse("booking-detail", args=[booking.booking_id])
+        url = reverse("bookings:booking-detail", args=[booking.booking_id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["additional_requests"], "Request mic")
         self.assertEqual(response.data["admin_notes"], "Approved with mic")
 
         # Check my_bookings too
-        url_my = reverse("booking-my-bookings")
+        url_my = reverse("bookings:booking-my-bookings")
         response_my = self.client.get(url_my)
         self.assertEqual(response_my.status_code, status.HTTP_200_OK)
         self.assertEqual(response_my.data[0]["additional_requests"], "Request mic")
@@ -325,7 +325,7 @@ class BookingAPITest(APITestCase):
         booking2 = Booking.objects.create(room=self.room, booker=self.lecturer, start_datetime=start_dt_2, end_datetime=end_dt_2, status="Approved", purpose_type="teaching", recurring_group=group)
 
         # ยิง API ยกเลิกทั้งกลุ่ม
-        url = reverse("booking-cancel-recurring", args=[group.group_id])
+        url = reverse("bookings:booking-cancel-recurring", args=[group.group_id])
         response = self.client.patch(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -337,7 +337,7 @@ class BookingAPITest(APITestCase):
         self.assertEqual(booking2.status, "Cancelled")
 
     def test_create_booking_invalid_info_combination(self):
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -361,7 +361,7 @@ class BookingAPITest(APITestCase):
 
     def test_create_booking_missing_required_info(self):
         """เทสกรณี: ส่ง purpose_type แต่ไม่ยอมส่ง info ที่จำเป็นมาให้"""
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -378,7 +378,7 @@ class BookingAPITest(APITestCase):
 
     def test_create_booking_invalid_purpose_type(self):
         """เทสกรณี: ส่ง purpose_type ผิดแปลกไปจาก Choices"""
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",
@@ -394,7 +394,7 @@ class BookingAPITest(APITestCase):
 
     def test_create_booking_missing_teaching_info(self):
         """เทส Edge Case: purpose เป็น teaching แต่ไม่ส่ง teaching_info"""
-        url = reverse("booking-list")
+        url = reverse("bookings:booking-list")
         data = {
             "room_id": self.room.room_id,
             "date_start": "2026-05-04",

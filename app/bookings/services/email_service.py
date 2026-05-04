@@ -51,7 +51,7 @@ def _booking_context(booking) -> dict:
 def _get_admin_emails() -> list[str]:
     User = get_user_model()
     emails = list(
-        User.objects.filter(role="Admin", is_active=True)
+        User.objects.filter(role=User.Role.ADMIN, is_active=True)
         .exclude(email="")
         .values_list("email", flat=True)
     )

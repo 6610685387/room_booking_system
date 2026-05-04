@@ -37,7 +37,7 @@ class ConflictSuggestionTest(TestCase):
         )
         
         self.user = User.objects.create(
-            username="testuser", displayname_th="นักทดสอบ", role="Lecturer"
+            username="testuser", displayname_th="นักทดสอบ", role=User.Role.LECTURER
         )
 
     def _dt(self, date_str, time_str):

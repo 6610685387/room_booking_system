@@ -8,7 +8,7 @@ from django.db import connection
 
 class FavouriteRoomTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="testuser", password="password123", role="Lecturer")
+        self.user = User.objects.create_user(username="testuser", password="password123", role=User.Role.LECTURER)
         self.room = Room.objects.create(
             room_code="R101", room_name="Test Room",
             room_type="Meeting Room", capacity=10, is_active=True
@@ -38,7 +38,7 @@ class FavouriteRoomTests(APITestCase):
         
         # Create another room and another user's favourite
         room2 = Room.objects.create(room_code="R102", room_name="Room 2", room_type="Classroom", capacity=20, is_active=True)
-        user2 = User.objects.create_user(username="user2", password="password", role="Lecturer")
+        user2 = User.objects.create_user(username="user2", password="password", role=User.Role.LECTURER)
         FavouriteRoom.objects.create(user=user2, room=room2)
 
         url = reverse("room-favourite-list")

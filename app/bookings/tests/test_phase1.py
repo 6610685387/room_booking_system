@@ -18,7 +18,7 @@ class Phase1RefactorTest(TestCase):
             room_type="Meeting Room", capacity=60, is_active=True
         )
         self.lecturer = User.objects.create(
-            username="lec1", displayname_th="อ.ทดสอบ", role="Lecturer"
+            username="lec1", displayname_th="อ.ทดสอบ", role=User.Role.LECTURER
         )
 
     def _dt(self, date_str, time_str):
