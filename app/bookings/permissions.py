@@ -1,3 +1,4 @@
+from account.models import User
 from rest_framework import permissions
 
 class IsOwnerOrAdmin(permissions.BasePermission):
@@ -9,7 +10,7 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         
-        if request.user.role == 'Admin':
+        if request.user.role == User.Role.ADMIN:
             return True
             
         return hasattr(obj, 'booker') and obj.booker_id == request.user.user_id

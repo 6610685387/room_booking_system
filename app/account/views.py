@@ -29,9 +29,9 @@ def _tu_headers():
 
 
 def _redirect_by_role(user):
-    if user.role == "Admin":
+    if user.role == User.Role.ADMIN:
         return redirect("/login-success/admin/")
-    if user.role == "Student":
+    if user.role == User.Role.STUDENT:
         return redirect("/login-success/student/")
     return redirect("/login-success/lecturer/")
 

@@ -26,11 +26,10 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    ROLE_CHOICES = [
-        ("Lecturer", "อาจารย์"),
-        ("Admin", "เจ้าหน้าที่"),
-        ("Student", "นักศึกษา"),
-    ]
+    class Role(models.TextChoices):
+        ADMIN = 'admin', 'ผู้ดูแลระบบ (Admin)'
+        LECTURER = 'lecturer', 'อาจารย์ (Lecturer)'
+        STUDENT = 'student', 'นักศึกษา (Student)'
 
     user_id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=50, unique=True)
@@ -39,7 +38,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(blank=True)
     department = models.CharField(max_length=200, blank=True)
     faculty = models.CharField(max_length=200, blank=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="Lecturer")
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+        default=Role.STUDENT,
+        help_text="User's role in the system"
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

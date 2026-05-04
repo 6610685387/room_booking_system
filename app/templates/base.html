@@ -252,7 +252,7 @@
 
 {% if user.is_authenticated %}
 <nav class="navbar">
-  <a href="{% if user.role == 'Admin' %}{% url 'admin_dashboard' %}{% else %}{% url 'lecturer_dashboard' %}{% endif %}" class="navbar-brand">
+  <a href="{% if user.role == User.Role.ADMIN %}{% url 'admin_dashboard' %}{% else %}{% url 'lecturer_dashboard' %}{% endif %}" class="navbar-brand">
     <div class="logo-circle">TU</div>
     ระบบจองห้อง ECE
   </a>

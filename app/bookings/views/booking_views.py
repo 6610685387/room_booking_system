@@ -21,7 +21,7 @@ from bookings.validators import validate_date_range, validate_days_of_week
 from bookings.permissions import IsOwnerOrAdmin, IsOwner
 
 from bookings.docs import booking_viewset_schema
-
+from django.shortcuts import render
 
 @booking_viewset_schema
 class BookingViewSet(viewsets.ViewSet):
@@ -403,3 +403,9 @@ class BookingViewSet(viewsets.ViewSet):
             },
             status=200,
         )
+    
+def lecturer_dashboard(request):
+    return render(request, 'bookings/lecturer_dashboard.html')
+
+def admin_dashboard(request):
+    return render(request, 'bookings/admin_dashboard.html')
