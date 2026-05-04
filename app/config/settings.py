@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "rooms",
     "account",
     "drf_spectacular",
+    "admindash",
 ]
 
 MIDDLEWARE = [
