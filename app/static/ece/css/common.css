@@ -1,0 +1,77 @@
+/* ───────────────────────────────────────────────
+   common.css  –  Shared styles across all ECE pages
+─────────────────────────────────────────────── */
+:root {
+    --primary: #7e0000;
+    --primary-light: #fff1f2;
+    --primary-glow: rgba(126, 0, 0, 0.15);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+/* ── Badge variants ── */
+.badge-pending  { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+.badge-approved { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
+.badge-rejected { background:#fee2e2; color:#7f1d1d; border:1px solid #fca5a5; }
+
+/* ── Sidebar navigation ── */
+.nav-item { transition: background .12s; cursor: pointer; }
+.nav-item:hover { background: #f8fafc; }
+.nav-active {
+    background: #fff1f2 !important;
+    color: #7e0000 !important;
+    font-weight: 700;
+    border-right: 3px solid #7e0000;
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+    from { opacity:0; transform:translateY(10px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+@keyframes zoomIn {
+    from { opacity:0; transform:scale(.93); }
+    to   { opacity:1; transform:scale(1); }
+}
+.view-enter  { animation: fadeUp  .2s ease; }
+.modal-card  { animation: zoomIn  .18s ease; }
+
+/* ── Toast ── */
+#toast { transition: opacity .3s, transform .3s; }
+
+/* ── Today ring (calendar) ── */
+.today-ring {
+    background: #7e0000;
+    color: #fff;
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Skeleton loading ── */
+.skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 8px;
+}
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Logo in sidebar ── */
+.sidebar-logo-wrap {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.sidebar-logo-img {
+    width: 100%;
+    max-width: 190px;
+    height: auto;
+    display: block;
+}

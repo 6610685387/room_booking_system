@@ -1,0 +1,103 @@
+/* ───────────────────────────────────────────────
+   login.css  –  Styles for login page
+─────────────────────────────────────────────── */
+
+.grid-bg {
+    background-color: #7e0000;
+    background-image:
+        linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+.float-card {
+    background: rgba(255,255,255,.10);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 16px;
+    padding: 12px 16px;
+    color: white;
+}
+.field-input {
+    width: 100%;
+    padding: 12px 14px 12px 44px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 14px;
+    background: #f8fafc;
+    outline: none;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+    color: #1e293b;
+}
+.field-input:focus {
+    border-color: #7e0000;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(126,0,0,.08);
+}
+.field-input::placeholder { color: #94a3b8; }
+.field-wrap { position: relative; }
+.field-icon {
+    position: absolute; left:14px; top:50%;
+    transform: translateY(-50%);
+    color: #94a3b8; font-size: 18px; pointer-events: none;
+}
+.field-eye {
+    position: absolute; right:14px; top:50%;
+    transform: translateY(-50%);
+    color: #94a3b8; cursor: pointer; font-size: 18px;
+    transition: color .12s;
+}
+.field-eye:hover { color: #7e0000; }
+.btn-login {
+    width: 100%; padding: 14px;
+    background: #7e0000; color: white; border: none;
+    border-radius: 14px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    box-shadow: 0 4px 16px rgba(126,0,0,.30);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-login:hover  { background: #a50000; box-shadow: 0 6px 20px rgba(126,0,0,.38); }
+.btn-login:active { transform: scale(.98); }
+.btn-login:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
+
+/* Spinner */
+.spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Animations */
+@keyframes slideUp {
+    from { opacity:0; transform:translateY(16px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+@keyframes floatA {
+    0%,100% { transform:translateY(0); }
+    50%      { transform:translateY(-8px); }
+}
+@keyframes floatB {
+    0%,100% { transform:translateY(0); }
+    50%      { transform:translateY(-6px); }
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes shake {
+    0%,100% { transform:translateX(0); }
+    20%,60% { transform:translateX(-6px); }
+    40%,80% { transform:translateX(6px); }
+}
+.anim-slide   { animation: slideUp .35s ease both; }
+.anim-float-a { animation: floatA 5s ease-in-out infinite; }
+.anim-float-b { animation: floatB 4s ease-in-out infinite .8s; }
+.anim-fade    { animation: fadeIn .5s ease; }
+.shake        { animation: shake .4s ease; }
+.dot-green { width:8px; height:8px; border-radius:50%; background:#4ade80; flex-shrink:0; }
+.dot-amber { width:8px; height:8px; border-radius:50%; background:#fbbf24; flex-shrink:0; }
+
+/* Login logo */
+.login-logo-img { height: 36px; width: auto; }

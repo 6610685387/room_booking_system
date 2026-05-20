@@ -1,0 +1,49 @@
+/* ───────────────────────────────────────────────
+   admin.css  –  Styles for admin page
+─────────────────────────────────────────────── */
+
+.stat-card { transition: box-shadow .18s, transform .18s; }
+.stat-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-2px); }
+.room-card { transition: box-shadow .18s, transform .18s; }
+.room-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-1px); }
+
+.tl-bg { height:8px; background:#e2e8f0; border-radius:99px; position:relative; overflow:hidden; }
+.tl-bar { position:absolute; height:100%; border-radius:99px; }
+
+/* Calendar */
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+.cal-day  { min-height:90px; transition:background .12s; cursor:pointer; }
+.cal-day:hover { background: #f8fafc; }
+.chip-approved { background:#d1fae5; border-left:2px solid #10b981; color:#065f46; }
+.chip-pending  { background:#fef3c7; border-left:2px solid #f59e0b; color:#92400e; }
+
+/* Admin badge */
+.admin-badge {
+    background: linear-gradient(135deg,#7e0000,#b91c1c);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 99px;
+    letter-spacing: .05em;
+}
+
+/* Data table */
+.data-table th {
+    background: #f8fafc;
+    font-size: 11px; font-weight: 700;
+    color: #94a3b8; text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.data-table td {
+    padding: 12px 14px; border-bottom: 1px solid #f1f5f9;
+    font-size: 13px; vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #fafafa; }
+
+/* Toggle switch */
+.toggle input:checked + div { background: #7e0000; }
+.toggle input:checked + div div { transform: translateX(18px); }
+
+/* Util bar */
+.util-bar { transition: width .6s cubic-bezier(.4,0,.2,1); }

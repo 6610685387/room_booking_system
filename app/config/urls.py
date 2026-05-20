@@ -18,7 +18,7 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-    path("api/admin", include("admindash.urls")),
+    path("api/admin/", include("admindash.urls")),
     path("api/reports/", include("reports.urls")),
 ]
 
