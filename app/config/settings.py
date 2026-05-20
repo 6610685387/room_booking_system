@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "account",
     "drf_spectacular",
     "admindash",
+    "reports",
 ]
 
 MIDDLEWARE = [

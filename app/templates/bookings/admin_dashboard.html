@@ -475,6 +475,92 @@
     </div>
   </div>
 
+  <!-- ═══════════ EXPORT MODAL ═══════════ -->
+<div id="exportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="p-5 flex items-center gap-3" style="background:linear-gradient(135deg,#7e0000,#a50000)">
+        <span class="material-symbols-outlined text-white text-[22px]">download</span>
+        <h3 class="font-bold text-white text-base">Export รายงาน</h3>
+      </div>
+      <div class="p-5 space-y-4">
+
+        <div>
+          <p class="text-xs font-bold text-slate-500 mb-2">ช่วงวันที่</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">วันเริ่มต้น</label>
+              <input type="date" id="expDateFrom" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-red-800">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">วันสิ้นสุด</label>
+              <input type="date" id="expDateTo" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-red-800">
+            </div>
+          </div>
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button onclick="expSetRange('this_month')" class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">เดือนนี้</button>
+            <button onclick="expSetRange('last_month')" class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">เดือนที่แล้ว</button>
+            <button onclick="expSetRange('this_year')" class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">ปีนี้</button>
+            <button onclick="expSetRange('all')" class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">ทั้งหมด</button>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-xs font-bold text-slate-500 mb-2">ประเภทการใช้งาน</p>
+          <div class="grid grid-cols-3 gap-2">
+            <label id="expPurpAll" onclick="expSetPurpose('all')" class="flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-red-800 bg-red-50">
+              <span class="material-symbols-outlined text-[20px]" style="color:#7e0000">apps</span>
+              <span class="text-[11px] font-bold text-slate-700">ทั้งหมด</span>
+            </label>
+            <label id="expPurpTeach" onclick="expSetPurpose('teaching')" class="flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-slate-200">
+              <span class="material-symbols-outlined text-[20px] text-slate-400">school</span>
+              <span class="text-[11px] font-bold text-slate-700">สอน</span>
+            </label>
+            <label id="expPurpTrain" onclick="expSetPurpose('training')" class="flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-slate-200">
+              <span class="material-symbols-outlined text-[20px] text-slate-400">groups</span>
+              <span class="text-[11px] font-bold text-slate-700">อบรม</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-xs font-bold text-slate-500 mb-2">สถานะการจอง</p>
+          <select id="expStatus" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-red-800">
+            <option value="">ทุกสถานะ</option>
+            <option value="Approved">อนุมัติแล้ว</option>
+            <option value="Pending">รออนุมัติ</option>
+            <option value="Rejected">ปฏิเสธ</option>
+            <option value="Cancelled">ยกเลิก</option>
+          </select>
+        </div>
+
+        <div id="expSummary" class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500"></div>
+      </div>
+
+      <div class="p-4 border-t border-slate-100 space-y-4">
+        <div>
+          <p class="text-xs font-bold text-slate-500 mb-2">เลือกรูปแบบไฟล์ที่ต้องการ</p>
+          <div class="flex gap-4">
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="chkCSV" checked class="rounded text-primary focus:ring-primary w-4 h-4 accent-[#7e0000]">
+              <span class="ml-2 text-sm text-slate-700 font-medium">ไฟล์ CSV (.csv)</span>
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="chkExcel" checked class="rounded text-primary focus:ring-primary w-4 h-4 accent-[#7e0000]">
+              <span class="ml-2 text-sm text-slate-700 font-medium">ไฟล์ Excel (.xlsx)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2">
+          <button onclick="triggerExportWithFormat()" class="w-full py-3 font-bold rounded-xl text-white text-sm flex items-center justify-center gap-2 hover:opacity-90 shadow-md" style="background:#7e0000">
+            <span class="material-symbols-outlined text-[16px]">download</span>ดาวน์โหลดรายงาน
+          </button>
+          <button onclick="closeModals()" class="w-full py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-200">ยกเลิก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══════════ TOAST ═══════════ -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 opacity-0 pointer-events-none">
     <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-medium">
@@ -959,7 +1045,11 @@
       </td>
     </tr>`).join('');
 
-      setTimeout(() => { document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; }); }, 100);
+      setTimeout(() => {
+      document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+      buildMonthOptions();  // ← populate dropdown ทุกครั้งที่ render หน้า reports
+    }, 100);
+
 
       const monthly = [
         { m: 'ม.ค.', v: 28 }, { m: 'ก.พ.', v: 35 }, { m: 'มี.ค.', v: 42 }, { m: 'เม.ย.', v: 56 }, { m: 'พ.ค.', v: 31 },
@@ -977,11 +1067,12 @@
     <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
       <div><h2 class="text-2xl font-bold text-slate-800">รายงานสถิติ</h2><p class="text-slate-500 text-sm mt-0.5">ข้อมูลการใช้งานห้องประจำเดือน เมษายน 2569</p></div>
       <div class="flex gap-2 flex-wrap">
-        <select class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-primary">
-          <option>เมษายน 2569</option><option>มีนาคม 2569</option><option>กุมภาพันธ์ 2569</option>
+        <select id="rptMonthSel" onchange="rptUpdateMonth()"
+          class="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-primary">
         </select>
-        <button class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 flex items-center gap-2 transition-all">
-          <span class="material-symbols-outlined text-[16px]">download</span>Export CSV
+        <button onclick="openExportModal()"
+          class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 flex items-center gap-2 transition-all">
+          <span class="material-symbols-outlined text-[16px]">download</span>Export รายงาน
         </button>
       </div>
     </div>
@@ -1133,7 +1224,7 @@
     // ══════════════════════════════════════════
     function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModals() {
-      ['approveModal', 'rejectModal', 'roomModal', 'userModal', 'dayModal'].forEach(id => {
+      ['approveModal', 'rejectModal', 'roomModal', 'userModal', 'dayModal', 'exportModal'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
     }
@@ -1228,8 +1319,161 @@
       });
     });
 
-    // Boot
-    go('dashboard');
+    // ══════════════════════════════════════════
+    // REPORTS EXPORT (FR-RPT-03)
+    // ══════════════════════════════════════════
+
+    // เดือนปัจจุบันจากระบบ — อัปเดตอัตโนมัติทุกครั้งที่เปิดหน้า
+    let rptMonth = (() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
+    function buildMonthOptions() {
+      // generate dropdown ย้อนหลัง 12 เดือนจากปัจจุบัน — ไม่ต้องแก้โค้ดเมื่อขึ้นเดือนใหม่
+      const now = new Date();
+      const sel = document.getElementById('rptMonthSel');
+      if (!sel) return;
+      sel.innerHTML = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = `${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`;
+        return `<option value="${val}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
+      }).join('');
+    }
+
+    function rptUpdateMonth() {
+      const sel = document.getElementById('rptMonthSel');
+      if (sel) rptMonth = sel.value;
+    }
+
+    function rptExport(format) {
+      // แปลง "2026-05" → date_from=2026-05-01 & date_to=2026-05-31 อัตโนมัติ
+      const [year, month] = rptMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).getDate();
+      const dateFrom = `${rptMonth}-01`;
+      const dateTo   = `${rptMonth}-${String(lastDay).padStart(2, '0')}`;
+      const params   = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+      window.location.href = `/api/reports/export/${format}/?${params}`;
+    }
+
+    // ══════════════════════════════════════════
+    // EXPORT MODAL (FR-RPT-03)
+    // ══════════════════════════════════════════
+    let expPurpose = 'all';
+
+    function openExportModal() {
+      // reset ค่า default = เดือนปัจจุบัน
+      expSetRange('this_month');
+      expSetPurpose('all');
+      document.getElementById('expStatus').value = '';
+      expUpdateSummary();
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    function expSetRange(preset) {
+      const now = new Date();
+      let from, to;
+      if (preset === 'this_month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      } else if (preset === 'last_month') {
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        to   = new Date(now.getFullYear(), now.getMonth(), 0);
+      } else if (preset === 'this_year') {
+        from = new Date(now.getFullYear(), 0, 1);
+        to   = new Date(now.getFullYear(), 11, 31);
+      } else {
+        // ทั้งหมด = ล้างฟิลด์
+        document.getElementById('expDateFrom').value = '';
+        document.getElementById('expDateTo').value = '';
+        expUpdateSummary();
+        return;
+      }
+      const fmt = d => d.toISOString().slice(0, 10);
+      document.getElementById('expDateFrom').value = fmt(from);
+      document.getElementById('expDateTo').value   = fmt(to);
+      expUpdateSummary();
+    }
+
+    function expSetPurpose(val) {
+      expPurpose = val;
+      const map = { all: 'expPurpAll', teaching: 'expPurpTeach', training: 'expPurpTrain' };
+      // reset ทุกปุ่ม
+      Object.values(map).forEach(id => {
+        document.getElementById(id).className =
+          'flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-slate-200';
+        document.querySelector(`#${id} .material-symbols-outlined`).className =
+          'material-symbols-outlined text-[20px] text-slate-400';
+      });
+      // highlight ที่เลือก
+      document.getElementById(map[val]).className =
+        'flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-red-800 bg-red-50';
+      document.querySelector(`#${map[val]} .material-symbols-outlined`).style.color = '#7e0000';
+      expUpdateSummary();
+    }
+
+    function expUpdateSummary() {
+      const from   = document.getElementById('expDateFrom').value;
+      const to     = document.getElementById('expDateTo').value;
+      const status = document.getElementById('expStatus').value;
+      const purposeLabel = { all: 'ทั้งหมด', teaching: 'สอนเท่านั้น', training: 'อบรมเท่านั้น' }[expPurpose];
+      const parts = [];
+      if (from && to) parts.push(`📅 ${from} ถึง ${to}`);
+      else if (!from && !to) parts.push('📅 ทุกช่วงเวลา');
+      parts.push(`📋 ประเภท: ${purposeLabel}`);
+      if (status) parts.push(`🔖 สถานะ: ${status}`);
+      document.getElementById('expSummary').innerHTML = parts.join(' &nbsp;·&nbsp; ');
+    }
+
+   function triggerExportWithFormat() {
+      const isCSV = document.getElementById('chkCSV').checked;
+      const isExcel = document.getElementById('chkExcel').checked;
+
+      if (!isCSV && !isExcel) {
+        alert('กรุณาเลือกรูปแบบไฟล์อย่างน้อย 1 ประเภทครับ');
+        return;
+      }
+
+      const from   = document.getElementById('expDateFrom').value;
+      const to     = document.getElementById('expDateTo').value;
+      const status = document.getElementById('expStatus').value;
+      const params = new URLSearchParams();
+      
+      if (from) params.set('date_from', from);
+      if (to) params.set('date_to', to);
+      if (expPurpose !== 'all') params.set('purpose_type', expPurpose);
+      if (status) params.set('status', status);
+
+      closeModals();
+
+      if (isCSV) {
+        showToast("กำลังส่งออกไฟล์ CSV...", 'download');
+        window.location.href = `/api/reports/export/csv/?${params}`;
+      }
+
+      // กรณีเลือก Excel
+      if (isExcel) {
+        if (isCSV) {
+          setTimeout(() => {
+            showToast("กำลังส่งออกไฟล์ Excel...", 'download');
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `/api/reports/export/excel/?${params}`;
+            document.body.appendChild(iframe);
+            // ลบ iframe ทิ้งหลังจากโหลดเสร็จเพื่อไม่ให้รก
+            setTimeout(() => document.body.removeChild(iframe), 3000);
+          }, 1500); 
+        } else {
+          // ถ้าเลือก Excel อย่างเดียว
+          showToast("กำลังส่งออกไฟล์ Excel...", 'download');
+          window.location.href = `/api/reports/export/excel/?${params}`;
+        }
+      }
+    }
+
+        // Boot
+        go('dashboard');
   </script>
 </body>
 

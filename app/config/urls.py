@@ -19,6 +19,7 @@ urlpatterns = [
         name="swagger-ui",
     ),
     path("api/admin", include("admindash.urls")),
+    path("api/reports/", include("reports.urls")),
 ]
 
 if settings.DEBUG:
