@@ -65,8 +65,17 @@ class Booking(models.Model):
     purpose_type = models.CharField(max_length=10, choices=PURPOSE_CHOICES)
     reject_reason = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    additional_requests = models.TextField(blank=True, null=True, help_text="คำขอเพิ่มเติมจากผู้จอง")
-    admin_notes = models.TextField(blank=True, null=True, help_text="หมายเหตุจากแอดมินตอนอนุมัติ")
+    additional_requests = models.TextField(
+        blank=True, null=True, help_text="คำขอเพิ่มเติมจากผู้จอง"
+    )
+    admin_notes = models.TextField(
+        blank=True, null=True, help_text="หมายเหตุจากแอดมินตอนอนุมัติ"
+    )
+    notification_email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="อีเมลที่ใช้รับแจ้งเตือนสำหรับการจองนี้ (ถ้าว่างจะใช้อีเมลของผู้จองในระบบ)",
+    )
 
     class Meta:
         db_table = "bookings"
@@ -105,7 +114,7 @@ class TeachingInfo(models.Model):
     program_type = models.CharField(max_length=20, choices=PROGRAM_CHOICES)
 
     def clean(self):
-        if self.booking.purpose_type != 'teaching':
+        if self.booking.purpose_type != "teaching":
             raise ValidationError("รายการจองนี้ไม่ได้ระบุวัตถุประสงค์เป็น 'การสอน'")
 
     class Meta:
@@ -122,5 +131,5 @@ class TrainingInfo(models.Model):
         db_table = "training_info"
 
     def clean(self):
-        if self.booking.purpose_type != 'training':
+        if self.booking.purpose_type != "training":
             raise ValidationError("รายการจองนี้ไม่ได้ระบุวัตถุประสงค์เป็น 'การอบรม'")

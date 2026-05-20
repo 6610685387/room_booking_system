@@ -46,6 +46,7 @@ class BookingReadSerializer(serializers.ModelSerializer):
             "recurring_group",
             "additional_requests",
             "admin_notes",
+            "notification_email",
             "created_at",
         ]
 
@@ -65,20 +66,33 @@ class BookingWriteSerializer(serializers.ModelSerializer):
             "training_info",
             "recurring_group",
             "additional_requests",
+            "notification_email",
         ]
 
     def validate(self, data):
         purpose_type = data.get("purpose_type")
         if purpose_type == "teaching":
             if not data.get("teaching_info"):
-                raise serializers.ValidationError({"teaching_info": "This field is required for teaching purpose."})
+                raise serializers.ValidationError(
+                    {"teaching_info": "This field is required for teaching purpose."}
+                )
             if data.get("training_info"):
-                raise serializers.ValidationError({"training_info": "This field must not be provided for teaching purpose."})
+                raise serializers.ValidationError(
+                    {
+                        "training_info": "This field must not be provided for teaching purpose."
+                    }
+                )
         elif purpose_type == "training":
             if not data.get("training_info"):
-                raise serializers.ValidationError({"training_info": "This field is required for training purpose."})
+                raise serializers.ValidationError(
+                    {"training_info": "This field is required for training purpose."}
+                )
             if data.get("teaching_info"):
-                raise serializers.ValidationError({"teaching_info": "This field must not be provided for training purpose."})
+                raise serializers.ValidationError(
+                    {
+                        "teaching_info": "This field must not be provided for training purpose."
+                    }
+                )
         return data
 
     def create(self, validated_data):

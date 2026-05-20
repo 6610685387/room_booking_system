@@ -23,6 +23,7 @@ from bookings.permissions import IsOwnerOrAdmin, IsOwner
 from bookings.docs import booking_viewset_schema
 from django.shortcuts import render
 
+
 @booking_viewset_schema
 class BookingViewSet(viewsets.ViewSet):
     def get_permissions(self):
@@ -170,21 +171,36 @@ class BookingViewSet(viewsets.ViewSet):
                 d_start, d_end, days_of_week, time_start, time_end
             )
 
-            for s_dt, e_dt in all_slots:
-                slot_date_str = localtime(s_dt).strftime("%Y-%m-%d")
-                if slot_date_str not in report["available_dates"]:
-                    continue
+            from bookings.services.email_service import (
+                set_bulk_mode,
+                notify_admin_new_booking_bulk,
+            )
 
-                slot_data = request.data.copy()
-                slot_data["room"] = room_id
-                slot_data["start_datetime"] = s_dt
-                slot_data["end_datetime"] = e_dt
-                slot_data["recurring_group"] = group.group_id
+            set_bulk_mode(True)
+            try:
+                for s_dt, e_dt in all_slots:
+                    slot_date_str = localtime(s_dt).strftime("%Y-%m-%d")
+                    if slot_date_str not in report["available_dates"]:
+                        continue
 
-                serializer = BookingWriteSerializer(data=slot_data)
-                serializer.is_valid(raise_exception=True)
-                serializer.save(booker=request.user, status="Pending")
-                booking_ids.append(serializer.instance.booking_id)
+                    slot_data = request.data.copy()
+                    slot_data["room"] = room_id
+                    slot_data["start_datetime"] = s_dt
+                    slot_data["end_datetime"] = e_dt
+                    slot_data["recurring_group"] = group.group_id
+
+                    serializer = BookingWriteSerializer(data=slot_data)
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save(booker=request.user, status="Pending")
+                    booking_ids.append(serializer.instance.booking_id)
+            finally:
+                set_bulk_mode(False)
+
+            if booking_ids:
+                created_bookings = Booking.objects.filter(
+                    booking_id__in=booking_ids
+                ).select_related("booker", "room")
+                notify_admin_new_booking_bulk(created_bookings, group)
 
         total_skipped = (
             report["summary"]["conflict_count"] + report["summary"]["blackout_count"]
@@ -252,6 +268,7 @@ class BookingViewSet(viewsets.ViewSet):
                     "additional_requests": bk.additional_requests,
                     "reject_reason": bk.reject_reason,
                     "can_cancel": can_cancel,
+                    "notification_email": bk.notification_email,
                     "created_at": localtime(bk.created_at).isoformat(),
                 }
             )
@@ -403,9 +420,11 @@ class BookingViewSet(viewsets.ViewSet):
             },
             status=200,
         )
-    
+
+
 def lecturer_dashboard(request):
-    return render(request, 'bookings/lecturer_dashboard.html')
+    return render(request, "bookings/lecturer_dashboard.html")
+
 
 def admin_dashboard(request):
-    return render(request, 'bookings/admin_dashboard.html')
+    return render(request, "bookings/admin_dashboard.html")

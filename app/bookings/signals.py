@@ -7,9 +7,11 @@ from django.dispatch import receiver
 
 from bookings.models import Booking
 from bookings.services.email_service import (
+    is_bulk_mode,
     notify_admin_cancelled,
     notify_admin_new_booking,
     notify_booker_approved,
+    notify_booker_pending,
     notify_booker_rejected,
 )
 
@@ -19,12 +21,18 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Booking)
 def booking_post_save(sender, instance: Booking, created: bool, **kwargs):
     if created:
-        logger.info("Signal: Booking #%s ใหม่ — แจ้ง Admin", instance.booking_id)
+        if is_bulk_mode():
+            logger.debug(
+                "Signal: Booking #%s ใหม่ — bulk mode เปิดอยู่ ข้ามการส่งอีเมล",
+                instance.booking_id,
+            )
+            return
+        logger.info(
+            "Signal: Booking #%s ใหม่ — แจ้ง Admin และแจ้ง Booker (Pending)",
+            instance.booking_id,
+        )
         notify_admin_new_booking(instance)
-        return
-    try:
-        previous = Booking.objects.get(pk=instance.pk)
-    except Booking.DoesNotExist:
+        notify_booker_pending(instance)
         return
 
     pre_status = getattr(instance, "_pre_status", None)

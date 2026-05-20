@@ -1,14 +1,11 @@
-[ระบบจองห้อง] Reminder: การจอง #{{ booking.booking_id }} พรุ่งนี้ 🔔
+[ระบบจองห้อง] Reminder: คุณมี {{ total_count }} การจองพรุ่งนี้ 🔔
 
 เรียน คุณ{{ booker_name }},
 
-อย่าลืม! คุณมีการจองห้องในวันพรุ่งนี้
+อย่าลืม! คุณมีการจองห้องพรุ่งนี้ทั้งหมด {{ total_count }} รายการ
 
-หมายเลขการจอง : #{{ booking.booking_id }}
-ห้อง           : {{ room_name }}
-วันที่          : {{ date_str }}
-เวลา           : {{ time_str }}
-
+{% for slot in slots %}{{ forloop.counter }}. {{ slot.room_name }} — {{ slot.date_str }} เวลา {{ slot.time_str }}
+{% endfor %}
 หากไม่สามารถใช้งานได้ กรุณายกเลิกล่วงหน้าเพื่อให้ผู้อื่นสามารถจองได้
 
 ---

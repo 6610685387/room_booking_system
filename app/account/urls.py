@@ -10,4 +10,12 @@ urlpatterns = [
     ),
     path("login-success/admin/", views.login_success_admin, name="success_admin"),
     path("login-success/student/", views.login_success_student, name="success_student"),
+    # ── JWT API ─────────────────────────────────────────────────────
+    path("api/auth/login/", views.LoginAPIView.as_view(), name="api_login"),
+    path(
+        "api/auth/token/refresh/",
+        views.TokenRefreshAPIView.as_view(),
+        name="api_token_refresh",
+    ),
+    path("api/auth/me/", views.MeAPIView.as_view(), name="api_me"),
 ]
