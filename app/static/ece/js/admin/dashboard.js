@@ -122,7 +122,7 @@ function vDashboard() {
     <div class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style="background:${clr}"></div>
     <div class="flex-1 min-w-0">
         <p class="text-xs font-bold text-slate-700 truncate">${b.booker?.displayname_th || "—"} — ${lbl}</p>
-        <p class="text-[11px] text-slate-400 truncate">${b.room?.room_name || ""} · ${thaiDateShort(b.start_datetime)}</p>
+        <p class="text-[11px] text-slate-400 truncate">${b.room?.room_name || ""} · ${b.room?.room_code || ""} · ${thaiDateShort(b.start_datetime)}</p>
     </div>
     <span class="text-[10px] text-slate-400 flex-shrink-0">${created}</span>
 </div>`;

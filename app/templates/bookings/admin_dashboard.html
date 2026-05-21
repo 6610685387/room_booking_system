@@ -63,7 +63,7 @@
                 class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
                 onclick="go('dashboard'); closeSidebarOnMobile();">
                 <span class="material-symbols-outlined text-[19px]">dashboard</span>
-                <span>แผงควบคุมหลัก</span>
+                <span>แดชบอร์ดเจ้าหน้าที่</span>
             </div>
             <div data-view="approvals"
                 class="nav-item flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
@@ -219,9 +219,10 @@
 <!-- ══════════════════ ROOM MANAGEMENT MODAL (ADD/EDIT) ══════════════════ -->
 <div id="roomModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
     style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
-    
-    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
-        
+
+    <div
+        class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+
         <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
             <h3 class="font-bold text-slate-800" id="roomModalTitle">ห้องเรียน</h3>
             <button onclick="closeModals()"
@@ -229,7 +230,7 @@
                 <span class="material-symbols-outlined text-[16px]">close</span>
             </button>
         </div>
-        
+
         <div class="p-6 space-y-4 overflow-y-auto">
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -247,7 +248,7 @@
                         class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                 </div>
             </div>
-            
+
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">
@@ -280,23 +281,31 @@
                     <p class="text-xs text-slate-400">กำหนดช่วงเวลาที่ต้องการปิดให้บริการและไม่ให้จอง</p>
                 </div>
                 <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" id="isBlackout" class="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer" onchange="toggleBlackoutFields()">
+                    <input type="checkbox" id="isBlackout"
+                        class="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                        onchange="toggleBlackoutFields()">
                 </label>
             </div>
 
-            <div id="blackoutFields" class="hidden p-4 bg-red-50 border border-red-100 rounded-xl space-y-3 transition-all">
+            <div id="blackoutFields"
+                class="hidden p-4 bg-red-50 border border-red-100 rounded-xl space-y-3 transition-all">
                 <h4 class="text-sm font-bold text-red-800">กำหนดช่วงเวลาปิดปรับปรุง (Blackout)</h4>
                 <div>
-                    <label class="block text-xs font-bold text-red-700 mb-1">เวลาเริ่ม <span class="text-red-500">*</span></label>
-                    <input type="datetime-local" id="modalBoStart" class="w-full text-sm px-3 py-2 border border-red-200 rounded-xl outline-none focus:border-red-400">
+                    <label class="block text-xs font-bold text-red-700 mb-1">เวลาเริ่ม <span
+                            class="text-red-500">*</span></label>
+                    <input type="datetime-local" id="modalBoStart"
+                        class="w-full text-sm px-3 py-2 border border-red-200 rounded-xl outline-none focus:border-red-400">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-red-700 mb-1">เวลาสิ้นสุด <span class="text-red-500">*</span></label>
-                    <input type="datetime-local" id="modalBoEnd" class="w-full text-sm px-3 py-2 border border-red-200 rounded-xl outline-none focus:border-red-400">
+                    <label class="block text-xs font-bold text-red-700 mb-1">เวลาสิ้นสุด <span
+                            class="text-red-500">*</span></label>
+                    <input type="datetime-local" id="modalBoEnd"
+                        class="w-full text-sm px-3 py-2 border border-red-200 rounded-xl outline-none focus:border-red-400">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-red-700 mb-1">เหตุผล <span class="text-red-500">*</label>
-                    <input type="text" id="modalBoReason" placeholder="เช่น ปิดปรับปรุงชั่วคราว" class="w-full text-sm px-3 py-2 border border-red-200 rounded-xl outline-none focus:border-red-400">
+                    <input type="text" id="modalBoReason" placeholder="เช่น ปิดปรับปรุงชั่วคราว"
+                        class="w-full text-sm px-3 py-2 border border-red-200 rounded-xl outline-none focus:border-red-400">
                 </div>
             </div>
 

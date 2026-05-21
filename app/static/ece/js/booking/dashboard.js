@@ -72,20 +72,24 @@ function renderRoomCards() {
       r.capacity >= minCap,
   );
 
+  // แยกส่วนให้ห้องโปรดกับห้องทั้งหมดแยกออกจากกันอย่างเด็ดขาด (Deduplication)
   const favouriteSectionRooms = filteredAll.filter((r) =>
     favIds.has(String(r.room_id)),
   );
-  const allSectionRooms = filteredAll;
+  const allSectionRooms = filteredAll.filter((r) =>
+    !favIds.has(String(r.room_id)),
+  );
 
   const makeCard = (room) => {
     const todayBks = getTodayBookingsFromSchedule(room.room_id, room.room_code);
     const currentStatus = getCurrentBookingStatusFromList(todayBks);
     const isFav = favIds.has(String(room.room_id));
 
+    // ปรับการคำนวณสเกลแท่งบอกเวลาการใช้งานให้อยู่ในกรอบ 24 ชั่วโมง
     const bars = todayBks
       .map((b) => {
-        const l = ((b.h - 8) / 12) * 100,
-          w = (b.dur / 12) * 100;
+        const l = (b.h / 24) * 100,
+          w = (b.dur / 24) * 100;
         const bg = b.status === "Approved" ? "#ef4444" : "#f59e0b";
         return `<div class="tl-bar" style="left:${l}%;width:${w}%;background:${bg}"></div>`;
       })
@@ -134,7 +138,8 @@ function renderRoomCards() {
             ${badgeHtml}
         </div>
         <div class="tl-bg">${bars}</div>
-        <div class="flex justify-between text-[10px] text-slate-400 mt-1"><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span></div>
+        <!-- ปรับสเกลช่วงชั่วโมงด้านล่างตัวบ่งชี้ให้เป็นแบบ 24 ชั่วโมงอย่างสมมาตร -->
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
         ${todayBks.length === 0 ? `<p class="text-[11px] text-emerald-600 font-medium mt-1">✓ ว่างตลอดวันนี้</p>` : `<p class="text-[11px] text-amber-600 font-medium mt-1">มีการจอง ${todayBks.length} ช่วง</p>`}
     </div>
 </div>`;

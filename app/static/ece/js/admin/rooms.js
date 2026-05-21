@@ -67,7 +67,7 @@ async function toggleRoomActive(roomId, currentlyActive) {
       is_active: !currentlyActive,
     });
     await loadRooms();
-    go("rooms");
+    await renderCurrentView();
     showToast(
       !currentlyActive ? "เปิดใช้งานห้องแล้ว" : "ปิดห้องชั่วคราวแล้ว",
       "check_circle",
@@ -92,7 +92,9 @@ function openAddRoom() {
   if (btnDelete) btnDelete.classList.add("hidden");
 
   document.getElementById("rmType").value = "Meeting Room";
-  document.getElementById("rmActive").checked = true;
+  const isBlackoutEl = document.getElementById("isBlackout");
+  if (isBlackoutEl) isBlackoutEl.checked = false;
+  if (typeof toggleBlackoutFields === "function") toggleBlackoutFields();
   document.getElementById("roomModal").classList.remove("hidden");
 }
 
@@ -119,11 +121,9 @@ function openEditRoom(roomId) {
   const elSeats = document.getElementById("rmSeats");
   if (elSeats) elSeats.value = r.capacity || "";
   
-  // 2. จัดการ Checkbox สถานะเปิดให้บริการ
-  const elActive = document.getElementById("rmActive");
-  if (elActive) {
-    elActive.checked = r.is_active !== false;
-  }
+  // 2. รีเซ็ต Blackout checkbox (แต่ละการแก้ไขเริ่มต้นใหม่)
+  const elBlackout = document.getElementById("isBlackout");
+  if (elBlackout) elBlackout.checked = false;
 
   // 3. จัดการฟอร์ม Blackout (ป้องกัน Error ถ้ายังไม่ได้ใส่ HTML)
   const boStart = document.getElementById("modalBoStart");
@@ -181,9 +181,9 @@ function saveRoom() {
     return;
   }
 
-  const isActive = document.getElementById("rmActive").checked;
+  const isBlackout = document.getElementById("isBlackout")?.checked ?? false;
 
-    if (!isActive) {
+    if (isBlackout) {
         const startVal = document.getElementById("modalBoStart").value;
         const endVal = document.getElementById("modalBoEnd").value;
         const reasonVal = document.getElementById("modalBoReason").value;
@@ -226,7 +226,7 @@ async function executeSaveRoom() {
   const name = document.getElementById("rmName").value.trim();
   const type = document.getElementById("rmType").value;
   const seats = document.getElementById("rmSeats").value.trim();
-  const isActive = document.getElementById("rmActive").checked;
+  const isBlackout = document.getElementById("isBlackout")?.checked ?? false;
   const imageInput = document.getElementById("rmImage");
 
   const formData = new FormData();
@@ -302,7 +302,7 @@ async function executeSaveRoom() {
 
     const resData = await response.json();
 
-    if (!isActive) {
+    if (isBlackout) {
       const boData = new FormData();
       // ปรับ id ให้ตรงกับที่ backend ส่งกลับมา (เช่น resData.id หรือ resData.room_id)
       boData.append("room", editRoomId || resData.id || resData.room_id); 
@@ -331,7 +331,7 @@ async function executeSaveRoom() {
 
     closeModals();
     await loadRooms();
-    go("rooms");
+    await renderCurrentView();
   } catch (err) {
     alert("ไม่สามารถบันทึกข้อมูลได้เนื่องจาก:\n" + err.message);
     document.getElementById("roomModal").classList.remove("hidden");
@@ -358,7 +358,7 @@ async function executeDeleteRoom() {
     closeModals();
     await loadRooms();
     showToast("ลบห้องเรียบร้อยแล้ว", "delete");
-    go("rooms");
+    await renderCurrentView();
   } catch (err) {
     showApiError(err);
     document.getElementById("roomModal").classList.remove("hidden");

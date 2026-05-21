@@ -18,7 +18,7 @@ function vCalendar() {
                 <div id="calFDD" class="filter-dd">
                     <label class="filter-opt"><input type="checkbox" id="calFAll" checked onchange="calTogAll(this)"><span>ทั้งหมด</span></label>
                     <hr class="border-slate-100 my-1">
-                    ${rooms.map((r) => `<label class="filter-opt"><input type="checkbox" class="cal-rcb" value="${r.room_id}" checked onchange="calUpdFlt()"><span>${r.room_name}</span></label>`).join("")}
+                    ${rooms.map((r) => `<label class="filter-opt"><input type="checkbox" class="cal-rcb" value="${r.room_id}" checked onchange="calUpdFlt()"><span>${r.room_name} (${r.room_code})</span></label>`).join("")}
                 </div>
             </div>
             <button onclick="calToday()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 shadow-sm">วันนี้</button>

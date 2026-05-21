@@ -273,7 +273,8 @@ async function loadRoomScheduleForView() {
     return;
   }
 
-  const hours = Array.from({ length: 12 }, (_, i) => i + 7);
+  // ปรับการสร้างสล็อตแถวเวลาจาก 12 แถวเป็น 24 แถว (0 - 23 น.)
+  const hours = Array.from({ length: 24 }, (_, i) => i);
   const wdLabels = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
   const MONTHS_TH_SHORT = [
     "ม.ค.",
@@ -339,7 +340,10 @@ async function loadRoomScheduleForView() {
           return `<td class="p-2 border border-slate-100 hover:bg-slate-50 transition-colors"></td>`;
         })
         .join("");
-      return `<tr><td class="p-2 border border-slate-200 bg-slate-50 text-slate-400 text-center font-medium text-xs">${h}:00</td>${cols}</tr>`;
+      
+      // ปรับรูปแบบเลเบลเวลาด้านหน้าแถวให้อยู่ในรูปแบบ HH:00 ที่สมมาตร (เช่น 00:00, 08:00)
+      const timeLabel = String(h).padStart(2, "0") + ":00";
+      return `<tr><td class="p-2 border border-slate-200 bg-slate-50 text-slate-400 text-center font-medium text-xs">${timeLabel}</td>${cols}</tr>`;
     })
     .join("");
 

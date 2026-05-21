@@ -43,7 +43,7 @@ function vCalendar() {
                     ${rooms.map((r) => `
                         <label class="filter-opt">
                             <input type="checkbox" class="cal-rcb" value="${r.room_id}" checked onchange="calUpdFlt()">
-                            <span>${r.room_name}</span>
+                            <span>${r.room_name} (${r.room_code})</span>
                         </label>
                     `).join("")}
                 </div>
@@ -294,32 +294,64 @@ function isToday(y, m, d) {
   return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
 }
 
-// แสดงรายละเอียดกล่อง Modal เมื่อคลิกเลือกวัน (เปลี่ยนดีไซน์เป็นแบบการ์ดตามฝั่ง Lecturer)
+// แสดงรายละเอียดกล่อง Modal เมื่อคลิกเลือกวัน (จัดเรียงเวลา, กรุ๊ปห้องซ้ำ และปรับสี Approved เป็นเขียว)
 function calShowDayAdmin(y, m, d) {
   const dayBks = calGetBkAdmin(y, m, d);
   const formattedDate = `${d} ${LOCAL_MONTHS_TH[m]} ${y + 543}`;
 
   document.getElementById("dayModalTitle").textContent = `รายการจอง – ${formattedDate}`;
-  document.getElementById("dayModalBody").innerHTML =
-    dayBks.length === 0
-      ? `<div class="text-center py-8 text-slate-400">
-           <span class="material-symbols-outlined text-4xl block mb-2">event_available</span>
-           <p class="text-sm font-medium">ยังไม่มีการจองในวันนี้</p>
-         </div>`
-      : dayBks
-          .map((b) => {
-            const roomFull = `${b.room?.room_name || b.room_name || "—"} (${b.room?.room_code || b.room_code || "—"})`;
-            const timeRange = `${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
-            const bookerName = b.booker?.displayname_th || "—";
-            const details = b.subject ? b.subject : (b.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" : "จัดอบรม/ติว");
 
-            return `
-<div class="p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-red-100 bg-red-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity" 
+  if (dayBks.length === 0) {
+    document.getElementById("dayModalBody").innerHTML = `
+      <div class="text-center py-8 text-slate-400">
+         <span class="material-symbols-outlined text-4xl block mb-2">event_available</span>
+         <p class="text-sm font-medium">ยังไม่มีการจองในวันนี้</p>
+      </div>`;
+    document.getElementById("dayModal").classList.remove("hidden");
+    return;
+  }
+
+  // 1. เรียงลำดับรายการจองทั้งหมดตามเวลาเริ่มต้น (Ascending Order)
+  dayBks.sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
+
+  // 2. จัดแบ่งและกรุ๊ปข้อมูลการจองรายห้อง
+  const groupedByRoom = {};
+  dayBks.forEach((b) => {
+    const rId = b.room?.room_id || b.room_id || "unknown";
+    if (!groupedByRoom[rId]) {
+      groupedByRoom[rId] = {
+        room_id: rId,
+        room_name: b.room?.room_name || b.room_name || "—",
+        room_code: b.room?.room_code || b.room_code || "—",
+        bookings: []
+      };
+    }
+    groupedByRoom[rId].bookings.push(b);
+  });
+
+  const groupList = Object.values(groupedByRoom);
+
+  // เรียงลำดับรายการกลุ่มตามสล็อตจองที่เช้าที่สุดของห้องนั้น ๆ
+  groupList.sort((a, b) => new Date(a.bookings[0].start_datetime) - new Date(b.bookings[0].start_datetime));
+
+  // 3. เขียนโครงสร้างการ์ด (แยกประเภท Single และ Multiple)
+  const listHtml = groupList
+    .map((g) => {
+      if (g.bookings.length === 1) {
+        // กรณีห้องมีคิวจองเพียง "1 รายการ" ในวันนั้น
+        const b = g.bookings[0];
+        const roomFull = `${g.room_name} (${g.room_code})`;
+        const timeRange = `${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
+        const bookerName = b.booker?.displayname_th || "—";
+        const details = b.subject ? b.subject : (b.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" : "จัดอบรม/ติว");
+
+        return `
+<div class="p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-emerald-100 bg-emerald-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity" 
      onclick="closeModals(); viewDetailAdmin(${b.booking_id})">
     <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 mb-1.5">
-            <span class="w-2 h-2 rounded-full ${b.status === "Approved" ? "bg-red-500" : "bg-amber-500"}"></span>
-            <span class="text-xs font-bold ${b.status === "Approved" ? "text-red-700" : "text-amber-700"} uppercase tracking-wider">
+            <span class="w-2 h-2 rounded-full ${b.status === "Approved" ? "bg-emerald-500" : "bg-amber-500"}"></span>
+            <span class="text-xs font-bold ${b.status === "Approved" ? "text-emerald-700" : "text-amber-700"} uppercase tracking-wider">
                 ${b.status === "Approved" ? "ถูกจองแล้ว" : "รออนุมัติ"}
             </span>
         </div>
@@ -328,7 +360,48 @@ function calShowDayAdmin(y, m, d) {
         <p class="text-xs text-slate-500 mt-1 truncate">ผู้จอง: ${bookerName} · ${details}</p>
     </div>
 </div>`;
+      } else {
+        // กรณีมีจองตั้งแต่ "2 รายการขึ้นไป" สำหรับห้องนี้ ให้กรุ๊ปสล็อตจองย่อยรวมกันภายใต้คอนเทนเนอร์คราม (Indigo)
+        const slotsHtml = g.bookings
+          .map((b) => {
+            const timeRange = `${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
+            const bookerName = b.booker?.displayname_th || "—";
+            const details = b.subject ? b.subject : (b.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" : "จัดอบรม/ติว");
+
+            return `
+<div class="p-3 rounded-xl border border-slate-100 bg-white/80 hover:border-slate-300 shadow-xs flex justify-between items-center gap-2 cursor-pointer transition-all"
+     onclick="event.stopPropagation(); closeModals(); viewDetailAdmin(${b.booking_id})">
+    <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-1.5 mb-1">
+            <span class="w-1.5 h-1.5 rounded-full ${b.status === "Approved" ? "bg-emerald-500" : "bg-amber-500"}"></span>
+            <span class="text-[10px] font-bold ${b.status === "Approved" ? "text-emerald-600" : "text-amber-600"} uppercase tracking-wider">
+                ${b.status === "Approved" ? "ถูกจองแล้ว" : "รออนุมัติ"}
+            </span>
+            <span class="text-[10px] text-slate-400">#${b.booking_id}</span>
+        </div>
+        <p class="text-xs font-bold text-slate-700">เวลา ${timeRange} น.</p>
+        <p class="text-[11px] text-slate-500 mt-0.5 truncate">ผู้จอง: ${bookerName} · ${details}</p>
+    </div>
+    <span class="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
+</div>`;
           })
           .join("");
+
+        return `
+<div class="p-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/10 space-y-3">
+    <div class="flex justify-between items-start gap-2">
+        <div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 uppercase tracking-wider">มีการจองหลายช่วงเวลา</span>
+            <h3 class="font-bold text-slate-800 text-sm mt-1.5">${g.room_name} (${g.room_code})</h3>
+            <p class="text-[10px] text-slate-400 font-semibold mt-0.5">พบรายการจองทั้งหมด ${g.bookings.length} รายการในวันนี้</p>
+        </div>
+    </div>
+    <div class="space-y-1.5">${slotsHtml}</div>
+</div>`;
+      }
+    })
+    .join("");
+
+  document.getElementById("dayModalBody").innerHTML = listHtml;
   document.getElementById("dayModal").classList.remove("hidden");
 }
