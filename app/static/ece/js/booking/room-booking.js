@@ -635,7 +635,7 @@ function showConflictAlert(conflictReport) {
 
     suggestionsHtml = `
 <div class="mt-3.5 space-y-2">
-    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-primary">meeting_room</span>ห้องแนะนำอื่นที่ว่างตรงเวลาของท่าน:</p>
+    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-primary">meeting_room</span>ห้องอื่นที่สามารถจองได้ครบทุกวันที่เลือก:</p>
     <div class="space-y-1.5 max-h-60 overflow-y-auto pr-1">${cards}</div>
 </div>`;
   }
