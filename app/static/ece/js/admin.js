@@ -1537,7 +1537,7 @@ async function saveRoom() {
   }
   try {
     if (editRoomId) {
-      await api.put(`/api/admin/req/room/${editRoomId}/`, payload);
+      await api.patch(`/api/admin/req/room/${editRoomId}/`, payload);
       showToast("แก้ไขห้องเรียบร้อยแล้ว", "check_circle");
     } else {
       await api.post("/api/admin/req/room/", payload);
