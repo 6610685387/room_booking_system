@@ -8,14 +8,39 @@
 {% endblock %}
 
 {% block body %}
-<div class="flex h-screen overflow-hidden bg-slate-50">
+<!-- ปรับ Container หลักให้รองรับการจัดวางแนวตั้งบนมือถือ (flex-col) และแนวนอนบนจอใหญ่ (md:flex-row) -->
+<div class="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50 relative">
+
+  <!-- ══════════════════ MOBILE TOP NAV BAR ══════════════════ -->
+  <!-- แสดงเฉพาะบนจอมือถือ (md:hidden) -->
+  <div
+    class="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 z-30 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <button onclick="toggleSidebar()"
+        class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[24px]">menu</span>
+      </button>
+      <span class="font-bold text-slate-800 text-sm">ECE Room Booking</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SIDEBAR BACKDROP ══════════════════ -->
+  <!-- ฉากพื้นหลังสีเข้มเวลาเปิดเมนูบนมือถือ คลิกแล้วจะเป็นการหุบหน้าต่างลง -->
+  <div id="sidebarBackdrop" onclick="toggleSidebar()"
+    class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden transition-opacity duration-300 opacity-0"></div>
 
   <!-- ══════════════════ SIDEBAR ══════════════════ -->
-  <aside class="w-60 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm z-20">
+  <!-- ปรับสไตล์ให้ซ่อนออกซ้ายจอเป็นค่าเริ่มต้นบนมือถือ (-translate-x-full) และสไลด์แสดงผลเข้ามาได้ -->
+  <aside id="mainSidebar"
+    class="fixed md:relative inset-y-0 left-0 w-60 bg-white border-r border-slate-200 flex flex-col shadow-sm z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex-shrink-0">
 
-    <!-- Logo -->
-    <div class="sidebar-logo-wrap">
+    <!-- Logo & Close Button (มือถือมีปุ่มกากบาท) -->
+    <div class="sidebar-logo-wrap flex items-center justify-between pr-4">
       <img src="{% static 'ece/images/ece-logo.svg' %}" alt="ECE TU" class="sidebar-logo-img">
+      <button onclick="toggleSidebar()"
+        class="md:hidden w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined text-[18px]">close</span>
+      </button>
     </div>
 
     <!-- User chip -->
@@ -30,29 +55,29 @@
       </div>
     </div>
 
-    <!-- Nav -->
+    <!-- Nav (เมื่อกดเปลี่ยนหน้าบนมือถือ จะสั่งหุบ Sidebar ลงโดยอัตโนมัติ) -->
     <nav class="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
       <div data-view="dashboard"
         class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-        onclick="navigate('dashboard')">
+        onclick="navigate('dashboard'); closeSidebarOnMobile();">
         <span class="material-symbols-outlined text-[19px]">dashboard</span>
         <span>ภาพรวมห้องวันนี้</span>
       </div>
       <div data-view="booking"
         class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-        onclick="navigate('booking')">
+        onclick="navigate('booking'); closeSidebarOnMobile();">
         <span class="material-symbols-outlined text-[19px]">add_circle</span>
         <span>จองห้อง</span>
       </div>
       <div data-view="my-bookings"
         class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-        onclick="navigate('my-bookings')">
+        onclick="navigate('my-bookings'); closeSidebarOnMobile();">
         <span class="material-symbols-outlined text-[19px]">receipt_long</span>
         <span>รายการของฉัน</span>
       </div>
       <div data-view="calendar"
         class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-        onclick="navigate('calendar')">
+        onclick="navigate('calendar'); closeSidebarOnMobile();">
         <span class="material-symbols-outlined text-[19px]">calendar_month</span>
         <span>ปฏิทิน</span>
       </div>
@@ -144,6 +169,7 @@
     </div>
   </div>
 </div>
+
 <!-- ══════════════════ CANCEL GROUP MODAL ══════════════════ -->
 <div id="cancelGroupModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
   style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
@@ -176,4 +202,42 @@
 
 {% block extra_js %}
 <script src="{% static 'ece/js/booking.js' %}"></script>
+<script>
+  // ══════════════════ INTERACTIVE SIDEBAR JS ══════════════════
+  let isSidebarOpen = false;
+
+  // ฟังก์ชันควบคุมการ สไลด์เข้า/สไลด์ออก ของแถบเมนู
+  function toggleSidebar() {
+    const sidebar = document.getElementById("mainSidebar");
+    const backdrop = document.getElementById("sidebarBackdrop");
+    if (!sidebar || !backdrop) return;
+
+    isSidebarOpen = !isSidebarOpen;
+
+    if (isSidebarOpen) {
+      // เปิดเมนูสไลด์เข้ามาจากซ้าย และแสดงแผ่นฟิล์มเบลอสีเข้มด้านหลัง
+      sidebar.classList.remove("-translate-x-full");
+      backdrop.classList.remove("hidden");
+      setTimeout(() => {
+        backdrop.classList.add("opacity-100");
+      }, 20);
+    } else {
+      // หุบแถบเมนูกลับ และปิดแผ่นฟิล์มด้านหลัง
+      sidebar.classList.add("-translate-x-full");
+      backdrop.classList.remove("opacity-100");
+      setTimeout(() => {
+        if (!isSidebarOpen) {
+          backdrop.classList.add("hidden");
+        }
+      }, 300); // รอให้ Transition สไลด์ทำงานจนเสร็จสิ้น
+    }
+  }
+
+  // ฟังก์ชันช่วยเหลือ: สั่งหุบเมนูอัตโนมัติเมื่อใช้บนหน้าจออุปกรณ์พกพาขนาดเล็ก (< 768px)
+  function closeSidebarOnMobile() {
+    if (window.innerWidth < 768 && isSidebarOpen) {
+      toggleSidebar();
+    }
+  }
+</script>
 {% endblock %}

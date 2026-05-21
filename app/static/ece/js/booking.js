@@ -13,15 +13,17 @@ let rooms = []; // GET /api/rooms/
 let favRooms = []; // GET /api/rooms/favourites/
 let myBookings = []; // GET /api/bookings/my/
 let calBookings = {}; // built from myBookings
+let allSchedules = {}; // สำหรับเก็บตารางจองรวมของทุกห้อง (รวมข้อมูลผู้ใช้อื่นด้วย)
 
 // Router
 let curView = "dashboard";
 let curDetailId = null;
+let curDetailBooking = null; // State สำหรับเก็บข้อมูลรายละเอียดจากการดึงผ่าน API ตรง
 let curRoomId = null;
 let mbTab = "all";
 let dashSearch = "";
 let dashType = "all";
-let dashCapacity = ""; // เพิ่ม State เก็บค่าความจุตัวเลขสำหรับหน้าแดชบอร์ด
+let dashCapacity = ""; // State เก็บค่าความจุตัวเลขสำหรับหน้าแดชบอร์ด
 let cancelId = null;
 let cancelGroupId = null;
 let bfType = "all";
@@ -36,14 +38,22 @@ let calBookDate = null;
 let calBookKey = null;
 let calBookLabel = null;
 
-// Room schedule cache  { roomId: { weekStart: data } }
+// Room schedule cache { roomId: { weekStart: data } }
 let scheduleCache = {};
 
 // ═══════════════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", async () => {
-  const user = window.ECE_USER || {};
+  let user = {};
+
+  try {
+    user = await api.get(`/api/auth/me/?_t=${Date.now()}`);
+  } catch (err) {
+    console.error("Failed to load user info from /api/auth/me/:", err);
+    user = window.ECE_USER || {};
+  }
+
   const displayName = user.displayname_th || user.username || "—";
 
   const sideNameEl = document.getElementById("sideUserName");
@@ -52,8 +62,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const topNameEl = document.getElementById("topUserName");
   if (topNameEl) topNameEl.textContent = displayName;
 
-  // ดึงข้อมูลห้องโปรดเพิ่มเติมแบบขนานในช่วง Boot
   await Promise.all([loadRooms(), loadFavRooms(), loadMyBookings()]);
+  await loadAllSchedules(); // โหลดตารางจองภาพรวมของทุกห้องตั้งแต่เริ่มต้นระบบ
   navigate("dashboard");
 
   startRealtimePolling();
@@ -62,10 +72,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ═══════════════════════════════════════════════════════════════════
 // DATA LOADERS
 // ═══════════════════════════════════════════════════════════════════
-// ปรับปรุงการโหลดห้องให้แนบพารามิเตอร์ตัวกรองส่งไปยัง API หลังบ้าน
 async function loadRooms(params = {}) {
   try {
-    let query = "/api/rooms/?is_active=true";
+    let query = `/api/rooms/?is_active=true&_t=${Date.now()}`;
     if (params.room_type && params.room_type !== "all") {
       query += `&room_type=${encodeURIComponent(params.room_type)}`;
     }
@@ -84,10 +93,9 @@ async function loadRooms(params = {}) {
   }
 }
 
-// ฟังก์ชันดึงรายการห้องโปรดจากเซิร์ฟเวอร์
 async function loadFavRooms() {
   try {
-    const data = await api.get("/api/rooms/favourites/");
+    const data = await api.get(`/api/rooms/favourites/?_t=${Date.now()}`);
     favRooms = data || [];
   } catch (err) {
     favRooms = [];
@@ -95,12 +103,77 @@ async function loadFavRooms() {
   }
 }
 
-// ฟังก์ชันสลับสถานะบันทึกห้องโปรด (POST /api/rooms/{id}/favourite/)
+async function loadBookingDetail(id) {
+  try {
+    curDetailBooking = await api.get(`/api/bookings/${id}/?_t=${Date.now()}`);
+  } catch (err) {
+    showApiError(err);
+    curDetailBooking = null;
+  }
+}
+
+// ดึงรายละเอียดคิวจองรายห้องของทุกท่านสำหรับนำมาประมวลผลบนแดชบอร์ดหลัก
+async function loadAllSchedules() {
+  const today = new Date();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - today.getDay());
+  const y = sunday.getFullYear();
+  const m = String(sunday.getMonth() + 1).padStart(2, "0");
+  const d = String(sunday.getDate()).padStart(2, "0");
+  const weekStart = `${y}-${m}-${d}`;
+
+  const promises = rooms.map(async (r) => {
+    try {
+      const data = await api.get(
+        `/api/rooms/${r.room_id}/schedule/?week_start=${weekStart}&_t=${Date.now()}`,
+      );
+      allSchedules[r.room_id] = data;
+    } catch (err) {
+      console.error(`Failed to load schedule for room ${r.room_id}:`, err);
+    }
+  });
+  await Promise.all(promises);
+}
+
+// ช่วยคัดแยกเฉพาะสล็อตจองของวันนี้ที่อยู่ในสถานะ Approved หรือ Pending จากข้อมูลตารางรวม
+function getTodayBookingsFromSchedule(roomId, roomCode) {
+  const sched = allSchedules[roomId];
+  if (!sched || !sched.slots) return [];
+
+  const daysEN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const todayDayEN = daysEN[new Date().getDay()];
+
+  return (sched.slots || [])
+    .filter(
+      (s) =>
+        s.day === todayDayEN &&
+        (s.status === "Approved" || s.status === "Pending"),
+    )
+    .map((s) => {
+      const startH = parseAndRoundHour(s.start_time);
+      const endH = parseAndRoundHour(s.end_time);
+      const dur = endH - startH;
+      return {
+        room: roomCode,
+        h: startH,
+        dur: dur > 0 ? dur : 1,
+        status: s.status,
+        subj: s.label,
+      };
+    });
+}
+
+// ตรวจสอบสถานะการจอง ณ ชั่วโมงปัจจุบันจากสล็อตจองของวันนี้
+function getCurrentBookingStatusFromList(todayBks) {
+  const h = new Date().getHours();
+  const activeBk = todayBks.find((b) => b.h <= h && b.h + b.dur > h);
+  return activeBk ? activeBk.status : null;
+}
+
 async function toggleFavourite(roomId, event) {
-  if (event) event.stopPropagation(); // ป้องกันการเปลี่ยนหน้าจอเมื่อกดดาว
+  if (event) event.stopPropagation();
   try {
     await api.post(`/api/rooms/${roomId}/favourite/`, {});
-    // อัปเดตรายการห้องโปรดใหม่และสั่งวาดห้องบนแดชบอร์ดใหม่ทันที
     await loadFavRooms();
     redrawRooms();
     showToast("อัปเดตห้องโปรดเรียบร้อยแล้ว", "grade");
@@ -109,10 +182,8 @@ async function toggleFavourite(roomId, event) {
   }
 }
 
-// ผูกฟังก์ชันเข้ากับ window เพื่อความปลอดภัยในการเรียกใช้งานจากแบบฟอร์มภายนอก
 window.toggleFavourite = toggleFavourite;
 
-// ฟังก์ชันดึงข้อมูลห้องแดชบอร์ดใหม่พร้อมแสดงสปินเนอร์ขณะโหลด
 async function refreshDashboardRooms() {
   const container = document.getElementById("dashRooms");
   if (container) {
@@ -129,12 +200,22 @@ async function refreshDashboardRooms() {
     capacity: dashCapacity,
   };
 
-  // ดึงข้อมูลห้องทั่วไปและห้องโปรดแบบคู่ขนานก่อนวาดใหม่
   await Promise.all([loadRooms(params), loadFavRooms()]);
+  await loadAllSchedules(); // โหลดข้อมูลสล็อตจองรวมใหม่เมื่อค้นหาห้องแดชบอร์ด
   redrawRooms();
 }
 
+function isAnyModalOpen() {
+  const modals = ["dayModal", "cancelModal", "cancelGroupModal"];
+  return modals.some((id) => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains("hidden");
+  });
+}
+
 async function refreshDataSilent() {
+  if (isAnyModalOpen()) return;
+
   try {
     const params = {
       q: dashSearch,
@@ -142,18 +223,17 @@ async function refreshDataSilent() {
       capacity: dashCapacity,
     };
 
-    let query = "/api/rooms/?is_active=true";
+    let query = `/api/rooms/?is_active=true&_t=${Date.now()}`;
     if (params.room_type && params.room_type !== "all")
       query += `&room_type=${encodeURIComponent(params.room_type)}`;
     if (params.capacity)
       query += `&capacity=${encodeURIComponent(params.capacity)}`;
     if (params.q) query += `&q=${encodeURIComponent(params.q)}`;
 
-    // ดึงห้องโปรดแบบเรียลไทม์ควบคู่กันเบื้องหลังด้วย
     const [roomsData, bookingsData, favRoomsData] = await Promise.all([
       api.get(query),
-      api.get("/api/bookings/my/"),
-      api.get("/api/rooms/favourites/"),
+      api.get(`/api/bookings/my/?_t=${Date.now()}`),
+      api.get(`/api/rooms/favourites/?_t=${Date.now()}`),
     ]);
 
     rooms = roomsData || [];
@@ -162,11 +242,17 @@ async function refreshDataSilent() {
     buildCalBookings();
 
     if (curView === "dashboard") {
+      await loadAllSchedules(); // เรียกซิงค์ข้อมูลสล็อตรายสัปดาห์เบื้องหลังแบบเงียบ
       redrawRooms();
     } else if (curView === "calendar") {
       calRender();
     } else if (curView === "my-bookings") {
       redrawMyBookings();
+    } else if (curView === "detail") {
+      if (curDetailId) {
+        await loadBookingDetail(curDetailId);
+        renderApp();
+      }
     } else if (curView === "room-booking") {
       scheduleCache = {};
       await loadRoomScheduleForView();
@@ -176,7 +262,6 @@ async function refreshDataSilent() {
   }
 }
 
-// ระบบ Debounce ป้องกันคำขอ API ถี่เกินไปขณะผู้ใช้กำลังพิมพ์คีย์บอร์ด
 let searchTimeout = null;
 function debounceSearch(val) {
   dashSearch = val;
@@ -197,7 +282,7 @@ function debounceCapacity(val) {
 
 async function loadMyBookings() {
   try {
-    const data = await api.get("/api/bookings/my/");
+    const data = await api.get(`/api/bookings/my/?_t=${Date.now()}`);
     myBookings = data || [];
     buildCalBookings();
   } catch (err) {
@@ -210,7 +295,7 @@ async function loadRoomSchedule(roomId, weekStart) {
   if (scheduleCache[cacheKey]) return scheduleCache[cacheKey];
   try {
     const data = await api.get(
-      `/api/rooms/${roomId}/schedule/?week_start=${weekStart}`,
+      `/api/rooms/${roomId}/schedule/?week_start=${weekStart}&_t=${Date.now()}`,
     );
     scheduleCache[cacheKey] = data;
     return data;
@@ -220,11 +305,9 @@ async function loadRoomSchedule(roomId, weekStart) {
   }
 }
 
-// Build calendar lookup from myBookings
 function buildCalBookings() {
   calBookings = {};
   myBookings.forEach((b) => {
-    // โชว์เฉพาะสถานะ Approved และ Pending บนปฏิทินเท่านั้น (ไม่แสดง Cancelled และ Rejected)
     if (b.status !== "Approved" && b.status !== "Pending") {
       return;
     }
@@ -245,7 +328,7 @@ function buildCalBookings() {
       subj: b.subject || b.purpose_type,
       status: b.status,
       id: b.booking_id,
-      can_cancel: b.can_cancel, // ส่งข้อมูลสิทธิ์การยกเลิกไปยังปฏิทินการจอง
+      can_cancel: b.can_cancel,
     });
   });
 }
@@ -258,15 +341,15 @@ let pollingInterval = null;
 function startRealtimePolling() {
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(async () => {
-    if (document.hidden) return; // ข้ามการดึงข้อมูลหากผู้ใช้สลับไปแท็บอื่นหรือย่อหน้าจอ
+    if (document.hidden) return;
     await refreshDataSilent();
-  }, 30000); // ปรับความละเอียดเป็น 30 วินาที เพื่อประสิทธิภาพสูงสุดและเสถียรภาพของเซสชัน
+  }, 30000);
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // NAVIGATION / ROUTER
 // ═══════════════════════════════════════════════════════════════════
-function navigate(view, params = {}) {
+async function navigate(view, params = {}) {
   curView = view;
   if (params.detailId) curDetailId = params.detailId;
   if (params.roomId) curRoomId = String(params.roomId);
@@ -283,11 +366,37 @@ function navigate(view, params = {}) {
     const active = el.dataset.view === (sideMap[view] || view);
     el.className = `nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer ${active ? "nav-active" : "text-slate-600"}`;
   });
+
+  if (view === "detail" && params.detailId) {
+    renderDetailLoading();
+    await loadBookingDetail(params.detailId);
+  }
+
   renderApp();
+
+  const app = document.getElementById("app");
+  if (app) app.scrollTop = 0;
+}
+
+function renderDetailLoading() {
+  const app = document.getElementById("app");
+  if (app) {
+    app.innerHTML = `
+      <div class="view-enter">
+        <div class="p-6 sm:p-8 text-center text-slate-400">
+          <div class="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p class="text-sm font-medium">กำลังโหลดรายละเอียดการจอง...</p>
+        </div>
+      </div>`;
+  }
 }
 
 function renderApp() {
   const app = document.getElementById("app");
+  if (!app) return;
+
+  const prevScrollTop = app.scrollTop;
+
   let html = "";
   switch (curView) {
     case "dashboard":
@@ -309,8 +418,10 @@ function renderApp() {
       html = vCalendar();
       break;
   }
+
   app.innerHTML = `<div class="view-enter">${html}</div>`;
-  app.scrollTop = 0; // ปล่อยให้รันเฉพาะเวลาสลับหน้าจอ (Manual Navigation) เท่านั้น
+  app.scrollTop = prevScrollTop;
+
   if (curView === "calendar") initCalendar();
   if (curView === "room-booking") {
     loadRoomScheduleForView();
@@ -339,9 +450,7 @@ function vDashboard() {
         </button>
     </div>
 
-    <!-- แผงค้นหาและตัวกรองข้อมูลห้องอัจฉริยะ -->
     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-5 flex flex-wrap gap-3 items-center">
-        <!-- ช่องค้นหารหัสและชื่อห้อง -->
         <div class="flex-1 min-w-[200px] relative">
             <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
             <input type="text" placeholder="ค้นหาชื่อห้อง หรือรหัสห้อง..."
@@ -350,7 +459,6 @@ function vDashboard() {
                 class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
         </div>
         
-        <!-- ช่องกรอกจำนวนความจุผู้เข้าร่วมขั้นต่ำ -->
         <div class="relative min-w-[140px]">
             <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">groups</span>
             <input type="number" placeholder="ความจุขั้นต่ำ..."
@@ -360,7 +468,6 @@ function vDashboard() {
                 class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
         </div>
 
-        <!-- ตัวกรองประเภทห้องแบบ Dropdown -->
         <div class="relative min-w-[150px]">
             <select onchange="dashType=this.value;refreshDashboardRooms()"
                 class="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary appearance-none cursor-pointer">
@@ -376,63 +483,45 @@ function vDashboard() {
 </div>`;
 }
 
-function isBusy(room) {
-  const h = new Date().getHours();
-  const day = DAYS_EN[new Date().getDay()];
-  // Use today's bookings from calBookings if we have them for this room
-  const todayKey = calFKey(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    new Date().getDate(),
-  );
-  const todayBk = (calBookings[todayKey] || []).filter(
-    (b) => b.room === room.room_code,
-  );
-  return todayBk.some((b) => b.h <= h && b.h + b.dur > h);
-}
-
 function renderRoomCards() {
   if (rooms.length === 0)
     return `<div class="text-center py-16 text-slate-400">
         <span class="material-symbols-outlined text-5xl block mb-2">search_off</span>
         ไม่พบห้องที่ตรงตามเงื่อนไขการค้นหา</div>`;
 
-  const todayKey = calFKey(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    new Date().getDate(),
-  );
-
-  // สกัดเซตข้อมูลรหัสห้องโปรดสำหรับค้นหาสิทธิแสดงผลแบบรวดเร็ว
   const favIds = new Set(favRooms.map((r) => String(r.room_id)));
 
-  // จัดหมวดหมู่คัดแยกห้อง
   const q = dashSearch.toLowerCase();
+  const minCap = Number(dashCapacity) || 0;
+
   const filteredAll = rooms.filter(
     (r) =>
       (r.room_code.toLowerCase().includes(q) ||
         r.room_name.toLowerCase().includes(q)) &&
-      (dashType === "all" || r.room_type === dashType),
+      (dashType === "all" || r.room_type === dashType) &&
+      r.capacity >= minCap,
   );
 
-  // คัดแยกห้องสำหรับ Section "ห้องโปรด" และ "ห้องทั้งหมด"
   const favouriteSectionRooms = filteredAll.filter((r) =>
     favIds.has(String(r.room_id)),
   );
   const allSectionRooms = filteredAll;
 
-  // ฟังก์ชันตัวสร้างการ์ดห้องย่อย
   const makeCard = (room) => {
-    const busy = isBusy(room);
+    // ดึงรายการจองของวันนี้ที่ถูกจองรวม (ของทุกคน ทั้ง Approved และ Pending)
+    const todayBks = getTodayBookingsFromSchedule(room.room_id, room.room_code);
+
+    // ตรวจสอบวิเคราะห์คิวจอง ณ ชั่วโมงปัจจุบัน (เพื่อหาสถานะความพร้อมของห้องเรียน)
+    const currentStatus = getCurrentBookingStatusFromList(todayBks);
     const isFav = favIds.has(String(room.room_id));
-    const todayBks = (calBookings[todayKey] || []).filter(
-      (b) => b.room === room.room_code,
-    );
+
+    // แสดงพล็อตเวลาตามสี แดง (ถูกจองแล้ว) และ ส้ม (รอพิจารณาคำขอจอง)
     const bars = todayBks
       .map((b) => {
         const l = ((b.h - 8) / 12) * 100,
           w = (b.dur / 12) * 100;
-        return `<div class="tl-bar" style="left:${l}%;width:${w}%"></div>`;
+        const bg = b.status === "Approved" ? "#ef4444" : "#f59e0b"; // สีแดง และ สีส้ม
+        return `<div class="tl-bar" style="left:${l}%;width:${w}%;background:${bg}"></div>`;
       })
       .join("");
 
@@ -443,7 +532,6 @@ function renderRoomCards() {
                <div class="text-sm font-black text-slate-700">${room.room_code}</div>
              </div>`;
 
-    // ปุ่มรูปดาวบันทึกห้องโปรด
     const favIcon = isFav ? "star" : "grade";
     const favColor = isFav
       ? "text-amber-500 fill-amber-500"
@@ -454,6 +542,16 @@ function renderRoomCards() {
           <span class="material-symbols-outlined text-[19px] ${favColor}">${favIcon}</span>
       </button>
     `;
+
+    // คัดเกรดสีป้าย Badge แสดงผลตามความจริง: แดง = มีการใช้งาน, ส้ม = รออนุมัติคิว, เขียว = ห้องว่าง
+    let badgeHtml = "";
+    if (currentStatus === "Approved") {
+      badgeHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-bold text-red-700 bg-red-100 border border-red-200 flex-shrink-0">ถูกใช้งาน</span>`;
+    } else if (currentStatus === "Pending") {
+      badgeHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 flex-shrink-0">รออนุมัติ</span>`;
+    } else {
+      badgeHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 flex-shrink-0">ว่างตอนนี้</span>`;
+    }
 
     return `
 <div class="room-card relative bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm grid cursor-pointer hover:border-primary transition-all"
@@ -476,9 +574,7 @@ function renderRoomCards() {
                     </span>
                 </div>
             </div>
-            <span class="${busy ? "badge-pending" : "badge-approved"} px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0">
-                ${busy ? "ถูกใช้งาน" : "ว่างตอนนี้"}
-            </span>
+            ${badgeHtml}
         </div>
         <div class="tl-bg">${bars}</div>
         <div class="flex justify-between text-[10px] text-slate-400 mt-1">
@@ -493,7 +589,6 @@ function renderRoomCards() {
 </div>`;
   };
 
-  // ประกอบโครงสร้าง Section 1 (ห้องโปรด)
   let favSectionHtml = "";
   if (favouriteSectionRooms.length > 0) {
     favSectionHtml = `
@@ -507,7 +602,6 @@ function renderRoomCards() {
     `;
   }
 
-  // ประกอบโครงสร้าง Section 2 (ห้องทั้งหมด)
   const allSectionHtml = `
     <div>
       <div class="flex items-center gap-2 mb-3">
@@ -647,7 +741,6 @@ function vRoomBooking() {
 </div>`
     : "";
 
-  // คำนวณวันในสัปดาห์เบื้องต้นกรณีจองจากปฏิทิน
   let preDayOfWeek = "";
   if (preDate) {
     const [year, month, day] = preDate.split("-").map(Number);
@@ -673,13 +766,11 @@ function vRoomBooking() {
     ? `<img src="${room.room_image}" class="absolute inset-0 w-full h-full object-cover">`
     : "";
 
-  // กำหนดวันที่ปัจจุบันสำหรับป้องกันจองวันย้อนหลังใน Datepicker
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   return `
 <div class="p-6 sm:p-8">
-    <!-- Breadcrumb -->
     <div class="flex items-center gap-2 text-sm text-slate-400 mb-5">
         <button onclick="navigate('booking')" class="hover:text-primary font-medium transition-colors">จองห้อง</button>
         <span class="material-symbols-outlined text-[14px]">chevron_right</span>
@@ -687,9 +778,7 @@ function vRoomBooking() {
     </div>
 
     <div class="grid grid-cols-12 gap-6 items-start">
-        <!-- LEFT: Info + Schedule -->
         <div class="col-span-12 lg:col-span-7 space-y-5">
-            <!-- Room card -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="h-44 relative overflow-hidden bg-slate-100">
                     ${imgHtml}
@@ -705,7 +794,6 @@ function vRoomBooking() {
                 </div>
             </div>
 
-            <!-- Weekly schedule (loaded async) -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
                     <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_view_week</span>
@@ -717,7 +805,6 @@ function vRoomBooking() {
             </div>
         </div>
 
-        <!-- RIGHT: Booking Form -->
         <div class="col-span-12 lg:col-span-5">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-md sticky top-4 overflow-hidden">
                 <div class="px-6 py-4 flex items-center gap-2" style="background:linear-gradient(135deg,#7e0000,#a50000)">
@@ -726,7 +813,6 @@ function vRoomBooking() {
                 </div>
                 ${calCtxBanner}
                 <div class="p-5 space-y-4" id="bookFormBody">
-                    <!-- วัตถุประสงค์ -->
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">วัตถุประสงค์</label>
                         <div class="grid grid-cols-2 gap-2">
@@ -741,7 +827,6 @@ function vRoomBooking() {
                         </div>
                     </div>
 
-                    <!-- Teaching fields -->
                     <div id="teaching-fields" class="space-y-4">
                         <div class="grid grid-cols-3 gap-2">
                             <div>
@@ -768,7 +853,6 @@ function vRoomBooking() {
                         </div>
                     </div>
 
-                    <!-- Training fields -->
                     <div id="training-fields" class="space-y-4 hidden">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">หัวข้อการอบรม/ติว (Topic)</label>
@@ -777,7 +861,6 @@ function vRoomBooking() {
                         </div>
                     </div>
 
-                    <!-- Date range -->
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">วันที่เริ่ม</label>
@@ -791,13 +874,11 @@ function vRoomBooking() {
                         </div>
                     </div>
 
-                    <!-- Day of week (recurring) -->
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-2">วันในสัปดาห์ <span class="text-slate-400 font-normal">(เลือกหลายวันสำหรับ Recurring)</span></label>
                         <div class="flex gap-2 flex-wrap">${dayPills}</div>
                     </div>
 
-                    <!-- Time range -->
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">เวลาเริ่ม</label>
@@ -811,14 +892,12 @@ function vRoomBooking() {
                         </div>
                     </div>
 
-                    <!-- Additional requests -->
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">คำขอเพิ่มเติม (ถ้ามี)</label>
                         <textarea id="additional_requests" rows="2" placeholder="เช่น ต้องการโปรเจคเตอร์, เครื่องเสียง..."
                             class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-primary"></textarea>
                     </div>
 
-                    <!-- Skip conflicts toggle -->
                     <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                         <div>
                             <p class="text-sm font-bold text-slate-700">ข้ามวันที่ชน (Recurring)</p>
@@ -826,17 +905,13 @@ function vRoomBooking() {
                         </div>
                         <label class="toggle flex items-center cursor-pointer relative w-10 h-5">
                             <input type="checkbox" id="skip_conflicts" class="sr-only peer">
-                            <!-- พื้นหลังสวิตช์ -->
                             <div class="w-full h-full rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-emerald-500"></div>
-                            <!-- ปุ่มกลมเลื่อน -->
                             <div class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
                         </label>
                     </div>
 
-                    <!-- Conflict alert area -->
                     <div id="conflictAlert" class="hidden"></div>
 
-                    <!-- Submit -->
                     <button onclick="submitBooking(${room.room_id})" id="submitBtn"
                         class="w-full py-3.5 text-white font-bold rounded-xl text-sm shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2"
                         style="background:#7e0000;box-shadow:0 4px 14px rgba(126,0,0,.25)">
@@ -862,13 +937,11 @@ function hlPurpose(n) {
     .classList.toggle("hidden", n !== 2);
 }
 
-// ฟังก์ชันซิงค์การตรวจสอบเลือกสถานะวันในสัปดาห์โดยอัตโนมัติ
 function syncBookingDates(triggerSource) {
   const startEl = document.getElementById("date_start");
   const endEl = document.getElementById("date_end");
   if (!startEl || !endEl) return;
 
-  // หากเปลี่ยนวันที่เริ่มต้น และยังไม่มีวันที่สิ้นสุด ให้ปรับเป็นวันเดียวกันโดยอัตโนมัติ
   if (triggerSource === "start" && startEl.value && !endEl.value) {
     endEl.value = startEl.value;
   }
@@ -876,14 +949,12 @@ function syncBookingDates(triggerSource) {
   const startVal = startEl.value;
   const endVal = endEl.value;
 
-  // ตรวจสอบว่ามีข้อมูลครบถ้วนและวันเริ่มต้นกับวันสิ้นสุดเป็นวันเดียวกันหรือไม่
   if (startVal && startVal === endVal) {
     const [year, month, day] = startVal.split("-").map(Number);
     const dateObj = new Date(year, month - 1, day);
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dayOfWeek = dayNames[dateObj.getDay()];
 
-    // เลือก Checkbox วันในสัปดาห์ที่ตรงกัน และปลดการเลือกวันอื่น ๆ
     document.querySelectorAll("input[name='rec_day']").forEach((cb) => {
       cb.checked = cb.value === dayOfWeek;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
@@ -891,7 +962,6 @@ function syncBookingDates(triggerSource) {
   }
 }
 
-// ฟังก์ชันช่วยวิเคราะห์และปัดเศษเวลาเป็นชั่วโมงเต็ม (นาที >= 30 ปัดขึ้น, < 30 ปัดลง)
 function parseAndRoundHour(timeStr) {
   if (!timeStr) return 0;
   const parts = timeStr.split(":");
@@ -905,12 +975,10 @@ async function loadRoomScheduleForView() {
   const wrap = document.getElementById("scheduleTableWrap");
   if (!wrap) return;
 
-  // Find the Sunday of this week for week_start
   const today = new Date();
   const sunday = new Date(today);
   sunday.setDate(today.getDate() - today.getDay());
 
-  // ปรับปรุงการจัดฟอร์แมตวันที่ให้อยู่ในรูปแบบ YYYY-MM-DD ของเขตเวลาท้องถิ่น
   const y = sunday.getFullYear();
   const m = String(sunday.getMonth() + 1).padStart(2, "0");
   const d = String(sunday.getDate()).padStart(2, "0");
@@ -922,27 +990,21 @@ async function loadRoomScheduleForView() {
     return;
   }
 
-  const hours = Array.from({ length: 12 }, (_, i) => i + 7); // 7:00 น. ถึง 18:00 น.
+  const hours = Array.from({ length: 12 }, (_, i) => i + 7);
   const wdLabels = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 
-  // Map slots to lookup: day → hour → slot
   const slotMap = {};
   (sched.slots || []).forEach((s) => {
     const status = s.status || "Approved";
-    // แสดงเฉพาะสถานะ Approved และ Pending เท่านั้น
     if (status !== "Approved" && status !== "Pending") return;
 
     const startHour = parseAndRoundHour(s.start_time);
     const endHour = parseAndRoundHour(s.end_time);
-
-    // ตรวจสอบให้มั่นใจว่าครอบคลุมอย่างน้อย 1 ช่องตาราง หากปัดเศษแล้วเริ่ม-จบในชั่วโมงเดียวกัน
     const safeEndHour = endHour <= startHour ? startHour + 1 : endHour;
 
-    // ทำการถมช่องชั่วโมงทั้งหมดที่อยู่ในช่วงเวลานั้นๆ
     for (let h = startHour; h < safeEndHour; h++) {
       if (!slotMap[s.day]) slotMap[s.day] = {};
 
-      // ป้องกันการทับข้อมูลกรณีมีคิว Approved อยู่แล้ว จะไม่เอาคิว Pending ไปทับแสดงผล
       if (
         slotMap[s.day][h] &&
         slotMap[s.day][h].status === "Approved" &&
@@ -968,17 +1030,17 @@ async function loadRoomScheduleForView() {
           const sl = slotMap[day]?.[h];
           if (sl) {
             const isPending = sl.status === "Pending";
+
             const cellClass = isPending
               ? "bg-amber-50/80 border-l-2 border-l-amber-500"
-              : "bg-emerald-50 border-l-2 border-l-emerald-500";
-            const textClass = isPending ? "text-amber-700" : "text-emerald-700";
-            const statusText = isPending ? " (รออนุมัติ)" : " (อนุมัติแล้ว)";
+              : "bg-red-50/80 border-l-2 border-l-red-500";
+            const textClass = isPending ? "text-amber-700" : "text-red-700";
+            const statusText = isPending ? " (รออนุมัติ)" : " (ถูกจองแล้ว)";
 
             return `<td class="p-1 border border-slate-100 ${cellClass}" title="${sl.label}${statusText}">
                        <span class="text-[10px] ${textClass} font-bold truncate block">${sl.label}</span>
                     </td>`;
           }
-          // สำหรับช่องว่าง เปลี่ยนสี Hover ให้เป็นกลาง (Slate-50) เพื่อแยกความต่างจากช่อง Approved
           return `<td class="p-2 border border-slate-100 hover:bg-slate-50 transition-colors"></td>`;
         })
         .join("");
@@ -1001,7 +1063,7 @@ async function loadRoomScheduleForView() {
     <tbody>${rows}</tbody>
 </table>
 <div class="flex gap-4 mt-3 text-xs font-bold">
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-emerald-500 rounded"></span>อนุมัติแล้ว (Approved)</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded"></span>ถูกจองแล้ว</span>
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded"></span>รออนุมัติ (Pending)</span>
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-slate-300 bg-white" style="background:#ffffff"></span>ว่าง</span>
 </div>${blackoutNote}`;
@@ -1050,7 +1112,6 @@ async function submitBooking(roomId) {
     };
   }
 
-  // กำหนดข้อมูลวันเวลาปัจจุบันสำหรับตรวจสอบย้อนหลัง
   const now = new Date();
   const todayY = now.getFullYear();
   const todayM = String(now.getMonth() + 1).padStart(2, "0");
@@ -1061,7 +1122,6 @@ async function submitBooking(roomId) {
   const curMin = String(now.getMinutes()).padStart(2, "0");
   const curTimeStr = `${curHour}:${curMin}`;
 
-  // 1. ตรวจสอบว่ากรอกวันที่เริ่มหรือไม่
   if (!payload.date_start) {
     showToast("กรุณาเลือกวันที่เริ่ม", "error");
     btn.disabled = false;
@@ -1069,7 +1129,6 @@ async function submitBooking(roomId) {
     return;
   }
 
-  // 2. ตรวจสอบห้ามกรอกวันที่เริ่มต้นย้อนหลัง
   if (payload.date_start < todayStr) {
     showToast("ไม่สามารถเลือกวันที่จองย้อนหลังในอดีตได้", "error");
     btn.disabled = false;
@@ -1077,7 +1136,6 @@ async function submitBooking(roomId) {
     return;
   }
 
-  // 3. ตรวจสอบว่าวันที่เริ่มห้ามมากกว่าวันที่สิ้นสุด
   if (payload.date_end && payload.date_start > payload.date_end) {
     showToast("วันที่เริ่มต้องไม่เกิดขึ้นหลังวันที่สิ้นสุด", "error");
     btn.disabled = false;
@@ -1085,7 +1143,6 @@ async function submitBooking(roomId) {
     return;
   }
 
-  // 4. กรณีจองวันปัจจุบัน ตรวจสอบห้ามเลือกเวลาเริ่มต้นย้อนหลังกว่าเวลาปัจจุบัน
   if (payload.date_start === todayStr) {
     if (payload.time_start < curTimeStr) {
       showToast(
@@ -1098,7 +1155,6 @@ async function submitBooking(roomId) {
     }
   }
 
-  // 5. ตรวจสอบว่าเวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด
   if (payload.time_start >= payload.time_end) {
     showToast("เวลาเริ่มต้องเกิดขึ้นก่อนเวลาสิ้นสุด", "error");
     btn.disabled = false;
@@ -1154,7 +1210,7 @@ function showConflictAlert(report) {
 // ═══════════════════════════════════════════════════════════════════
 function vMyBookings() {
   const counts = {
-    all: myBookings.length,
+    all: myBookings.filter((b) => b.status !== "Cancelled").length,
     Pending: myBookings.filter((b) => b.status === "Pending").length,
     Approved: myBookings.filter((b) => b.status === "Approved").length,
     Rejected: myBookings.filter((b) => b.status === "Rejected").length,
@@ -1166,7 +1222,9 @@ function vMyBookings() {
     ["Rejected", "ไม่อนุมัติ"],
   ];
   const filtered =
-    mbTab === "all" ? myBookings : myBookings.filter((b) => b.status === mbTab);
+    mbTab === "all"
+      ? myBookings.filter((b) => b.status !== "Cancelled")
+      : myBookings.filter((b) => b.status === mbTab);
 
   const tabHtml = tabs
     .map(
@@ -1185,7 +1243,6 @@ function vMyBookings() {
     Cancelled: "border-l-slate-300",
   };
 
-  // ย้ายการสร้างการ์ด HTML ไปทำงานบน redrawMyBookings() เพื่อความต่อเนื่องของ UI
   const cardsHtml =
     filtered.length === 0
       ? `<div class="text-center py-16 text-slate-400"><span class="material-symbols-outlined text-5xl block mb-2">event_busy</span>ไม่มีรายการจองในหมวดนี้</div>`
@@ -1195,8 +1252,11 @@ function vMyBookings() {
             const end = thaiDateShort(b.end_datetime);
             const ts = timeFromISO(b.start_datetime);
             const te = timeFromISO(b.end_datetime);
+            const adminNotesText = b.admin_notes || b.admin_note || "";
+
             return `
-<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all"
+     onclick="navigate('detail',{detailId:${b.booking_id}})">
     <div class="flex-1 space-y-2 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">${badge(b.status)}<span class="text-slate-400 text-xs">#${b.booking_id}</span></div>
         <h3 class="text-base font-bold text-slate-800 truncate">${b.room_name} (${b.room_code})</h3>
@@ -1205,35 +1265,29 @@ function vMyBookings() {
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}${end !== start ? " – " + end : ""}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
         </div>
-        <!-- แสดงเหตุผลในกรณีปฏิเสธการจอง (Rejected) -->
         ${
           b.reject_reason
             ? `<div class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5 mt-1.5">
             <span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">admin_panel_settings</span><strong>เหตุผลที่ปฏิเสธ:</strong> ${b.reject_reason}</div>`
             : ""
         }
-        <!-- แสดงหมายเหตุเพิ่มเติมในกรณีอนุมัติการจอง (Approved) -->
         ${
-          b.admin_notes
+          adminNotesText
             ? `<div class="text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5 mt-1.5">
-            <span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">info</span><strong>หมายเหตุอนุมัติ:</strong> ${b.admin_notes}</div>`
+            <span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">info</span><strong>หมายเหตุอนุมัติ:</strong> ${adminNotesText}</div>`
             : ""
         }
     </div>
     <div class="flex gap-2 flex-shrink-0">
-        <button onclick="navigate('detail',{detailId:${b.booking_id}})"
-            class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-200 flex items-center gap-1.5 transition-all">
-            <span class="material-symbols-outlined text-[15px]">visibility</span>รายละเอียด
-        </button>
         ${
           b.can_cancel
             ? `
-        <button onclick="openCancelModal(${b.booking_id})"
+        <button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})"
             class="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-100 flex items-center gap-1.5 transition-all">
             <span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก
         </button>`
             : `
-        <button class="px-4 py-2 bg-slate-50 text-slate-300 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-100 flex items-center gap-1.5">
+        <button onclick="event.stopPropagation();" class="px-4 py-2 bg-slate-50 text-slate-300 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-100 flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก
         </button>`
         }
@@ -1259,13 +1313,14 @@ function vMyBookings() {
 </div>`;
 }
 
-// ฟังก์ชันอัปเดตเฉพาะประวัติการจองแบบเงียบ ไม่ทำลาย Tab ค้างไว้และไม่มีการสกอร์ลขึ้นบนสุด
 function redrawMyBookings() {
   const container = document.getElementById("myBookingsList");
   if (!container) return;
 
   const filtered =
-    mbTab === "all" ? myBookings : myBookings.filter((b) => b.status === mbTab);
+    mbTab === "all"
+      ? myBookings.filter((b) => b.status !== "Cancelled")
+      : myBookings.filter((b) => b.status === mbTab);
 
   const borderMap = {
     Pending: "border-l-amber-400",
@@ -1283,8 +1338,11 @@ function redrawMyBookings() {
             const end = thaiDateShort(b.end_datetime);
             const ts = timeFromISO(b.start_datetime);
             const te = timeFromISO(b.end_datetime);
+            const adminNotesText = b.admin_notes || b.admin_note || "";
+
             return `
-<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all"
+     onclick="navigate('detail',{detailId:${b.booking_id}})">
     <div class="flex-1 space-y-2 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">${badge(b.status)}<span class="text-slate-400 text-xs">#${b.booking_id}</span></div>
         <h3 class="text-base font-bold text-slate-800 truncate">${b.room_name} (${b.room_code})</h3>
@@ -1293,35 +1351,29 @@ function redrawMyBookings() {
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}${end !== start ? " – " + end : ""}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
         </div>
-        <!-- แสดงเหตุผลในกรณีปฏิเสธการจอง (Rejected) -->
         ${
           b.reject_reason
             ? `<div class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5 mt-1.5">
             <span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">admin_panel_settings</span><strong>เหตุผลที่ปฏิเสธ:</strong> ${b.reject_reason}</div>`
             : ""
         }
-        <!-- แสดงหมายเหตุเพิ่มเติมในกรณีอนุมัติการจอง (Approved) -->
         ${
-          b.admin_notes
+          adminNotesText
             ? `<div class="text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5 mt-1.5">
-            <span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">info</span><strong>หมายเหตุอนุมัติ:</strong> ${b.admin_notes}</div>`
+            <span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">info</span><strong>หมายเหตุอนุมัติ:</strong> ${adminNotesText}</div>`
             : ""
         }
     </div>
     <div class="flex gap-2 flex-shrink-0">
-        <button onclick="navigate('detail',{detailId:${b.booking_id}})"
-            class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-200 flex items-center gap-1.5 transition-all">
-            <span class="material-symbols-outlined text-[15px]">visibility</span>รายละเอียด
-        </button>
         ${
           b.can_cancel
             ? `
-        <button onclick="openCancelModal(${b.booking_id})"
+        <button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})"
             class="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-100 flex items-center gap-1.5 transition-all">
             <span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก
         </button>`
             : `
-        <button class="px-4 py-2 bg-slate-50 text-slate-300 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-100 flex items-center gap-1.5">
+        <button onclick="event.stopPropagation();" class="px-4 py-2 bg-slate-50 text-slate-300 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-100 flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก
         </button>`
         }
@@ -1342,11 +1394,7 @@ function setMbTab(t) {
 // VIEW: BOOKING DETAIL
 // ═══════════════════════════════════════════════════════════════════
 function vDetail() {
-  const b = myBookings.find(
-    (x) =>
-      x.booking_id === Number(curDetailId) ||
-      String(x.booking_id) === String(curDetailId),
-  );
+  const b = curDetailBooking;
   if (!b)
     return `<div class="p-8 text-slate-400 text-center">
         <span class="material-symbols-outlined text-5xl block mb-2">search_off</span>ไม่พบรายการจอง</div>`;
@@ -1367,6 +1415,11 @@ function vDetail() {
       label: "ไม่อนุมัติ (Rejected)",
       ping: false,
     },
+    Cancelled: {
+      bar: "bg-slate-100 border-slate-200 text-slate-600",
+      label: "ยกเลิกแล้ว (Cancelled)",
+      ping: false,
+    },
   }[b.status] || {
     bar: "bg-slate-100 border-slate-200 text-slate-600",
     label: b.status,
@@ -1377,7 +1430,12 @@ function vDetail() {
   const end = thaiDateShort(b.end_datetime);
   const ts = timeFromISO(b.start_datetime);
   const te = timeFromISO(b.end_datetime);
-  const created = thaiDateTime(b.created_at);
+  const created = b.created_at ? thaiDateTime(b.created_at) : "—";
+
+  const rName = b.room?.room_name || b.room_name || "—";
+  const rCode = b.room?.room_code || b.room_code || "—";
+  const subjectText =
+    b.subject || b.teaching_info?.subject_name || b.training_info?.topic || "";
 
   return `
 <div class="p-6 sm:p-8">
@@ -1403,11 +1461,11 @@ function vDetail() {
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wider">ข้อมูลห้อง</h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div><p class="text-xs text-slate-400 font-bold mb-1">ห้อง</p><p class="font-bold text-slate-800">${b.room_name} (${b.room_code})</p></div>
+                    <div><p class="text-xs text-slate-400 font-bold mb-1">ห้อง</p><p class="font-bold text-slate-800">${rName} (${rCode})</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">วัตถุประสงค์</p><p class="font-medium">${b.purpose_type}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">วันที่</p><p class="font-medium">${start}${end !== start ? " – " + end : ""}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">เวลา</p><p class="font-medium">${ts} – ${te} น.</p></div>
-                    ${b.subject ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">วิชา</p><p class="font-medium">${b.subject}</p></div>` : ""}
+                    ${subjectText ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">วิชา / หัวข้อ</p><p class="font-medium">${subjectText}</p></div>` : ""}
                     ${b.additional_requests ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">คำขอเพิ่มเติม</p><p class="text-sm text-slate-600">${b.additional_requests}</p></div>` : ""}
                 </div>
             </div>
@@ -1471,7 +1529,6 @@ function vCalendar() {
     <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
         <h2 class="text-2xl font-bold text-slate-800">ปฏิทินการจอง</h2>
         <div class="flex items-center gap-2 flex-wrap">
-            <!-- Room filter (built dynamically) -->
             <div class="relative" id="calFW">
                 <button onclick="calTogFd(event)"
                     class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-sm hover:bg-slate-50">
@@ -1504,12 +1561,10 @@ function vCalendar() {
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <!-- Month view -->
         <div id="calMV">
             <div class="cal-grid border-b border-slate-200">${wdHeaders}</div>
             <div class="cal-grid" id="calMG"></div>
         </div>
-        <!-- Week view -->
         <div id="calWV" class="hidden">
             <div class="week-grid border-b border-slate-200" id="calWH"></div>
             <div class="week-grid overflow-y-auto" id="calWB" style="max-height:520px"></div>
@@ -1518,7 +1573,6 @@ function vCalendar() {
 </div>`;
 }
 
-// Calendar logic (same as original — just reads calBookings instead of CAL_BOOKINGS)
 function calFKey(y, m, d) {
   return `${y}-${m}-${d}`;
 }
@@ -1691,8 +1745,6 @@ function calUpdFlt() {
 let calDayModalKey = null,
   calDayModalLabel = null;
 function calShowDay(dateStr, key) {
-  calDayModalKey = key;
-  calDayModalLabel = dateStr;
   const items = calGetBk(key);
   document.getElementById("dayModalTitle").textContent =
     `รายการจอง – ${dateStr}`;
@@ -1701,20 +1753,19 @@ function calShowDay(dateStr, key) {
       ? `<div class="text-center py-8 text-slate-400"><span class="material-symbols-outlined text-4xl block mb-2">event_available</span><p class="text-sm font-medium">ยังไม่มีการจองในวันนี้</p></div>`
       : items
           .map((b) => {
-            // สร้างปุ่มยกเลิกสีแดงหากมีสิทธิ์ในการยกเลิก
             const cancelBtn = b.can_cancel
-              ? `<button onclick="closeDayModal(); openCancelModal(${b.id})" 
+              ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" 
                       class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm">
                       <span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก
                    </button>`
               : "";
 
             return `
-<div class="p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-green-100 bg-green-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3">
+<div class="p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-red-100 bg-red-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3 cursor-pointer" onclick="closeDayModal(); navigate('detail',{detailId:${b.id}})">
     <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 mb-1.5">
-            <span class="w-2 h-2 rounded-full ${b.status === "Approved" ? "bg-emerald-500" : "bg-amber-500"}"></span>
-            <span class="text-xs font-bold ${b.status === "Approved" ? "text-emerald-700" : "text-amber-700"} uppercase tracking-wider">${b.status === "Approved" ? "อนุมัติแล้ว" : "รออนุมัติ"}</span>
+            <span class="w-2 h-2 rounded-full ${b.status === "Approved" ? "bg-red-500" : "bg-amber-500"}"></span>
+            <span class="text-xs font-bold ${b.status === "Approved" ? "text-red-700" : "text-amber-700"} uppercase tracking-wider">${b.status === "Approved" ? "ถูกจองแล้ว" : "รออนุมัติ"}</span>
         </div>
         <p class="font-bold text-slate-800 truncate">${b.roomFull}</p>
         <p class="text-sm text-slate-600 mt-0.5">เวลา ${b.time} น.</p>
@@ -1801,7 +1852,6 @@ async function doCancelGroupBooking() {
   }
 }
 
-// ผูกฟังก์ชันเข้ากับ window เพื่อความปลอดภัยในการเรียกใช้งานจากภายนอกโครงสร้าง
 window.openCancelGroupModal = openCancelGroupModal;
 window.closeCancelGroupModal = closeCancelGroupModal;
 window.doCancelGroupBooking = doCancelGroupBooking;
@@ -1812,10 +1862,9 @@ window.doCancelGroupBooking = doCancelGroupBooking;
 window.addEventListener("click", (e) => {
   if (e.target === document.getElementById("cancelModal")) closeCancelModal();
   if (e.target === document.getElementById("cancelGroupModal"))
-    closeCancelGroupModal(); // รองรับการปิดกล่องยกเลิกกลุ่ม
+    closeCancelGroupModal();
   if (e.target === document.getElementById("dayModal")) closeDayModal();
   const fw = document.getElementById("calFW");
   if (fw && !fw.contains(e.target))
     document.getElementById("calFDD")?.classList.remove("open");
 });
-_;
