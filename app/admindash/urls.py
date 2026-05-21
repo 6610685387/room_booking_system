@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 router = DefaultRouter()
-router.register(r'room', views.AdminCRUDViewSet)
+router.register(r'room', views.AdminCRUDViewSet, basename='admin-room')
 
 urlpatterns = [
     path("", views.dashboard, name="admin_dashboard"),

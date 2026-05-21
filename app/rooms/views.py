@@ -99,7 +99,7 @@ class RoomScheduleView(APIView):
             status__in          = ["Pending", "Approved"],   
             start_datetime__gte = week_start_dt,
             start_datetime__lt  = next_week_start_dt,
-        ).select_related("teaching_info", "training_info").order_by("start_datetime")
+        ).select_related("booker", "teaching_info", "training_info").order_by("start_datetime")
 
         # Step 5: Build slots list
         slots = []
@@ -118,6 +118,9 @@ class RoomScheduleView(APIView):
                 if tr:
                     label = tr.topic
 
+            # booker_name: ให้ใช้ displayname_th ถ้ามี ถ้าไม่มีให้ใช้ username
+            booker_name = booking.booker.displayname_th or booking.booker.username
+
             slots.append({
                 "booking_id":   booking.booking_id,
                 "day":          DAY_ABBR[local_start.weekday()],  
@@ -126,6 +129,8 @@ class RoomScheduleView(APIView):
                 "status":       booking.status,
                 "purpose_type": booking.purpose_type,
                 "label":        label,
+                "booker_name":  booker_name,    
+                "admin_notes":  booking.admin_notes,
             })
 
         # Step 6: Build blackout_days for this week

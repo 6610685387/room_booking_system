@@ -11,6 +11,8 @@ class ScheduleSlotSerializer(serializers.Serializer):
     status = serializers.CharField()
     purpose_type = serializers.CharField()
     label = serializers.CharField(help_text="ชื่อวิชา หรือ หัวข้ออบรม")
+    booker_name = serializers.CharField(help_text="ชื่อผู้จอง (displayname_th หรือ username)")
+    admin_notes = serializers.CharField(allow_null=True, help_text="หมายเหตุจาก Admin (null ถ้ายังไม่มี)")
 
 class RoomScheduleResponseSerializer(serializers.Serializer):
     room_id = serializers.IntegerField()
