@@ -88,8 +88,8 @@ booking_viewset_schema = extend_schema_view(
             fields={
                 "room_id": serializers.IntegerField(help_text="ID ของห้องที่ต้องการจอง"),
                 "date_start": serializers.DateField(help_text="YYYY-MM-DD"),
-                "date_end": serializers.DateField(help_text="YYYY-MM-DD"),
-                "days_of_week": serializers.ListField(child=serializers.CharField(), help_text='เช่น ["Mon", "Tue"]'),
+                "date_end": serializers.DateField(required=False, help_text="YYYY-MM-DD (ถ้าไม่ส่งจะใช้ date_start)"),
+                "days_of_week": serializers.ListField(required=False, child=serializers.CharField(), help_text='เช่น ["Mon", "Tue"] (ถ้าไม่ส่งจะใช้วันของ date_start)'),
                 "time_start": serializers.TimeField(format="%H:%M", help_text="HH:MM เช่น 10:00"),
                 "time_end": serializers.TimeField(format="%H:%M", help_text="HH:MM เช่น 12:00"),
             }
@@ -104,8 +104,8 @@ booking_viewset_schema = extend_schema_view(
             fields={
                 "room_id": serializers.IntegerField(help_text="ID ของห้องที่ต้องการจอง"),
                 "date_start": serializers.DateField(help_text="YYYY-MM-DD"),
-                "date_end": serializers.DateField(help_text="YYYY-MM-DD"),
-                "days_of_week": serializers.ListField(child=serializers.CharField(), help_text='เช่น ["Mon", "Tue"]'),
+                "date_end": serializers.DateField(required=False, help_text="YYYY-MM-DD (ถ้าไม่ส่งจะใช้ date_start)"),
+                "days_of_week": serializers.ListField(required=False, child=serializers.CharField(), help_text='เช่น ["Mon", "Tue"] (ถ้าไม่ส่งจะใช้วันของ date_start)'),
                 "time_start": serializers.TimeField(format="%H:%M", help_text="HH:MM เช่น 10:00"),
                 "time_end": serializers.TimeField(format="%H:%M", help_text="HH:MM เช่น 12:00"),
                 "purpose_type": serializers.ChoiceField(choices=["teaching", "training"]),

@@ -7,7 +7,7 @@ from bookings.models import Booking, RecurringGroup, TeachingInfo
 from datetime import date, datetime, time, timedelta
 import zoneinfo
 from django.utils import timezone
-from django.utils.timezone import make_aware
+from django.utils.timezone import make_aware, localtime
 
 BKK = zoneinfo.ZoneInfo("Asia/Bangkok")
 
@@ -408,3 +408,43 @@ class BookingAPITest(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("teaching_info", response.data)
+
+    def test_check_conflict_single_booking(self):
+        """จองวันเดียว: ไม่ส่ง date_end และ days_of_week"""
+        url = reverse("bookings:booking-check-conflict")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",  # วันจันทร์ (Mon)
+            "time_start": "10:00",
+            "time_end": "12:00"
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["has_conflict"])
+        self.assertEqual(response.data["summary"]["total_dates"], 1)
+        self.assertEqual(response.data["available_dates"], ["2026-05-04"])
+
+    def test_create_single_booking_success(self):
+        """สร้างการจองวันเดียว: ไม่ส่ง date_end และ days_of_week"""
+        url = reverse("bookings:booking-list")
+        data = {
+            "room_id": self.room.room_id,
+            "date_start": "2026-05-04",  # วันจันทร์ (Mon)
+            "time_start": "10:00",
+            "time_end": "12:00",
+            "purpose_type": "training",
+            "training_info": {"topic": "Single Day Training"}
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["total_created"], 1)
+
+        # Verify DB
+        booking = Booking.objects.first()
+        self.assertEqual(localtime(booking.start_datetime).date().isoformat(), "2026-05-04")
+
+        # Verify RecurringGroup
+        group = RecurringGroup.objects.get(pk=response.data["recurring_group_id"])
+        self.assertEqual(group.date_start.isoformat(), "2026-05-04")
+        self.assertEqual(group.date_end.isoformat(), "2026-05-04")
+        self.assertEqual(group.day_pattern, "Mon")

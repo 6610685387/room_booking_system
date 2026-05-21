@@ -51,14 +51,35 @@ class BookingViewSet(viewsets.ViewSet):
         time_start = request.data.get("time_start")
         time_end = request.data.get("time_end")
 
-        if not all([room_id, date_start, date_end, days_of_week, time_start, time_end]):
+        if not all([room_id, date_start, time_start, time_end]):
             return Response(
                 {"error": "Bad Request: Missing required fields"}, status=400
             )
 
         try:
             d_start = date.fromisoformat(date_start)
-            d_end = date.fromisoformat(date_end)
+            # Default logic for single/multi booking
+            if not date_end:
+                d_end = d_start
+            else:
+                d_end = date.fromisoformat(date_end)
+
+            # Filter out frontend junk data like [""] or [None]
+            valid_days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+            if isinstance(days_of_week, list):
+                days_of_week = [d for d in days_of_week if d in valid_days]
+            else:
+                days_of_week = []
+
+            if d_start == d_end:
+                # Force days_of_week to match the date for single day bookings
+                days_of_week = [
+                    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d_start.weekday()]
+                ]
+            elif not days_of_week:
+                # Multiple days booking, but no specific days selected => select ALL days
+                days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
             validate_date_range(d_start, d_end)
             validate_days_of_week(days_of_week)
             get_object_or_404(Room, pk=room_id)
@@ -109,8 +130,6 @@ class BookingViewSet(viewsets.ViewSet):
             [
                 room_id,
                 date_start,
-                date_end,
-                days_of_week,
                 time_start,
                 time_end,
                 purpose_type,
@@ -122,7 +141,28 @@ class BookingViewSet(viewsets.ViewSet):
 
         try:
             d_start = date.fromisoformat(date_start)
-            d_end = date.fromisoformat(date_end)
+            # Default logic for single/multi booking
+            if not date_end:
+                d_end = d_start
+            else:
+                d_end = date.fromisoformat(date_end)
+
+            # Filter out frontend junk data like [""] or [None]
+            valid_days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+            if isinstance(days_of_week, list):
+                days_of_week = [d for d in days_of_week if d in valid_days]
+            else:
+                days_of_week = []
+
+            if d_start == d_end:
+                # Force days_of_week to match the date for single day bookings
+                days_of_week = [
+                    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d_start.weekday()]
+                ]
+            elif not days_of_week:
+                # Multiple days booking, but no specific days selected => select ALL days
+                days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
             validate_date_range(d_start, d_end)
             validate_days_of_week(days_of_week)
             # t_start_obj and t_end_obj are needed for generate_recurring_slots later
