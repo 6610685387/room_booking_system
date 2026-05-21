@@ -11,10 +11,6 @@ from rooms.serializers import RoomSerializer
 from bookings.models import Booking
 
 
-def dashboard(request):
-    return render(request, "admindash/dashboard.html")
-
-
 def blackout_room(request):
     return Response(status=204)
 

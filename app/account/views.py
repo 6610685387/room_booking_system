@@ -30,8 +30,8 @@ def _tu_headers():
 
 def _redirect_by_role(user):
     if user.role == User.Role.ADMIN:
-        return redirect("/api/bookings/dashboard/admin/")
-    return redirect("/api/bookings/dashboard/lecturer/")
+        return redirect("/dashboard/admin/#dashboard")
+    return redirect("/dashboard/lecturer/#dashboard")
 
 
 def _upsert_and_login(request, username, profile_defaults, fallback_role):
@@ -85,7 +85,7 @@ def login_view(request):
     local_user = authenticate(request, username=username, password=password)
     if local_user is not None and local_user.is_superuser:
         login(request, local_user, backend="django.contrib.auth.backends.ModelBackend")
-        return redirect("/api/bookings/dashboard/admin/")
+        return redirect("/dashboard/admin/#dashboard")
 
     # นักศึกษา = ตัวเลขล้วน 10 หลัก (fallback role เป็น Student สำหรับ user ใหม่เท่านั้น)
     if username.isdigit() and len(username) == 10:

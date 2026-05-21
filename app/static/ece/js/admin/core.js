@@ -166,23 +166,38 @@ async function refreshAdminDataSilent() {
 // ═══════════════════════════════════════════════════════════════════
 // ROUTER & HASH-BASED ROUTING
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// ROUTER (HASH-BASED ROUTING WITH HIDDEN PARAMETERS)
+// ═══════════════════════════════════════════════════════════════════
 function go(v) {
-  window.location.hash = v; // อัปเดต Hash บน URL ซึ่งจะไปกระตุ้นคำสั่ง handleRoute อัตโนมัติ
+  // หากตรวจพบการส่งตัวแปร (เช่น detail?id=1)
+  if (v.includes("?")) {
+    const parts = v.split("?");
+    const view = parts[0]; // "detail"
+    const params = new URLSearchParams(parts[1]);
+    const id = params.get("id");
+
+    if (id) {
+      // บันทึก ID ลงในหน่วยความจำแท็บชั่วคราว เพื่อความปลอดภัยและความสะอาดของ URL
+      sessionStorage.setItem("curDetailId", id);
+    }
+
+    // ตั้งค่า Hash ในเบราว์เซอร์ให้แสดงผลแค่ "#detail" เสมอ
+    window.location.hash = view;
+  } else {
+    window.location.hash = v;
+  }
 }
 
 async function handleRoute() {
-  // หากไม่มี Hash ให้ใช้ "dashboard" เป็นค่าเริ่มต้น
   const hash = window.location.hash.replace("#", "") || "dashboard";
 
   let view = hash;
   let param = null;
 
-  // ตรวจสอบพารามิเตอร์คิวรี (กรณีดูหน้าดีเทล เช่น detail?id=123)
-  if (hash.includes("?")) {
-    const parts = hash.split("?");
-    view = parts[0];
-    const params = new URLSearchParams(parts[1]);
-    param = params.get("id");
+  // หากเป็นหน้าต่างรายละเอียด ให้อ่านค่า ID จาก Session Storage ที่ระบบบันทึกไว้ซ่อนหลังบ้าน
+  if (view === "detail") {
+    param = sessionStorage.getItem("curDetailId");
   }
 
   curView = view;
@@ -191,7 +206,7 @@ async function handleRoute() {
     curDetailId = param;
   }
 
-  // จัดการเน้นสีเมนูที่ Active ในแถบ Sidebar
+  // ปรับปรุงการเน้นสีปุ่มเมนูที่ Active
   document.querySelectorAll("[data-view]").forEach((el) => {
     const isActive =
       el.dataset.view === view ||
@@ -248,6 +263,7 @@ function updatePendingBadge() {
 }
 
 function viewDetailAdmin(id) {
+  // เรียกใช้งานผ่านคำสั่ง go เพื่อบันทึกค่า ID และสลับไปยังหน้าหลักแบบไร้ตัวเลขคิวรี
   go(`detail?id=${id}`);
 }
 window.viewDetailAdmin = viewDetailAdmin;

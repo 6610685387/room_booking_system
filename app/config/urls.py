@@ -1,17 +1,19 @@
-from django.conf import settings            
+from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from bookings.views.booking_views import admin_dashboard, lecturer_dashboard
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # account (index, login, logout, success pages)
     path("", include("account.urls")),
-    # DRF API
+
+    path("dashboard/admin/", admin_dashboard, name="dashboard_admin"),
+    path("dashboard/lecturer/", lecturer_dashboard, name="dashboard_lecturer"),
+
     path("api/bookings/", include("bookings.urls")),
     path("api/rooms/", include("rooms.urls")),
-    # swagger-ui
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/schema/swagger-ui/",
