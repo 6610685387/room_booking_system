@@ -1,7 +1,7 @@
 import requests
 from django.conf import settings
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from .models import User
 
 TU_AUTH_URL = "https://restapi.tu.ac.th/api/v1/auth/Ad/verify"
@@ -78,6 +78,14 @@ def login_view(request):
         return render(
             request, "account/login.html", {"error": "กรุณากรอก Username และ Password"}
         )
+
+    # เลือก Superuser bypass ก่อนเสมอ
+    # ตรวจสอบ local Django auth ก่อน เพื่อรองรับ superuser ที่สร้างด้วย
+    # createsuperuser (มี password เก็บใน DB ไม่ต้องผ่าน TU API)
+    local_user = authenticate(request, username=username, password=password)
+    if local_user is not None and local_user.is_superuser:
+        login(request, local_user, backend="django.contrib.auth.backends.ModelBackend")
+        return redirect("/api/bookings/dashboard/admin/")
 
     # นักศึกษา = ตัวเลขล้วน 10 หลัก (fallback role เป็น Student สำหรับ user ใหม่เท่านั้น)
     if username.isdigit() and len(username) == 10:
