@@ -158,10 +158,11 @@ function vDetailAdmin() {
                 <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wider mb-4">การดำเนินการ</h3>
                 <button onclick="openApprove(${b.booking_id})" class="w-full py-3 text-white rounded-xl font-bold text-sm hover:opacity-90 flex items-center justify-center gap-2 transition-all" style="background:#10b981"><span class="material-symbols-outlined text-[18px]">check_circle</span>อนุมัติการจอง</button>
                 <button onclick="openReject(${b.booking_id})" class="w-full py-3 text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">cancel</span>ปฏิเสธการจอง</button>
-              </div>`
-                : `<div class="bg-slate-100 border border-slate-200 rounded-2xl p-6 text-center text-slate-500"><span class="material-symbols-outlined text-4xl block mb-2">lock</span><p class="text-xs font-bold uppercase tracking-wider">ปิดการดำเนินการ</p><p class="text-xs text-slate-400 mt-1">รายการนี้ได้รับการประมวลผลแล้ว</p></div>`
+              </div>
+              ${b.recurring_group_id ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>` : ""}`
+                : ''
             }
-            ${b.recurring_group_id ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>` : ""}
+            
         </div>
     </div>
 </div>`;

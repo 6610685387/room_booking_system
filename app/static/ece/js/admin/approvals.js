@@ -58,6 +58,19 @@ function buildAdminPendingBookingsHtml(pendingList) {
     return item;
   });
 
+  // ฟังก์ชันหาเวลาเริ่มต้นการจองที่เร็วที่สุด เพื่อจัดลำดับคิว
+  const getEarliestDate = (item) => {
+    if (item.type === "single") {
+      return new Date(item.booking.start_datetime);
+    } else {
+      const dates = item.bookings.map((x) => new Date(x.start_datetime));
+      return new Date(Math.min(...dates));
+    }
+  };
+
+  // เรียงลำดับรายการตามวันที่เริ่มต้นการจองที่ใกล้มาถึงที่สุด (Ascending Order)
+  finalGroupedList.sort((a, b) => getEarliestDate(a) - getEarliestDate(b));
+
   const borderMap = {
     Pending: "border-l-amber-400",
     Approved: "border-l-emerald-500",
@@ -81,16 +94,15 @@ function buildAdminPendingBookingsHtml(pendingList) {
             <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                 <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
             </span>
-            
         </div>
         <h3 class="font-bold text-slate-800">${b.room?.room_name || b.room_name || "—"} (${b.room?.room_code || b.room_code || "—"})</h3>
         <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
-        <p class="text-sm text-slate-600">วัตถุประสงค์: ${
+        <p class="text-sm text-slate-600">${
           {
-            teaching: "สอนปกติ/ชดเชย",
-            training: "จัดอบรม/ติว",
-          }[b.purpose_type] || "ไม่ทราบ"
-        } ${b.subject ? `(${b.subject})` : ""}</p>
+            teaching: "สอนปกติ/ชดเชย: ",
+            training: "จัดอบรม/ติว: ",
+          }[b.purpose_type] || "ไม่ทราบ: "
+        } ${b.subject ? `${b.subject}` : ""}</p>
         <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
@@ -134,8 +146,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
      onclick="event.stopPropagation(); viewDetailAdmin(${b.booking_id})">
     <div class="min-w-0 flex-1 space-y-1">
         <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-bold text-slate-400">#${b.booking_id}</span>
-            <span class="badge-pending px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>
+            <span class="badge-pending px-2 py-0.5 rounded-full text-[10px] font-bold">รออนุมัติ</span>
         </div>
         <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
@@ -162,7 +173,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ</span>
+                <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>รายการรออนุมัติแบบกลุ่ม</span>
                 <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
@@ -222,7 +233,7 @@ function openReject(id) {
   );
   if (!b) return;
   document.getElementById("rejectDetail").innerHTML =
-    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
+    `${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
          ${b.booker?.displayname_th || "—"} · ${thaiDateShort(b.start_datetime)} ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
   document.getElementById("rejectReason").value = "";
   document.getElementById("rejectModal").classList.remove("hidden");
@@ -268,7 +279,35 @@ async function doReject() {
 function openCancelGroupModal(groupId) {
   cancelGroupId = groupId;
   const displayEl = document.getElementById("cancelGroupIdDisplay");
-  if (displayEl) displayEl.textContent = "#" + groupId;
+  
+  if (displayEl) {
+    // ค้นหารายการจองทั้งหมดที่อยู่ในกลุ่มนี้จากตัวแปร bookings
+    const groupBookings = bookings.filter(
+      (b) => b.recurring_group_id && String(b.recurring_group_id) === String(groupId)
+    );
+
+    if (groupBookings.length > 0) {
+      const first = groupBookings[0];
+      const roomName = first.room?.room_name || first.room_name || "—";
+      const roomCode = first.room?.room_code || first.room_code || "—";
+      const subject = first.subject || (
+        first.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" : 
+        first.purpose_type === "training" ? "จัดอบรม/ติว" : "—"
+      );
+      const count = groupBookings.length;
+
+      // แสดงรายละเอียดสรุปในรูปแบบกล่องข้อความขนาดเล็ก
+      displayEl.innerHTML = `
+        <span class="block mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-left text-slate-600 font-normal leading-relaxed">
+          <strong class="text-slate-700">ห้อง:</strong> ${roomName} (${roomCode})<br>
+          <strong class="text-slate-700">วัตถุประสงค์:</strong> ${subject}<br>
+          <strong class="text-slate-700">จำนวนการจอง:</strong> ทั้งหมด ${count} รายการ
+        </span>`;
+    } else {
+      displayEl.textContent = `รหัสกลุ่ม #${groupId}`;
+    }
+  }
+  
   document.getElementById("cancelGroupModal")?.classList.remove("hidden");
 }
 
