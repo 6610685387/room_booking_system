@@ -117,12 +117,12 @@ function vDetailAdmin() {
 <div class="p-6 sm:p-8">
     <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <button onclick="go('all-bookings')"
+            <button onclick="history.back()"
                 class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 shadow-sm transition-all">
                 <span class="material-symbols-outlined text-[18px]">arrow_back</span>
             </button>
             <div>
-                <h2 class="text-xl font-bold">รายละเอียดการจอง <span class="text-slate-400 font-normal text-base">#${b.booking_id}</span></h2>
+                <h2 class="text-xl font-bold">รายละเอียดการจอง</h2>
                 <p class="text-xs text-slate-500 mt-0.5">สร้างเมื่อ ${created}</p>
             </div>
         </div>
@@ -159,7 +159,9 @@ function vDetailAdmin() {
                 <button onclick="openApprove(${b.booking_id})" class="w-full py-3 text-white rounded-xl font-bold text-sm hover:opacity-90 flex items-center justify-center gap-2 transition-all" style="background:#10b981"><span class="material-symbols-outlined text-[18px]">check_circle</span>อนุมัติการจอง</button>
                 <button onclick="openReject(${b.booking_id})" class="w-full py-3 text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">cancel</span>ปฏิเสธการจอง</button>
               </div>
-              ${b.recurring_group_id ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>` : ""}`
+              ${(b.recurring_group_id && bookings.filter(x => String(x.recurring_group_id) === String(b.recurring_group_id)).length > 1) 
+                ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all mt-3"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>` 
+                : ""}`
                 : ''
             }
             
