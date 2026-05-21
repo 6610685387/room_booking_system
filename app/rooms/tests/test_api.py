@@ -159,3 +159,94 @@ class RoomAPITest(APITestCase):
         response = self.client.get(url, {"from": "2026-05-10"})
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["reason"], "Reason 2")
+
+    def test_room_schedule_includes_booker_name(self):
+        """Bug Fix: ชื่ออาจารย์ต้องขึ้นใน schedule slots"""
+        # ARRANGE
+        # - สร้าง User ที่มี displayname_th
+        lecturer = User.objects.create_user(
+            username="lec_test",
+            displayname_th="อาจารย์ทดสอบ"
+        )
+        # - สร้าง Booking ของ lecturer คนนี้
+        start_dt = make_aware(datetime.combine(date(2026, 4, 28), time(9, 0)), BKK)
+        end_dt   = make_aware(datetime.combine(date(2026, 4, 28), time(11, 0)), BKK)
+        Booking.objects.create(
+            room=self.room1, booker=lecturer,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Approved", purpose_type="training"
+        )
+        # ACT
+        url = reverse("room-schedule", args=[self.room1.room_id])
+        response = self.client.get(url, {"week_start": "2026-04-26"})
+        # ASSERT
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["slots"]), 1)
+        self.assertIn("booker_name", response.data["slots"][0])
+        self.assertEqual(response.data["slots"][0]["booker_name"], "อาจารย์ทดสอบ")
+
+    def test_room_schedule_booker_name_fallback_to_username(self):
+        """Bug Fix: ถ้าไม่มี displayname_th ให้ใช้ username แทน"""
+        # ARRANGE
+        lecturer_no_display = User.objects.create_user(
+            username="lec_nodisplay"
+            # ไม่ระบุ displayname_th (ค่าเริ่มต้นเป็น "")
+        )
+        start_dt = make_aware(datetime.combine(date(2026, 4, 28), time(13, 0)), BKK)
+        end_dt   = make_aware(datetime.combine(date(2026, 4, 28), time(15, 0)), BKK)
+        Booking.objects.create(
+            room=self.room1, booker=lecturer_no_display,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Approved", purpose_type="training"
+        )
+        # ACT
+        url = reverse("room-schedule", args=[self.room1.room_id])
+        response = self.client.get(url, {"week_start": "2026-04-26"})
+        # ASSERT
+        self.assertEqual(response.status_code, 200)
+        # slots[0] might be from previous tests if they share DB, but APITestCase resets it.
+        # Wait, if I create multiple bookings in one test it might be different.
+        # Here I only create one booking in this test.
+        self.assertEqual(response.data["slots"][0]["booker_name"], "lec_nodisplay")
+
+    def test_room_schedule_includes_admin_notes(self):
+        """Bug Fix: admin_notes ต้องขึ้นใน schedule slots หลังจาก Approved"""
+        # ARRANGE
+        start_dt = make_aware(datetime.combine(date(2026, 4, 28), time(9, 0)), BKK)
+        end_dt   = make_aware(datetime.combine(date(2026, 4, 28), time(11, 0)), BKK)
+        Booking.objects.create(
+            room=self.room1, booker=self.user,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Approved", purpose_type="training",
+            admin_notes="อนุมัติแล้ว ขอให้จัดห้องให้เรียบร้อย"
+        )
+        # ACT
+        url = reverse("room-schedule", args=[self.room1.room_id])
+        response = self.client.get(url, {"week_start": "2026-04-26"})
+        # ASSERT
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["slots"]), 1)
+        self.assertIn("admin_notes", response.data["slots"][0])
+        self.assertEqual(
+            response.data["slots"][0]["admin_notes"],
+            "อนุมัติแล้ว ขอให้จัดห้องให้เรียบร้อย"
+        )
+
+    def test_room_schedule_admin_notes_none_when_pending(self):
+        """admin_notes ต้องเป็น None เมื่อยังไม่มีการ Approve"""
+        # ARRANGE
+        start_dt = make_aware(datetime.combine(date(2026, 4, 28), time(9, 0)), BKK)
+        end_dt   = make_aware(datetime.combine(date(2026, 4, 28), time(11, 0)), BKK)
+        Booking.objects.create(
+            room=self.room1, booker=self.user,
+            start_datetime=start_dt, end_datetime=end_dt,
+            status="Pending", purpose_type="training",
+            # ไม่ใส่ admin_notes
+        )
+        # ACT
+        url = reverse("room-schedule", args=[self.room1.room_id])
+        response = self.client.get(url, {"week_start": "2026-04-26"})
+        # ASSERT
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("admin_notes", response.data["slots"][0])
+        self.assertIsNone(response.data["slots"][0]["admin_notes"])
