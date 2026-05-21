@@ -1422,6 +1422,8 @@ function closeModals() {
     "cancelModal",
     "cancelGroupModal",
     "exportModal",
+    "deleteRoomConfirmModal", // เพิ่มตรงนี้
+    "saveRoomConfirmModal", // เพิ่มตรงนี้
   ].forEach((id) => {
     document.getElementById(id)?.classList.add("hidden");
   });
@@ -1539,25 +1541,53 @@ function openEditRoom(roomId) {
   document.getElementById("roomModal").classList.remove("hidden");
 }
 
-async function saveRoom() {
+let pendingDeleteRoomId = null; // ตัวแปรเก็บ ID ห้องรอการยืนยันลบ
+
+// 1. ฟังก์ชันบันทึกข้อมูล (ทำหน้าที่สลับหน้าไปกล่องยืนยันบันทึกก่อน)
+function saveRoom() {
   const code = document.getElementById("rmCode").value.trim();
   const name = document.getElementById("rmName").value.trim();
-  const type = document.getElementById("rmType").value;
-  const seats = document.getElementById("rmSeats").value.trim(); // อ่านค่าเป็น string เพื่อตรวจสอบค่าว่าง
-  const isActive = document.getElementById("rmActive").checked;
-  const imageInput = document.getElementById("rmImage");
 
   if (!code || !name) {
     showToast("กรุณากรอกข้อมูลรหัสห้องและชื่อห้องให้ครบ", "error");
     return;
   }
 
+  // ปรับเปลี่ยนข้อความยืนยันตามโหมด
+  const isEdit = !!editRoomId;
+  document.getElementById("saveConfirmTitle").textContent = isEdit
+    ? "ยืนยันการแก้ไขข้อมูล"
+    : "ยืนยันการเพิ่มห้องใหม่";
+  document.getElementById("saveConfirmBody").textContent = isEdit
+    ? "คุณต้องการยืนยันบันทึกการแก้ไขข้อมูลห้องเรียนนี้ใช่หรือไม่?"
+    : "คุณต้องการยืนยันการสร้างห้องเรียนใหม่นี้ใช่หรือไม่?";
+
+  // ซ่อนหน้าต่างกรอกข้อมูลชั่วคราว และ เปิดหน้าต่างยันยันบันทึกข้อมูลแบบสวยงาม
+  document.getElementById("roomModal").classList.add("hidden");
+  document.getElementById("saveRoomConfirmModal").classList.remove("hidden");
+}
+
+// 1.1 ยกเลิกการยืนยันบันทึก -> ดึงหน้าต่างแก้ไขกลับมาเหมือนเดิม
+function closeSaveConfirmModal() {
+  document.getElementById("saveRoomConfirmModal").classList.add("hidden");
+  document.getElementById("roomModal").classList.remove("hidden");
+}
+
+// 1.2 ยืนยันบันทึก -> ส่งข้อมูลหาเซิร์ฟเวอร์ และปิดหน้าต่างกลับหน้าจัดการห้อง
+async function executeSaveRoom() {
+  document.getElementById("saveRoomConfirmModal").classList.add("hidden");
+
+  const code = document.getElementById("rmCode").value.trim();
+  const name = document.getElementById("rmName").value.trim();
+  const type = document.getElementById("rmType").value;
+  const seats = document.getElementById("rmSeats").value.trim();
+  const isActive = document.getElementById("rmActive").checked;
+  const imageInput = document.getElementById("rmImage");
+
   const formData = new FormData();
   formData.append("room_code", code);
   formData.append("room_name", name);
   formData.append("room_type", type);
-
-  // หากเป็นค่าว่าง ให้ส่งเป็นสายอักขระว่างเพื่อให้หลังบ้านแจ้งเตือนอย่างถูกต้อง (เลี่ยงการส่ง 0 ซึ่งอาจติด Min Value ของระบบ)
   formData.append("capacity", seats !== "" ? Number(seats) : "");
   formData.append("is_active", isActive ? "true" : "false");
 
@@ -1575,17 +1605,12 @@ async function saveRoom() {
 
   try {
     const headers = {};
-
-    // 1. ดึง Token ยืนยันตัวตน
     const token =
       localStorage.getItem("token") ||
       sessionStorage.getItem("token") ||
       localStorage.getItem("jwt");
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    // 2. ดึง CSRF Token
     let csrfToken = null;
     if (document.cookie && document.cookie !== "") {
       const cookies = document.cookie.split(";");
@@ -1601,10 +1626,7 @@ async function saveRoom() {
       const csrfInput = document.querySelector("[name=csrfmiddlewaretoken]");
       if (csrfInput) csrfToken = csrfInput.value;
     }
-
-    if (csrfToken) {
-      headers["X-CSRFToken"] = csrfToken;
-    }
+    if (csrfToken) headers["X-CSRFToken"] = csrfToken;
 
     const response = await fetch(url, {
       method: method,
@@ -1616,10 +1638,8 @@ async function saveRoom() {
     if (!response.ok) {
       const errorText = await response.text();
       let errMsg = "";
-
       try {
         const errJson = JSON.parse(errorText);
-        // ทำการดึงรายชื่อฟิลด์ที่ส่งไม่ผ่านมาจัดเรียงเพื่อแจ้งรายละเอียดให้แอดมินทราบอย่างถูกต้อง
         if (typeof errJson === "object" && errJson !== null) {
           errMsg = Object.entries(errJson)
             .map(
@@ -1636,7 +1656,7 @@ async function saveRoom() {
       throw new Error(errMsg);
     }
 
-    const result = await response.json();
+    await response.json();
     showToast(
       editRoomId ? "แก้ไขห้องเรียบร้อยแล้ว" : "เพิ่มห้องเรียบร้อยแล้ว",
       "check_circle",
@@ -1644,24 +1664,49 @@ async function saveRoom() {
 
     closeModals();
     await loadRooms();
-    go("rooms");
+    go("rooms"); // ส่งแอดมินกลับมาหน้าจัดการห้องเรียน
   } catch (err) {
-    // แสดงรายละเอียดปัญหาที่เกิดขึ้น (เช่น แจ้งว่าฟิลด์ใดขาดหายไป)
     alert("ไม่สามารถบันทึกข้อมูลได้เนื่องจาก:\n" + err.message);
+    document.getElementById("roomModal").classList.remove("hidden"); // ย้อนกลับมาให้แก้ไขฟอร์มเดิม
   }
 }
 
-async function deleteRoom(roomId) {
-  if (!confirm("ยืนยันการลบห้องนี้?")) return;
+// 2. ฟังก์ชันลบห้อง (ทำหน้าที่สลับหน้าจอไปกล่องยืนยันลบก่อน)
+function deleteRoom(roomId) {
+  pendingDeleteRoomId = roomId;
+  // ซ่อนหน้าต่างแก้ไขหลักชั่วคราว และ เปิดหน้ายืนยันการลบแบบสวยงาม
+  document.getElementById("roomModal").classList.add("hidden");
+  document.getElementById("deleteRoomConfirmModal").classList.remove("hidden");
+}
+
+// 2.1 ยกเลิกลบห้อง -> เด้งกลับมาแสดงหน้าต่างแก้ไขห้องตามเดิม
+function closeDeleteConfirmModal() {
+  pendingDeleteRoomId = null;
+  document.getElementById("deleteRoomConfirmModal").classList.add("hidden");
+  document.getElementById("roomModal").classList.remove("hidden");
+}
+
+// 2.2 ยืนยันลบห้องสำเร็จ -> ส่งลบเซิร์ฟเวอร์ และปิดหน้าต่างกลับหน้าจัดการห้อง
+async function executeDeleteRoom() {
+  if (!pendingDeleteRoomId) return;
+  document.getElementById("deleteRoomConfirmModal").classList.add("hidden");
   try {
-    await api.delete(`/api/admin/req/room/${roomId}/`);
+    await api.delete(`/api/admin/req/room/${pendingDeleteRoomId}/`);
+    closeModals(); // ปิดทุกหน้าต่าง
     await loadRooms();
     showToast("ลบห้องเรียบร้อยแล้ว", "delete");
-    go("rooms");
+    go("rooms"); // ส่งกลับมาหน้าจัดการห้องเรียน
   } catch (err) {
     showApiError(err);
+    document.getElementById("roomModal").classList.remove("hidden"); // คืนหน้าแก้ไขห้องกรณีเกิดข้อผิดพลาด
   }
 }
+
+// ผูกฟังก์ชันเข้ากับ window เพื่อความปลอดภัยในการเรียกใช้งานผ่านหน้า HTML
+window.closeSaveConfirmModal = closeSaveConfirmModal;
+window.executeSaveRoom = executeSaveRoom;
+window.closeDeleteConfirmModal = closeDeleteConfirmModal;
+window.executeDeleteRoom = executeDeleteRoom;
 
 // ═══════════════════════════════════════════════════════════════════
 // GLOBAL CLICK
@@ -1674,4 +1719,8 @@ window.addEventListener("click", (e) => {
   if (e.target === document.getElementById("cancelModal")) closeModals();
   if (e.target === document.getElementById("cancelGroupModal")) closeModals();
   if (e.target === document.getElementById("exportModal")) closeModals();
+  if (e.target === document.getElementById("deleteRoomConfirmModal"))
+    closeDeleteConfirmModal(); // เพิ่มตรงนี้
+  if (e.target === document.getElementById("saveRoomConfirmModal"))
+    closeSaveConfirmModal(); // เพิ่มตรงนี้
 });
