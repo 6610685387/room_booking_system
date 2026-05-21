@@ -276,13 +276,11 @@
 
             <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                 <div>
-                    <p class="text-sm font-bold text-slate-700">สถานะเปิดให้บริการ</p>
-                    <p class="text-xs text-slate-400">เปิดให้สามารถทำการค้นหาและส่งขอจองได้</p>
+                    <p class="text-sm font-bold text-slate-700">ต้องการตั้งช่วงเวลา Blackout หรือไม่?</p>
+                    <p class="text-xs text-slate-400">กำหนดช่วงเวลาที่ต้องการปิดให้บริการและไม่ให้จอง</p>
                 </div>
-                <label class="toggle flex items-center cursor-pointer relative w-10 h-5">
-                    <input type="checkbox" id="rmActive" class="sr-only peer" onchange="toggleBlackoutFields()">
-                    <div class="w-full h-full rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-emerald-500"></div>
-                    <div class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="isBlackout" class="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer" onchange="toggleBlackoutFields()">
                 </label>
             </div>
 

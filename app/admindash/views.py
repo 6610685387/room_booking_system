@@ -11,10 +11,6 @@ from rooms.models import Room, BlackoutPeriod
 from rooms.serializers import RoomSerializer, BlackoutPeriodSerializer
 from bookings.models import Booking
 
-
-def blackout_room(request):
-    return Response(status=204)
-
 # --- Blackout ---
 class BlackoutPeriodCreateView(generics.CreateAPIView):
     queryset = BlackoutPeriod.objects.all()

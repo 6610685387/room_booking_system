@@ -152,17 +152,12 @@ function openEditRoom(roomId) {
   if (modal) modal.classList.remove("hidden");
 }
 
-// ใช้ window. เพื่อบังคับให้ฟังก์ชันนี้เป็น Global (HTML จะมองเห็นแน่นอน)
-window.toggleBlackoutFields = function() {
-    console.log("ฟังก์ชัน toggleBlackoutFields ทำงานแล้ว!"); // ล็อกดูว่ามันถูกเรียกไหม
-    
-    const elActive = document.getElementById("rmActive");
+function toggleBlackoutFields() {
+    const elActive = document.getElementById("isBlackout");
     const blackoutDiv = document.getElementById("blackoutFields");
     
     if (elActive && blackoutDiv) {
-        console.log("สถานะ Checkbox (true=เปิด, false=ปิด):", elActive.checked);
-        
-        if (!elActive.checked) {
+        if (elActive.checked) {
             blackoutDiv.classList.remove("hidden");
         } else {
             blackoutDiv.classList.add("hidden");
@@ -174,10 +169,8 @@ window.toggleBlackoutFields = function() {
             if (boEnd) boEnd.value = "";
             if (boReason) boReason.value = "";
         }
-    } else {
-        console.error("หา Element ไม่เจอ: rmActive หรือ blackoutFields");
     }
-};
+}
 
 function saveRoom() {
   const code = document.getElementById("rmCode").value.trim();

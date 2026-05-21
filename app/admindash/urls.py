@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("", views.dashboard, name="admin_dashboard"),
+    # path("", views.dashboard, name="admin_dashboard"),
     # --- blackout ---
     path('blackout/', views.BlackoutPeriodCreateView.as_view(), name='blackout-create'),
     path('blackout/<int:blackout_id>/', views.BlackoutPeriodDeleteView.as_view(), name='blackout-delete'),
