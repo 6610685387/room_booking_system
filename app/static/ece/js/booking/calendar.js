@@ -1,7 +1,6 @@
 /**
- * calendar.js — Calendar Month/Week views & Modal interactions Module
+ * calendar.js — Calendar UI rendering (month/week) & custom day detail modals
  */
-
 "use strict";
 
 function vCalendar() {
@@ -15,33 +14,22 @@ function vCalendar() {
         <h2 class="text-2xl font-bold text-slate-800">ปฏิทินการจอง</h2>
         <div class="flex items-center gap-2 flex-wrap">
             <div class="relative" id="calFW">
-                <button onclick="calTogFd(event)"
-                    class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-sm hover:bg-slate-50">
-                    <span class="material-symbols-outlined text-[16px] text-slate-400">filter_list</span>
-                    <span id="calFLbl">ห้องทั้งหมด</span>
-                </button>
+                <button onclick="calTogFd(event)" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-sm hover:bg-slate-50"><span class="material-symbols-outlined text-[16px] text-slate-400">filter_list</span><span id="calFLbl">ห้องทั้งหมด</span></button>
                 <div id="calFDD" class="filter-dd">
                     <label class="filter-opt"><input type="checkbox" id="calFAll" checked onchange="calTogAll(this)"><span>ทั้งหมด</span></label>
                     <hr class="border-slate-100 my-1">
                     ${rooms.map((r) => `<label class="filter-opt"><input type="checkbox" class="cal-rcb" value="${r.room_id}" checked onchange="calUpdFlt()"><span>${r.room_name}</span></label>`).join("")}
                 </div>
             </div>
-            <button onclick="calToday()"
-                class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 shadow-sm">วันนี้</button>
-            <button onclick="calNav(-1)" class="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center hover:bg-slate-50">
-                <span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+            <button onclick="calToday()" class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 shadow-sm">วันนี้</button>
+            <button onclick="calNav(-1)" class="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
             <span class="text-sm font-bold text-slate-700 min-w-[120px] text-center" id="calHdr"></span>
-            <button onclick="calNav(1)"  class="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center hover:bg-slate-50">
-                <span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+            <button onclick="calNav(1)" class="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
             <div class="bg-white border border-slate-200 rounded-xl p-1 flex gap-1 shadow-sm">
                 <button id="calTm" class="view-tab active" onclick="calSwitchView('month')">เดือน</button>
-                <button id="calTw" class="view-tab"        onclick="calSwitchView('week')">สัปดาห์</button>
+                <button id="calTw" class="view-tab" onclick="calSwitchView('week')">สัปดาห์</button>
             </div>
-            <button onclick="calQuickBook()"
-                class="px-4 py-2 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm hover:opacity-90"
-                style="background:#7e0000">
-                <span class="material-symbols-outlined text-[16px]">add</span>จองห้อง
-            </button>
+            <button onclick="calQuickBook()" class="px-4 py-2 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm hover:opacity-90" style="background:#7e0000"><span class="material-symbols-outlined text-[16px]">add</span>จองห้อง</button>
         </div>
     </div>
 
@@ -61,7 +49,6 @@ function vCalendar() {
 function calFKey(y, m, d) {
   return `${y}-${m}-${d}`;
 }
-
 function calGetBk(key) {
   const all = calBookings[key] || [];
   return all.filter(
@@ -72,7 +59,6 @@ function calGetBk(key) {
 function initCalendar() {
   calRender();
 }
-
 function calRender() {
   const hdr = document.getElementById("calHdr");
   if (hdr) {
@@ -132,7 +118,6 @@ function calWkStart(d) {
   r.setDate(r.getDate() - r.getDay());
   return r;
 }
-
 const CAL_HRS = Array.from({ length: 12 }, (_, i) => i + 7);
 const SH = 52;
 
@@ -158,9 +143,7 @@ function calRenderWeek() {
   wh.style.gridTemplateColumns = "56px repeat(7,1fr)";
   let bHtml = "";
   CAL_HRS.forEach((h) => {
-    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1" style="height:${SH}px">
-            <span class="text-[10px] text-slate-400 font-medium">${h}:00</span>
-        </div>`;
+    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1" style="height:${SH}px"><span class="text-[10px] text-slate-400 font-medium">${h}:00</span></div>`;
     days.forEach((d) => {
       const key = calFKey(d.getFullYear(), d.getMonth(), d.getDate());
       const bks = calGetBk(key).filter((b) => b.h === h);
@@ -168,9 +151,9 @@ function calRenderWeek() {
       const td = `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${toBE(d.getFullYear())}`;
       const blocks = bks
         .map(
-          (b) => `
-<div class="${b.status === "Approved" ? "block-approved" : "block-pending"} absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[10px] font-bold overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-     style="top:2px;height:${b.dur * SH - 6}px;z-index:5" onclick="calShowDay('${td}','${key}')">
+          (
+            b,
+          ) => `<div class="${b.status === "Approved" ? "block-approved" : "block-pending"} absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[10px] font-bold overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" style="top:2px;height:${b.dur * SH - 6}px;z-index:5" onclick="calShowDay('${td}','${key}')">
     <div class="truncate">${b.room}</div>
     <div class="opacity-70 text-[9px] truncate">${b.time}</div>
 </div>`,
@@ -191,31 +174,26 @@ function calSwitchView(v) {
   document.getElementById("calTw")?.classList.toggle("active", v === "week");
   calRender();
 }
-
 function calNav(d) {
   calView === "month"
     ? (calDate = new Date(calDate.getFullYear(), calDate.getMonth() + d, 1))
     : (calDate = new Date(calDate.getTime() + d * 7 * 864e5));
   calRender();
 }
-
 function calToday() {
   calDate = new Date();
   calRender();
 }
-
 function calTogFd(e) {
   e.stopPropagation();
   document.getElementById("calFDD")?.classList.toggle("open");
 }
-
 function calTogAll(cb) {
   document
     .querySelectorAll(".cal-rcb")
     .forEach((r) => (r.checked = cb.checked));
   calUpdFlt();
 }
-
 function calUpdFlt() {
   const cbs = document.querySelectorAll(".cal-rcb");
   calRooms = new Set([...cbs].filter((c) => c.checked).map((c) => c.value));
@@ -247,10 +225,7 @@ function calShowDay(dateStr, key) {
       : items
           .map((b) => {
             const cancelBtn = b.can_cancel
-              ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" 
-                      class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm">
-                      <span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก
-                   </button>`
+              ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก</button>`
               : "";
 
             return `
@@ -268,6 +243,9 @@ function calShowDay(dateStr, key) {
 </div>`;
           })
           .join("");
+
+  calDayModalKey = key;
+  calDayModalLabel = dateStr;
   document.getElementById("dayModalBanner").classList.remove("hidden");
   document.getElementById("dayModal").classList.remove("hidden");
 }
@@ -275,7 +253,6 @@ function calShowDay(dateStr, key) {
 function closeDayModal() {
   document.getElementById("dayModal").classList.add("hidden");
 }
-
 function bookFromCalendar() {
   if (!calDayModalKey) {
     navigate("dashboard");
@@ -289,7 +266,6 @@ function bookFromCalendar() {
   closeDayModal();
   navigate("dashboard");
 }
-
 function calQuickBook() {
   calBookDate = null;
   calBookKey = null;

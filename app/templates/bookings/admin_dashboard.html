@@ -521,13 +521,21 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- โหลดไฟล์ JavaScript ฝั่งแอดมินหลักที่ได้รับการแก้ไข -->
-<script src="{% static 'ece/js/admin.js' %}"></script>
+<!-- โหลดสคริปต์ Core พื้นฐานของแผงผู้ดูแลระบบขึ้นก่อน -->
+<script src="{% static 'ece/js/admin/core.js' %}?v={% now 'U' %}"></script>
+
+<!-- โหลดสคริปต์ควบคุมย่อยตามแผงเมนูย่อย -->
+<script src="{% static 'ece/js/admin/dashboard.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/admin/approvals.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/admin/bookings.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/admin/rooms.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/admin/calendar.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/admin/reports.js' %}?v={% now 'U' %}"></script>
+
 <script>
     // ══════════════════ INTERACTIVE SIDEBAR JS ══════════════════
     let isSidebarOpen = false;
 
-    // ฟังก์ชันสลับการเปิด/ปิด Sidebar เมื่ออยู่ในขนาดอุปกรณ์หน้าจอมือถือ
     function toggleSidebar() {
         const sidebar = document.getElementById("mainSidebar");
         const backdrop = document.getElementById("sidebarBackdrop");
@@ -552,7 +560,6 @@
         }
     }
 
-    // ปิด Sidebar อัตโนมัติเมื่อกดเปลี่ยนหน้าจอ (เพื่อไม่ให้หน้าต่างเปิดค้างบดบังเนื้อหา)
     function closeSidebarOnMobile() {
         if (window.innerWidth < 768 && isSidebarOpen) {
             toggleSidebar();

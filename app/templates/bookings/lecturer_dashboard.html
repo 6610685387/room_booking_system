@@ -195,12 +195,20 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'ece/js/booking.js' %}"></script>
+<!-- โหลดสคริปต์หลักพื้นฐานสำหรับระบบจองของฝั่งผู้ใช้ทั่วไป -->
+<script src="{% static 'ece/js/booking/core.js' %}?v={% now 'U' %}"></script>
+
+<!-- โหลดสคริปต์ย่อยตามเมนูและการประมวลผลการทำงาน -->
+<script src="{% static 'ece/js/booking/dashboard.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/booking/room-booking.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/booking/my-bookings.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/booking/detail.js' %}?v={% now 'U' %}"></script>
+<script src="{% static 'ece/js/booking/calendar.js' %}?v={% now 'U' %}"></script>
+
 <script>
   // ══════════════════ INTERACTIVE SIDEBAR JS ══════════════════
   let isSidebarOpen = false;
 
-  // ฟังก์ชันควบคุมการ สไลด์เข้า/สไลด์ออก ของแถบเมนู
   function toggleSidebar() {
     const sidebar = document.getElementById("mainSidebar");
     const backdrop = document.getElementById("sidebarBackdrop");
@@ -209,25 +217,22 @@
     isSidebarOpen = !isSidebarOpen;
 
     if (isSidebarOpen) {
-      // เปิดเมนูสไลด์เข้ามาจากซ้าย และแสดงแผ่นฟิล์มเบลอสีเข้มด้านหลัง
       sidebar.classList.remove("-translate-x-full");
       backdrop.classList.remove("hidden");
       setTimeout(() => {
         backdrop.classList.add("opacity-100");
       }, 20);
     } else {
-      // หุบแถบเมนูกลับ และปิดแผ่นฟิล์มด้านหลัง
       sidebar.classList.add("-translate-x-full");
       backdrop.classList.remove("opacity-100");
       setTimeout(() => {
         if (!isSidebarOpen) {
           backdrop.classList.add("hidden");
         }
-      }, 300); // รอให้ Transition สไลด์ทำงานจนเสร็จสิ้น
+      }, 300);
     }
   }
 
-  // ฟังก์ชันช่วยเหลือ: สั่งหุบเมนูอัตโนมัติเมื่อใช้บนหน้าจออุปกรณ์พกพาขนาดเล็ก (< 768px)
   function closeSidebarOnMobile() {
     if (window.innerWidth < 768 && isSidebarOpen) {
       toggleSidebar();

@@ -1,0 +1,275 @@
+/**
+ * approvals.js — Approvals rendering, Approve, Reject & Cancel Group Actions
+ */
+"use strict";
+
+function vApprovals() {
+  const pending = bookings.filter((b) => b.status === "Pending");
+  const groupedCardsHtml = buildAdminPendingBookingsHtml(pending);
+
+  return `
+<div class="p-6 sm:p-8 max-w-4xl">
+    <header class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800">รายการรออนุมัติ</h2>
+        <p class="text-slate-500 text-sm mt-0.5">มี ${pending.length} รายการรอการดำเนินการ</p>
+    </header>
+    <div class="space-y-4">${groupedCardsHtml}</div>
+</div>`;
+}
+
+function buildAdminPendingBookingsHtml(pendingList) {
+  if (pendingList.length === 0) {
+    return `
+      <div class="text-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl">
+          <span class="material-symbols-outlined text-5xl block mb-2">check_circle</span>
+          <p class="font-medium">ไม่มีรายการรอการอนุมัติ</p>
+      </div>`;
+  }
+
+  const groupedList = [];
+  const seenGroups = {};
+
+  pendingList.forEach((b) => {
+    const gid = b.recurring_group_id;
+    if (!gid) {
+      groupedList.push({ type: "single", booking: b });
+    } else {
+      if (!seenGroups[gid]) {
+        seenGroups[gid] = {
+          type: "group",
+          groupId: gid,
+          room_name: b.room?.room_name || b.room_name || "—",
+          room_code: b.room?.room_code || b.room_code || "—",
+          purpose_type: b.purpose_type,
+          subject: b.subject,
+          bookings: [],
+        };
+        groupedList.push(seenGroups[gid]);
+      }
+      seenGroups[gid].bookings.push(b);
+    }
+  });
+
+  const borderMap = {
+    Pending: "border-l-amber-400",
+    Approved: "border-l-emerald-500",
+    Rejected: "border-l-red-400",
+    Cancelled: "border-l-slate-300",
+  };
+
+  return groupedList
+    .map((item) => {
+      if (item.type === "single") {
+        const b = item.booking;
+        const start = thaiDateShort(b.start_datetime);
+        const ts = timeFromISO(b.start_datetime),
+          te = timeFromISO(b.end_datetime);
+
+        return `
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all"
+     onclick="viewDetailAdmin(${b.booking_id})">
+    <div class="flex-1 space-y-1.5 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
+            </span>
+            <span class="text-slate-400 text-xs">#${b.booking_id}</span>
+        </div>
+        <h3 class="font-bold text-slate-800">${b.room?.room_name} (${b.room?.room_code})</h3>
+        <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
+        <p class="text-sm text-slate-600">วัตถุประสงค์: ${b.purpose_type} ${b.subject ? `(${b.subject})` : ""}</p>
+        <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
+        </div>
+        ${b.additional_requests ? `<p class="text-xs text-slate-500 italic">"${b.additional_requests}"</p>` : ""}
+    </div>
+    <div class="flex flex-col gap-2 flex-shrink-0 min-w-[140px]">
+        <button onclick="event.stopPropagation(); openApprove(${b.booking_id})"
+            class="px-5 py-2 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+            style="background:#10b981">
+            <span class="material-symbols-outlined text-[16px]">check_circle</span>อนุมัติ
+        </button>
+        <button onclick="event.stopPropagation(); openReject(${b.booking_id})"
+            class="px-5 py-2 rounded-xl font-bold text-sm text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 flex items-center justify-center gap-2 transition-all">
+            <span class="material-symbols-outlined text-[16px]">cancel</span>ปฏิเสธ
+        </button>
+    </div>
+</div>`;
+      } else {
+        const g = item;
+        const canCancelAnyGroup = g.bookings.some(
+          (b) => b.status === "Pending" || b.status === "Approved",
+        );
+        const sortedBookings = [...g.bookings].sort(
+          (x, y) => new Date(x.start_datetime) - new Date(y.start_datetime),
+        );
+        const minDateStr = thaiDateShort(sortedBookings[0].start_datetime);
+        const maxDateStr = thaiDateShort(
+          sortedBookings[sortedBookings.length - 1].start_datetime,
+        );
+        const ts = timeFromISO(g.bookings[0].start_datetime),
+          te = timeFromISO(g.bookings[0].end_datetime);
+
+        const slotsHtml = sortedBookings
+          .map((b) => {
+            const start = thaiDateShort(b.start_datetime);
+            const tsSlot = timeFromISO(b.start_datetime),
+              teSlot = timeFromISO(b.end_datetime);
+            return `
+<div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-white border border-slate-150 gap-3 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer"
+     onclick="event.stopPropagation(); viewDetailAdmin(${b.booking_id})">
+    <div class="min-w-0 flex-1 space-y-1">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-400">#${b.booking_id}</span>
+            <span class="badge-pending px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>
+        </div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${tsSlot} – ${teSlot} น.</span>
+        </div>
+        ${b.additional_requests ? `<p class="text-xs text-slate-500 italic">"${b.additional_requests}"</p>` : ""}
+    </div>
+    <div class="flex-shrink-0 self-end sm:self-center flex gap-2">
+        <button onclick="event.stopPropagation(); openApprove(${b.booking_id})"
+            class="px-2.5 py-1.5 bg-emerald-500 text-white rounded-lg font-bold text-[10px] hover:bg-emerald-600 transition-all">
+            อนุมัติ
+        </button>
+        <button onclick="event.stopPropagation(); openReject(${b.booking_id})"
+            class="px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] hover:bg-red-100 border border-red-100 transition-all">
+            ปฏิเสธ
+        </button>
+    </div>
+</div>`;
+          })
+          .join("");
+
+        return `
+<details class="bg-white border border-slate-200 border-l-4 border-l-indigo-500 rounded-xl shadow-sm overflow-hidden group/details">
+    <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
+        <div class="flex-1 space-y-2 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">กลุ่มรออนุมัติ #${g.groupId}</span>
+                <span class="text-slate-400 text-xs font-semibold">มีรายการจองต่อเนื่องทั้งหมด ${g.bookings.length} วัน</span>
+            </div>
+            <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
+            <p class="text-sm text-slate-600">ผู้จอง: ${sortedBookings[0].booker?.displayname_th || "—"}</p>
+            <p class="text-sm text-slate-600">${g.purpose_type}: ${g.subject || "—"}</p>
+            <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
+            ${
+              canCancelAnyGroup
+                ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
+                class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
+                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
+            </button>`
+                : ""
+            }
+            <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200">
+                <span class="material-symbols-outlined text-[18px]">expand_more</span>
+            </div>
+        </div>
+    </summary>
+    <div class="px-5 pb-5 pt-1.5 border-t border-slate-100 space-y-2 bg-slate-50/40">
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">รายการวันจองภายในกลุ่ม:</p>
+        ${slotsHtml}
+    </div>
+</details>`;
+      }
+    })
+    .join("");
+}
+
+function openApprove(id) {
+  curActionId = id;
+  const b = bookings.find(
+    (x) => x.booking_id === id || String(x.booking_id) === String(id),
+  );
+  if (!b) return;
+  document.getElementById("approveDetail").innerHTML =
+    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
+         ${b.booker?.displayname_th || "—"} · ${thaiDateShort(b.start_datetime)} ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
+  document.getElementById("approveNote").value = "";
+  document.getElementById("approveModal").classList.remove("hidden");
+}
+
+function openReject(id) {
+  curActionId = id;
+  const b = bookings.find(
+    (x) => x.booking_id === id || String(x.booking_id) === String(id),
+  );
+  if (!b) return;
+  document.getElementById("rejectDetail").innerHTML =
+    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
+         ${b.booker?.displayname_th || "—"} · ${thaiDateShort(b.start_datetime)} ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
+  document.getElementById("rejectReason").value = "";
+  document.getElementById("rejectModal").classList.remove("hidden");
+}
+
+async function doApprove() {
+  const note = document.getElementById("approveNote").value.trim();
+  closeModals();
+  try {
+    await api.patch(`/api/admin/bookings/${curActionId}/approve/`, {
+      admin_notes: note,
+    });
+    await loadBookings();
+    showToast("อนุมัติการจองเรียบร้อยแล้ว", "check_circle");
+    go(curView);
+  } catch (err) {
+    showApiError(err);
+  }
+}
+
+async function doReject() {
+  const reason = document.getElementById("rejectReason").value.trim();
+  if (!reason) {
+    showToast("กรุณาระบุเหตุผล", "error");
+    return;
+  }
+  closeModals();
+  try {
+    await api.patch(`/api/admin/bookings/${curActionId}/reject/`, {
+      reject_reason: reason,
+    });
+    await loadBookings();
+    showToast("ปฏิเสธการจองเรียบร้อยแล้ว", "cancel");
+    go(curView);
+  } catch (err) {
+    showApiError(err);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RECURRING GROUP CANCEL Actions
+// ═══════════════════════════════════════════════════════════════════
+function openCancelGroupModal(groupId) {
+  cancelGroupId = groupId;
+  const displayEl = document.getElementById("cancelGroupIdDisplay");
+  if (displayEl) displayEl.textContent = "#" + groupId;
+  document.getElementById("cancelGroupModal")?.classList.remove("hidden");
+}
+
+function closeCancelGroupModal() {
+  document.getElementById("cancelGroupModal")?.classList.add("hidden");
+}
+
+async function doCancelGroupBooking() {
+  closeCancelGroupModal();
+  try {
+    await api.patch(`/api/bookings/recurring/${cancelGroupId}/cancel/`, {});
+    await loadBookings();
+    showToast("ยกเลิกการจองแบบกลุ่มเรียบร้อยแล้ว", "cancel");
+    go(curView);
+  } catch (err) {
+    showApiError(err);
+  }
+}
+
+window.openCancelGroupModal = openCancelGroupModal;
+window.closeCancelGroupModal = closeCancelGroupModal;
+window.doCancelGroupBooking = doCancelGroupBooking;

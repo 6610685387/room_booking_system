@@ -1,7 +1,6 @@
 /**
- * room-booking.js — Booking Form, Schedule & Submission Module
+ * room-booking.js — Booking form, weekly schedules & alternative suggested rooms
  */
-
 "use strict";
 
 function vRoomBooking() {
@@ -27,7 +26,6 @@ function vRoomBooking() {
   const preDays = draft.days_of_week || [];
 
   const isSingleDayBooking = !preDateEnd || preDateStart === preDateEnd;
-
   let checkedDays = new Set(preDays);
   if (checkedDays.size === 0 && preDateStart && !isSingleDayBooking) {
     const [year, month, day] = preDateStart.split("-").map(Number);
@@ -41,8 +39,7 @@ function vRoomBooking() {
   const dayPills = weekDays
     .map((d, i) => {
       const checkedAttr = checkedDays.has(d) ? "checked" : "";
-      return `
-<label class="day-pill cursor-pointer" title="${wdLabels[i]}">
+      return `<label class="day-pill cursor-pointer" title="${wdLabels[i]}">
     <input type="checkbox" name="rec_day" value="${d}" ${checkedAttr} class="hidden">
     <div class="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 transition-all hover:border-primary hover:text-primary">${wdLabels[i]}</div>
 </label>`;
@@ -52,7 +49,6 @@ function vRoomBooking() {
   const imgHtml = room.room_image
     ? `<img src="${room.room_image}" class="absolute inset-0 w-full h-full object-cover">`
     : "";
-
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
@@ -86,9 +82,7 @@ function vRoomBooking() {
                     <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_view_week</span>
                     <h3 class="font-bold text-slate-800 text-sm">ตารางการจองรายสัปดาห์</h3>
                 </div>
-                <div class="p-4 overflow-x-auto" id="scheduleTableWrap">
-                    <div class="skeleton h-32 w-full"></div>
-                </div>
+                <div class="p-4 overflow-x-auto" id="scheduleTableWrap"><div class="skeleton h-32 w-full"></div></div>
             </div>
         </div>
 
@@ -116,20 +110,17 @@ function vRoomBooking() {
                     <div id="teaching-fields" class="space-y-4 ${prePurpose !== "teaching" ? "hidden" : ""}">
                         <div class="grid grid-cols-3 gap-2">
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1">รหัสวิชา</label>
-                                <input type="text" id="subject_code" placeholder="EEXXX" value="${preSubjCode}"
-                                    class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">รหัสวิชา <span class="text-red-500">*</span></label>
+                                <input type="text" id="subject_code" placeholder="EEXXX" value="${preSubjCode}" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                             </div>
                             <div class="col-span-2">
-                                <label class="block text-xs font-bold text-slate-500 mb-1">ชื่อวิชา</label>
-                                <input type="text" id="subject_name" placeholder="ระบุชื่อวิชา" value="${preSubjName}"
-                                    class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">ชื่อวิชา <span class="text-red-500">*</span></label>
+                                <input type="text" id="subject_name" placeholder="ระบุชื่อวิชา" value="${preSubjName}" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">หลักสูตร (Program Type)</label>
-                            <select id="program_type"
-                                class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">หลักสูตร (Program Type) <span class="text-red-500">*</span></label>
+                            <select id="program_type" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                                 <option value="" disabled ${!preProgType ? "selected" : ""}>-- เลือกหลักสูตร --</option>
                                 <option value="Bachelor" ${preProgType === "Bachelor" ? "selected" : ""}>ปริญญาตรี</option>
                                 <option value="Master" ${preProgType === "Master" ? "selected" : ""}>ปริญญาโท</option>
@@ -141,22 +132,19 @@ function vRoomBooking() {
 
                     <div id="training-fields" class="space-y-4 ${prePurpose !== "training" ? "hidden" : ""}">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">หัวข้อการอบรม/ติว (Topic)</label>
-                            <input type="text" id="training_topic" placeholder="ระบุชื่อหัวข้อหรือโครงการ" value="${preTopic}"
-                                class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">หัวข้อการอบรม/ติว (Topic) <span class="text-red-500">*</span></label>
+                            <input type="text" id="training_topic" placeholder="ระบุชื่อหัวข้อหรือโครงการ" value="${preTopic}" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">วันที่เริ่ม</label>
-                            <input type="date" id="date_start" value="${preDateStart}" min="${todayStr}" onchange="syncBookingDates('start')"
-                                class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">วันที่เริ่ม <span class="text-red-500">*</span></label>
+                            <input type="date" id="date_start" value="${preDateStart}" min="${todayStr}" onchange="syncBookingDates('start')" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">วันที่สิ้นสุด</label>
-                            <input type="date" id="date_end" value="${preDateEnd}" min="${todayStr}" onchange="syncBookingDates('end')"
-                                class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">วันที่สิ้นสุด <span class="text-red-500">*</span></label>
+                            <input type="date" id="date_end" value="${preDateEnd}" min="${todayStr}" onchange="syncBookingDates('end')" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                         </div>
                     </div>
 
@@ -170,21 +158,18 @@ function vRoomBooking() {
 
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">เวลาเริ่ม</label>
-                            <input type="time" id="time_start" value="${preTimeStart}"
-                                class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">เวลาเริ่ม <span class="text-red-500">*</span></label>
+                            <input type="time" id="time_start" value="${preTimeStart}" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">เวลาสิ้นสุด</label>
-                            <input type="time" id="time_end" value="${preTimeEnd}"
-                                class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">เวลาสิ้นสุด <span class="text-red-500">*</span></label>
+                            <input type="time" id="time_end" value="${preTimeEnd}" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">คำขอเพิ่มเติม (ถ้ามี)</label>
-                        <textarea id="additional_requests" rows="2" placeholder="เช่น ต้องการโปรเจคเตอร์, เครื่องเสียง..."
-                            class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-primary">${preRequests}</textarea>
+                        <textarea id="additional_requests" rows="2" placeholder="เช่น ต้องการโปรเจคเตอร์, เครื่องเสียง..." class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-primary">${preRequests}</textarea>
                     </div>
 
                     <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
@@ -201,9 +186,7 @@ function vRoomBooking() {
 
                     <div id="conflictAlert" class="hidden"></div>
 
-                    <button onclick="submitBooking(${room.room_id})" id="submitBtn"
-                        class="w-full py-3.5 text-white font-bold rounded-xl text-sm shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2"
-                        style="background:#7e0000;box-shadow:0 4px 14px rgba(126,0,0,.25)">
+                    <button onclick="submitBooking(${room.room_id})" id="submitBtn" class="w-full py-3.5 text-white font-bold rounded-xl text-sm shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2" style="background:#7e0000;box-shadow:0 4px 14px rgba(126,0,0,.25)">
                         <span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง
                     </button>
                 </div>
@@ -223,9 +206,7 @@ function toggleAllWeekdays() {
   });
 
   const btn = document.getElementById("btnToggleAllDays");
-  if (btn) {
-    btn.textContent = anyUnchecked ? "ล้างทั้งหมด" : "เลือกทุกวัน";
-  }
+  if (btn) btn.textContent = anyUnchecked ? "ล้างทั้งหมด" : "เลือกทุกวัน";
 }
 window.toggleAllWeekdays = toggleAllWeekdays;
 
@@ -259,7 +240,6 @@ function syncBookingDates(triggerSource) {
       cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     });
-
     const btn = document.getElementById("btnToggleAllDays");
     if (btn) btn.textContent = "เลือกทุกวัน";
   }
@@ -282,9 +262,9 @@ async function loadRoomScheduleForView() {
   const sunday = new Date(today);
   sunday.setDate(today.getDate() - today.getDay());
 
-  const y = sunday.getFullYear();
-  const m = String(sunday.getMonth() + 1).padStart(2, "0");
-  const d = String(sunday.getDate()).padStart(2, "0");
+  const y = sunday.getFullYear(),
+    m = String(sunday.getMonth() + 1).padStart(2, "0"),
+    d = String(sunday.getDate()).padStart(2, "0");
   const weekStart = `${y}-${m}-${d}`;
 
   const sched = await loadRoomSchedule(curRoomId, weekStart);
@@ -321,14 +301,12 @@ async function loadRoomScheduleForView() {
 
     for (let h = startHour; h < safeEndHour; h++) {
       if (!slotMap[s.day]) slotMap[s.day] = {};
-
       if (
         slotMap[s.day][h] &&
         slotMap[s.day][h].status === "Approved" &&
         status === "Pending"
-      ) {
+      )
         continue;
-      }
       slotMap[s.day][h] = s;
     }
   });
@@ -350,16 +328,13 @@ async function loadRoomScheduleForView() {
           const sl = slotMap[day]?.[h];
           if (sl) {
             const isPending = sl.status === "Pending";
-
             const cellClass = isPending
               ? "bg-amber-50/80 border-l-2 border-l-amber-500"
               : "bg-red-50/80 border-l-2 border-l-red-500";
             const textClass = isPending ? "text-amber-700" : "text-red-700";
             const statusText = isPending ? " (รออนุมัติ)" : " (ถูกจองแล้ว)";
 
-            return `<td class="p-1 border border-slate-100 ${cellClass}" title="${sl.label}${statusText}">
-                       <span class="text-[10px] ${textClass} font-bold truncate block">${sl.label}</span>
-                    </td>`;
+            return `<td class="p-1 border border-slate-100 ${cellClass}" title="${sl.label}${statusText}"><span class="text-[10px] ${textClass} font-bold truncate block">${sl.label}</span></td>`;
           }
           return `<td class="p-2 border border-slate-100 hover:bg-slate-50 transition-colors"></td>`;
         })
@@ -369,17 +344,12 @@ async function loadRoomScheduleForView() {
     .join("");
 
   const blackoutNote = (sched.blackout_days || []).length
-    ? `<p class="text-xs text-red-500 font-medium mt-2 flex items-center gap-1">
-               <span class="material-symbols-outlined text-[13px]">block</span>
-               ปิดปรับปรุง: ${sched.blackout_days.join(", ")}
-           </p>`
+    ? `<p class="text-xs text-red-500 font-medium mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">block</span>ปิดปรับปรุง: ${sched.blackout_days.join(", ")}</p>`
     : "";
 
   wrap.innerHTML = `
 <table class="w-full text-xs border-collapse min-w-[700px]">
-    <thead><tr class="bg-slate-50">
-        <th class="p-2 border border-slate-200 text-slate-400 font-bold w-14 text-center">เวลา</th>${header}
-    </tr></thead>
+    <thead><tr class="bg-slate-50"><th class="p-2 border border-slate-200 text-slate-400 font-bold w-14 text-center">เวลา</th>${header}</tr></thead>
     <tbody>${rows}</tbody>
 </table>
 <div class="flex gap-4 mt-3 text-xs font-bold">
@@ -396,14 +366,12 @@ async function submitBooking(roomId) {
 
   const purposeEl = document.querySelector("input[name=purp]:checked");
   const purposeType = purposeEl ? purposeEl.value : "teaching";
-
   const days = [
     ...document.querySelectorAll("input[name=rec_day]:checked"),
   ].map((c) => c.value);
 
   const dateStart = document.getElementById("date_start").value;
   const dateEnd = document.getElementById("date_end").value;
-
   const isSingleDay = !dateEnd || dateStart === dateEnd;
 
   if (isSingleDay && days.length > 0) {
@@ -429,11 +397,10 @@ async function submitBooking(roomId) {
   if (isSingleDay) {
     payload.days_of_week = null;
   } else {
-    if (days.length === 0) {
-      payload.days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    } else {
-      payload.days_of_week = days;
-    }
+    payload.days_of_week =
+      days.length === 0
+        ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        : days;
   }
 
   if (purposeType === "teaching") {
@@ -479,14 +446,8 @@ async function submitBooking(roomId) {
   }
 
   const now = new Date();
-  const todayY = now.getFullYear();
-  const todayM = String(now.getMonth() + 1).padStart(2, "0");
-  const todayD = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${todayY}-${todayM}-${todayD}`;
-
-  const curHour = String(now.getHours()).padStart(2, "0");
-  const curMin = String(now.getMinutes()).padStart(2, "0");
-  const curTimeStr = `${curHour}:${curMin}`;
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const curTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
   if (payload.date_start < todayStr) {
     showToast("ไม่สามารถเลือกวันที่จองย้อนหลังในอดีตได้", "error");
@@ -535,9 +496,10 @@ async function submitBooking(roomId) {
       await fetchAndShowConflictAlert(err.data?.report, payload);
       showToast(err.data?.error || "มีเวลาจองที่ชนกัน", "error");
     } else {
-      const serverError =
-        err.data?.error || err.message || "เกิดข้อผิดพลาดในการจอง";
-      showToast(serverError, "error");
+      showToast(
+        err.data?.error || err.message || "เกิดข้อผิดพลาดในการจอง",
+        "error",
+      );
     }
     btn.disabled = false;
     btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
@@ -547,7 +509,6 @@ async function submitBooking(roomId) {
 function selectSuggestedRoom(newRoomId) {
   const purposeEl = document.querySelector("input[name=purp]:checked");
   const purposeType = purposeEl ? purposeEl.value : "teaching";
-
   const days = [
     ...document.querySelectorAll("input[name=rec_day]:checked"),
   ].map((c) => c.value);
@@ -567,7 +528,6 @@ function selectSuggestedRoom(newRoomId) {
       document.getElementById("additional_requests")?.value || "",
     skip_conflicts: document.getElementById("skip_conflicts")?.checked || false,
   };
-
   navigate("room-booking", { roomId: newRoomId });
 }
 window.selectSuggestedRoom = selectSuggestedRoom;
@@ -586,7 +546,6 @@ async function fetchAndShowConflictAlert(report, payload) {
 
     if (suggestedRooms.length > 0) {
       const favIds = new Set(favRooms.map((r) => Number(r.room_id)));
-
       const sortedSuggestions = [...suggestedRooms].sort((a, b) => {
         const aIsFav = favIds.has(Number(a.room_id)) ? 1 : 0;
         const bIsFav = favIds.has(Number(b.room_id)) ? 1 : 0;
@@ -602,25 +561,18 @@ async function fetchAndShowConflictAlert(report, payload) {
         <div class="flex items-center gap-1.5 flex-wrap">
             <span class="font-bold text-slate-800 text-sm">${r.room_name}</span>
             <span class="text-xs text-slate-400 font-bold">(${r.room_code})</span>
-            ${isFav ? `<span class="material-symbols-outlined text-[15px] text-amber-500 fill-amber-500" title="ห้องโปรด">star</span>` : ""}
+            ${isFav ? `<span class="material-symbols-outlined text-[15px] text-amber-500 [font-variation-settings:'FILL'_1]" title="ห้องโปรด">star</span>` : ""}
         </div>
-        <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-            <span class="material-symbols-outlined text-[13px]">groups</span>ความจุ: ${r.capacity} ที่นั่ง
-        </p>
+        <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>ความจุ: ${r.capacity} ที่นั่ง</p>
     </div>
-    <button onclick="selectSuggestedRoom(${r.room_id})"
-        class="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm">
-        <span class="material-symbols-outlined text-[14px]">add_circle</span>จองห้องนี้
-    </button>
+    <button onclick="selectSuggestedRoom(${r.room_id})" class="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">add_circle</span>จองห้องนี้</button>
 </div>`;
         })
         .join("");
 
       suggestionsHtml = `
 <div class="mt-3.5 space-y-2">
-    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-        <span class="material-symbols-outlined text-[15px] text-primary">meeting_room</span>ห้องแนะนำอื่นที่ว่างตรงเวลาของท่าน:
-    </p>
+    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-primary">meeting_room</span>ห้องแนะนำอื่นที่ว่างตรงเวลาของท่าน:</p>
     <div class="space-y-1.5 max-h-60 overflow-y-auto pr-1">${cards}</div>
 </div>`;
     }
@@ -638,10 +590,7 @@ async function fetchAndShowConflictAlert(report, payload) {
   el.innerHTML = `
 <div class="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-4">
     <div>
-        <p class="text-sm font-bold text-red-700 flex items-center gap-2 mb-2">
-            <span class="material-symbols-outlined text-[18px]">warning</span>
-            มีวันที่และช่วงเวลาจองชน (${report.summary?.conflict_count || 0} วัน)
-        </p>
+        <p class="text-sm font-bold text-red-700 flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-[18px]">warning</span>มีวันที่และช่วงเวลาจองชน (${report.summary?.conflict_count || 0} วัน)</p>
         <ul class="space-y-0.5 max-h-32 overflow-y-auto pl-1">${conflicts}</ul>
         <p class="text-[11px] text-slate-500 mt-2">เปิดสวิตช์ "ข้ามวันที่ชน" ด้านบนเพื่อเลือกจองเฉพาะวันที่ว่าง</p>
     </div>
@@ -649,3 +598,32 @@ async function fetchAndShowConflictAlert(report, payload) {
 </div>`;
   el.classList.remove("hidden");
 }
+
+async function rebookFromHistory(bookingId) {
+  try {
+    showToast("กำลังดึงรายละเอียดข้อมูลจองเดิม...", "autorenew");
+    const b = await api.get(`/api/bookings/${bookingId}/?_t=${Date.now()}`);
+    if (!b) return;
+
+    activeBookingDraft = {
+      purpose_type: b.purpose_type,
+      subject_code: b.teaching_info?.subject_code || "",
+      subject_name: b.teaching_info?.subject_name || "",
+      program_type: b.teaching_info?.program_type || "",
+      training_topic: b.training_info?.topic || "",
+      date_start: "",
+      date_end: "",
+      days_of_week: [],
+      time_start: timeFromISO(b.start_datetime),
+      time_end: timeFromISO(b.end_datetime),
+      additional_requests: b.additional_requests || "",
+      skip_conflicts: false,
+    };
+
+    const roomId = b.room?.room_id || b.room_id;
+    navigate("room-booking", { roomId: roomId });
+  } catch (err) {
+    showApiError(err);
+  }
+}
+window.rebookFromHistory = rebookFromHistory;
