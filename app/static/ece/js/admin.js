@@ -1524,30 +1524,114 @@ function openEditRoom(roomId) {
 }
 
 async function saveRoom() {
-  const payload = {
-    room_code: document.getElementById("rmCode").value.trim(),
-    room_name: document.getElementById("rmName").value.trim(),
-    room_type: document.getElementById("rmType").value,
-    capacity: Number(document.getElementById("rmSeats").value),
-    is_active: document.getElementById("rmActive").checked,
-  };
-  if (!payload.room_code || !payload.room_name) {
-    showToast("กรุณากรอกข้อมูลให้ครบ", "error");
+  const code = document.getElementById("rmCode").value.trim();
+  const name = document.getElementById("rmName").value.trim();
+  const type = document.getElementById("rmType").value;
+  const seats = document.getElementById("rmSeats").value.trim(); // อ่านค่าเป็น string เพื่อตรวจสอบค่าว่าง
+  const isActive = document.getElementById("rmActive").checked;
+  const imageInput = document.getElementById("rmImage");
+
+  if (!code || !name) {
+    showToast("กรุณากรอกข้อมูลรหัสห้องและชื่อห้องให้ครบ", "error");
     return;
   }
+
+  const formData = new FormData();
+  formData.append("room_code", code);
+  formData.append("room_name", name);
+  formData.append("room_type", type);
+
+  // หากเป็นค่าว่าง ให้ส่งเป็นสายอักขระว่างเพื่อให้หลังบ้านแจ้งเตือนอย่างถูกต้อง (เลี่ยงการส่ง 0 ซึ่งอาจติด Min Value ของระบบ)
+  formData.append("capacity", seats !== "" ? Number(seats) : "");
+  formData.append("is_active", isActive ? "true" : "false");
+
+  if (imageInput && imageInput.files && imageInput.files[0]) {
+    formData.append("room_image", imageInput.files[0]);
+  }
+
+  let url = "/api/admin/req/room/";
+  let method = "POST";
+
+  if (editRoomId) {
+    url = `/api/admin/req/room/${editRoomId}/`;
+    method = "PATCH";
+  }
+
   try {
-    if (editRoomId) {
-      await api.patch(`/api/admin/req/room/${editRoomId}/`, payload);
-      showToast("แก้ไขห้องเรียบร้อยแล้ว", "check_circle");
-    } else {
-      await api.post("/api/admin/req/room/", payload);
-      showToast("เพิ่มห้องเรียบร้อยแล้ว", "check_circle");
+    const headers = {};
+
+    // 1. ดึง Token ยืนยันตัวตน
+    const token =
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token") ||
+      localStorage.getItem("jwt");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
+
+    // 2. ดึง CSRF Token
+    let csrfToken = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith("csrftoken=")) {
+          csrfToken = decodeURIComponent(cookie.substring("csrftoken=".length));
+          break;
+        }
+      }
+    }
+    if (!csrfToken) {
+      const csrfInput = document.querySelector("[name=csrfmiddlewaretoken]");
+      if (csrfInput) csrfToken = csrfInput.value;
+    }
+
+    if (csrfToken) {
+      headers["X-CSRFToken"] = csrfToken;
+    }
+
+    const response = await fetch(url, {
+      method: method,
+      headers: headers,
+      body: formData,
+      credentials: "same-origin",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errMsg = "";
+
+      try {
+        const errJson = JSON.parse(errorText);
+        // ทำการดึงรายชื่อฟิลด์ที่ส่งไม่ผ่านมาจัดเรียงเพื่อแจ้งรายละเอียดให้แอดมินทราบอย่างถูกต้อง
+        if (typeof errJson === "object" && errJson !== null) {
+          errMsg = Object.entries(errJson)
+            .map(
+              ([field, msgs]) =>
+                `${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`,
+            )
+            .join("\n");
+        } else {
+          errMsg = errJson.message || "บันทึกข้อมูลไม่สำเร็จ";
+        }
+      } catch (e) {
+        errMsg = errorText || "บันทึกข้อมูลไม่สำเร็จ";
+      }
+      throw new Error(errMsg);
+    }
+
+    const result = await response.json();
+    showToast(
+      editRoomId ? "แก้ไขห้องเรียบร้อยแล้ว" : "เพิ่มห้องเรียบร้อยแล้ว",
+      "check_circle",
+    );
+
     closeModals();
     await loadRooms();
     go("rooms");
   } catch (err) {
-    showApiError(err);
+    // แสดงรายละเอียดปัญหาที่เกิดขึ้น (เช่น แจ้งว่าฟิลด์ใดขาดหายไป)
+    alert("ไม่สามารถบันทึกข้อมูลได้เนื่องจาก:\n" + err.message);
   }
 }
 
