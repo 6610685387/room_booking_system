@@ -45,6 +45,7 @@ class MyBookingResponseSerializer(serializers.Serializer):
     subject = serializers.CharField()
     additional_requests = serializers.CharField(allow_null=True)
     reject_reason = serializers.CharField(allow_null=True)
+    admin_notes = serializers.CharField(allow_null=True)
     can_cancel = serializers.BooleanField()
     created_at = serializers.DateTimeField()
 

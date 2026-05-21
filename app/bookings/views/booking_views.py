@@ -296,6 +296,7 @@ class BookingViewSet(viewsets.ViewSet):
                     "subject": subject,
                     "additional_requests": bk.additional_requests,
                     "reject_reason": bk.reject_reason,
+                    "admin_notes": bk.admin_notes,
                     "can_cancel": can_cancel,
                     "notification_email": bk.notification_email,
                     "created_at": localtime(bk.created_at).isoformat(),

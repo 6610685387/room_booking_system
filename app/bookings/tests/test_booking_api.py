@@ -307,6 +307,7 @@ class BookingAPITest(APITestCase):
         response_my = self.client.get(url_my)
         self.assertEqual(response_my.status_code, status.HTTP_200_OK)
         self.assertEqual(response_my.data[0]["additional_requests"], "Request mic")
+        self.assertEqual(response_my.data[0]["admin_notes"], "Approved with mic")
 
     def test_cancel_recurring_booking(self):
         # สร้าง Group และ Booking 2 วันในอนาคต
