@@ -1503,6 +1503,14 @@ function openAddRoom() {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
+
+  const imgEl = document.getElementById("rmImage");
+  if (imgEl) imgEl.value = "";
+
+  // ซ่อนปุ่มลบห้องเมื่อเป็นโหมดเพิ่มห้องใหม่
+  const btnDelete = document.getElementById("btnDeleteRoom");
+  if (btnDelete) btnDelete.classList.add("hidden");
+
   document.getElementById("rmType").value = "Meeting Room";
   document.getElementById("rmActive").checked = true;
   document.getElementById("roomModal").classList.remove("hidden");
@@ -1520,6 +1528,14 @@ function openEditRoom(roomId) {
   document.getElementById("rmType").value = r.room_type || "Meeting Room";
   document.getElementById("rmSeats").value = r.capacity;
   document.getElementById("rmActive").checked = r.is_active !== false;
+
+  const imgEl = document.getElementById("rmImage");
+  if (imgEl) imgEl.value = "";
+
+  // แสดงปุ่มลบห้องเฉพาะในโหมดแก้ไขห้องเท่านั้น
+  const btnDelete = document.getElementById("btnDeleteRoom");
+  if (btnDelete) btnDelete.classList.remove("hidden");
+
   document.getElementById("roomModal").classList.remove("hidden");
 }
 
