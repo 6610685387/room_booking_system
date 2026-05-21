@@ -107,7 +107,7 @@ function renderRoomCards() {
 
     let badgeHtml = "";
     if (currentStatus === "Approved") {
-      badgeHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-bold text-red-700 bg-red-100 border border-red-200 flex-shrink-0">ถูกใช้งาน</span>`;
+      badgeHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-bold text-red-700 bg-red-100 border border-red-200 flex-shrink-0">ถูกใช้งานตอนนี้</span>`;
     } else if (currentStatus === "Pending") {
       badgeHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 flex-shrink-0">รออนุมัติ</span>`;
     } else {
