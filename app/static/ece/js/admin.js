@@ -7,24 +7,55 @@
 "use strict";
 
 // ═══════════════════════════════════════════════════════════════════
-// STATE
+// STATE & CONFIG
 // ═══════════════════════════════════════════════════════════════════
 let rooms = []; // GET /api/admin/req/room/
 let bookings = []; // GET /api/admin/bookings/
+let reportsSummary = null; // GET /api/reports/summary/
 
 let curView = "dashboard";
 let curActionId = null;
-let curDetailId = null; // เพิ่มสถานะสำหรับเก็บ ID รายละเอียดที่เปิดค้างอยู่
+let curDetailId = null; // สถานะสำหรับเก็บ ID รายละเอียดที่เปิดค้างอยู่
+let cancelGroupId = null; // สถานะเก็บรหัสกลุ่มสำหรับยกเลิกแบบกลุ่ม
 let calDate = new Date();
 let calRoomFilter = "all";
+
+// ใช้ชื่อเฉพาะ LOCAL_MONTHS_TH เพื่อป้องกัน SyntaxError ชนกับตัวแปร Global
+const LOCAL_MONTHS_TH = [
+  "มกราคม",
+  "กุมภาพันธ์",
+  "มีนาคม",
+  "เมษายน",
+  "พฤษภาคม",
+  "มิถุนายน",
+  "กรกฎาคม",
+  "สิงหาคม",
+  "กันยายน",
+  "ตุลาคม",
+  "พฤศจิกายน",
+  "ธันวาคม",
+];
 
 // ═══════════════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", async () => {
-  const user = window.ECE_USER || {};
-  document.getElementById("sideUserName").textContent =
-    user.displayname_th || user.username || "—";
+  let user = {};
+
+  try {
+    user = await api.get(`/api/auth/me/?_t=${Date.now()}`);
+  } catch (err) {
+    console.error("Failed to load admin user info from /api/auth/me/:", err);
+    user = window.ECE_USER || {};
+  }
+
+  const displayName = user.displayname_th || user.username || "—";
+
+  const sideNameEl = document.getElementById("sideUserName");
+  if (sideNameEl) sideNameEl.textContent = displayName;
+
+  const topNameEl = document.getElementById("topUserName");
+  if (topNameEl) topNameEl.textContent = displayName;
 
   await Promise.all([loadRooms(), loadBookings()]);
   go("dashboard");
@@ -57,6 +88,15 @@ async function loadBookings(statusFilter = "") {
   }
 }
 
+async function loadReportsSummary() {
+  try {
+    reportsSummary = await api.get(`/api/reports/summary/?_t=${Date.now()}`);
+  } catch (err) {
+    console.error("Failed to load summary statistics from API:", err);
+    reportsSummary = null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // REALTIME BACKGROUND SYNC (POLLING)
 // ═══════════════════════════════════════════════════════════════════
@@ -70,9 +110,16 @@ function startRealtimePolling() {
   }, 30000); // ทำการดึงข้อมูลใหม่ทุกๆ 30 วินาที
 }
 
-// ฟังก์ชันตรวจสอบความปลอดภัยเพื่อไม่ให้ล้างหน้าจอที่เจ้าหน้าที่กำลังทำงานหรือกรอกข้อมูลค้างไว้
 function isAnyModalOpen() {
-  const modals = ["approveModal", "rejectModal", "roomModal", "dayModal"];
+  const modals = [
+    "approveModal",
+    "rejectModal",
+    "roomModal",
+    "dayModal",
+    "cancelModal",
+    "cancelGroupModal",
+    "exportModal",
+  ];
   return modals.some((id) => {
     const el = document.getElementById(id);
     return el && !el.classList.contains("hidden");
@@ -91,17 +138,24 @@ async function refreshAdminDataSilent() {
 
     updatePendingBadge();
 
-    // ดำเนินการอัปเดตเนื้อหาหน้าจออัตโนมัติเฉพาะกรณีที่ไม่มีการเปิดป๊อปอัปกรอกข้อมูลค้างอยู่
     if (!isAnyModalOpen()) {
+      if (curView === "reports") {
+        await loadReportsSummary();
+      }
+
       if (
         curView === "dashboard" ||
         curView === "approvals" ||
         curView === "all-bookings" ||
-        curView === "detail"
+        curView === "detail" ||
+        curView === "reports"
       ) {
         const app = document.getElementById("app");
         if (app) {
           app.innerHTML = `<div class="view-enter">${render()}</div>`;
+          if (curView === "reports") {
+            buildMonthOptions();
+          }
         }
       } else if (curView === "calendar") {
         calRender();
@@ -115,16 +169,25 @@ async function refreshAdminDataSilent() {
 // ═══════════════════════════════════════════════════════════════════
 // ROUTER
 // ═══════════════════════════════════════════════════════════════════
-function go(v) {
+async function go(v) {
   curView = v;
   document.querySelectorAll("[data-view]").forEach((el) => {
     el.className = `nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium ${el.dataset.view === v ? "nav-active" : "text-slate-600"}`;
   });
   updatePendingBadge();
+
+  if (v === "reports") {
+    await loadReportsSummary();
+  }
+
   const app = document.getElementById("app");
   app.innerHTML = `<div class="view-enter">${render()}</div>`;
   app.scrollTop = 0;
+
   if (v === "calendar") initCalendar();
+  if (v === "reports") {
+    buildMonthOptions();
+  }
 }
 
 function render() {
@@ -142,7 +205,7 @@ function render() {
     case "calendar":
       return vCalendar();
     case "detail":
-      return vDetailAdmin(); // เรนเดอร์หน้ารายละเอียดเมื่อสถานะเส้นทางเปลี่ยน
+      return vDetailAdmin();
   }
   return "";
 }
@@ -156,7 +219,6 @@ function updatePendingBadge() {
   }
 }
 
-// ฟังก์ชันสลับมาเปิดดูข้อมูลความขยายหน้ารายละเอียดการจองของเจ้าหน้าที่
 function viewDetailAdmin(id) {
   curDetailId = id;
   go("detail");
@@ -227,6 +289,7 @@ function vDashboard() {
   const pendingList = bookings
     .filter((b) => b.status === "Pending")
     .slice(0, 5);
+
   const pendingRows =
     pendingList.length === 0
       ? `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-sm">ไม่มีรายการรออนุมัติ</td></tr>`
@@ -236,7 +299,7 @@ function vDashboard() {
             const ts = timeFromISO(b.start_datetime),
               te = timeFromISO(b.end_datetime);
             return `
-<tr>
+<tr class="cursor-pointer hover:bg-slate-50 transition-colors" onclick="viewDetailAdmin(${b.booking_id})">
     <td><span class="text-xs text-slate-400">#${b.booking_id}</span></td>
     <td><div class="font-medium text-slate-800 text-xs">${b.booker?.displayname_th || "—"}</div></td>
     <td><div class="text-xs text-slate-700 font-bold">${b.room?.room_name} (${b.room?.room_code})</div>
@@ -244,11 +307,9 @@ function vDashboard() {
     <td class="text-xs text-slate-600">${start} · ${ts}–${te}</td>
     <td>
         <div class="flex gap-1.5 flex-wrap">
-            <button onclick="viewDetailAdmin(${b.booking_id})"
-                class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors">รายละเอียด</button>
-            <button onclick="openApprove(${b.booking_id})"
+            <button onclick="event.stopPropagation(); openApprove(${b.booking_id})"
                 class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white hover:opacity-90" style="background:#10b981">อนุมัติ</button>
-            <button onclick="openReject(${b.booking_id})"
+            <button onclick="event.stopPropagation(); openReject(${b.booking_id})"
                 class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100">ปฏิเสธ</button>
         </div>
     </td>
@@ -266,7 +327,6 @@ function vDashboard() {
           Approved: "#10b981",
           Rejected: "#ef4444",
           Cancelled: "#64748b",
-          Cancelled: "#64748b",
         }[statusClean] || "#64748b";
 
       const lbl =
@@ -275,11 +335,10 @@ function vDashboard() {
           Approved: "ได้รับการอนุมัติ",
           Rejected: "ถูกปฏิเสธ",
           Cancelled: "ยกเลิกการจองแล้ว",
-          Cancelled: "ยกเลิกการจองแล้ว",
         }[statusClean] || "ยกเลิกการจองแล้ว";
 
       const created = b.created_at ? thaiDateShort(b.created_at) : "";
-      return `<div class="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+      return `<div class="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-200 hover:shadow-sm transition-all" onclick="viewDetailAdmin(${b.booking_id})">
     <div class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style="background:${clr}"></div>
     <div class="flex-1 min-w-0">
         <p class="text-xs font-bold text-slate-700 truncate">${b.booker?.displayname_th || "—"} — ${lbl}</p>
@@ -304,7 +363,6 @@ function vDashboard() {
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">${statHtml}</div>
     
-    <!-- ปรับสัดส่วนเลย์เอาต์แดชบอร์ดใหม่ให้กล่องรออนุมัติขยายได้เต็มหน้าจอ -->
     <div class="space-y-6">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full">
             <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
@@ -322,7 +380,6 @@ function vDashboard() {
             </div>
         </div>
         
-        <!-- กล่องกิจกรรมล่าสุดเรียงสัดส่วนตามแนวนอนเต็มจอเพื่อความสวยงาม -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 w-full">
             <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2">
                 <span class="material-symbols-outlined text-slate-400 text-[18px]">history</span> กิจกรรมล่าสุด
@@ -338,55 +395,7 @@ function vDashboard() {
 // ═══════════════════════════════════════════════════════════════════
 function vApprovals() {
   const pending = bookings.filter((b) => b.status === "Pending");
-  const rows =
-    pending.length === 0
-      ? `<div class="text-center py-16 text-slate-400">
-               <span class="material-symbols-outlined text-5xl block mb-2">check_circle</span>
-               <p class="font-medium">ไม่มีรายการรอการอนุมัติ</p>
-           </div>`
-      : pending
-          .map((b) => {
-            const start = thaiDateShort(b.start_datetime);
-            const ts = timeFromISO(b.start_datetime),
-              te = timeFromISO(b.end_datetime);
-            return `
-<div class="bg-white border border-slate-200 border-l-4 border-l-amber-400 rounded-xl p-5 shadow-sm">
-    <div class="flex flex-wrap justify-between gap-4">
-        <div class="space-y-1.5 min-w-0 flex-1">
-            <div class="flex items-center gap-2 flex-wrap">
-                <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
-                </span>
-                <span class="text-slate-400 text-xs">#${b.booking_id}</span>
-            </div>
-            <h3 class="font-bold text-slate-800">${b.room?.room_name} (${b.room?.room_code})</h3>
-            <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
-            <p class="text-sm text-slate-600">วัตถุประสงค์: ${b.purpose_type} ${b.subject ? `(${b.subject})` : ""}</p>
-            <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
-                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
-                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
-            </div>
-            ${b.additional_requests ? `<p class="text-xs text-slate-500 italic">"${b.additional_requests}"</p>` : ""}
-        </div>
-        <div class="flex flex-col gap-2 flex-shrink-0 min-w-[140px]">
-            <button onclick="viewDetailAdmin(${b.booking_id})"
-                class="px-5 py-2 rounded-xl font-bold text-xs text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center gap-2.5 transition-all">
-                <span class="material-symbols-outlined text-[15px]">visibility</span>รายละเอียด
-            </button>
-            <button onclick="openApprove(${b.booking_id})"
-                class="px-5 py-2.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 hover:opacity-90"
-                style="background:#10b981">
-                <span class="material-symbols-outlined text-[16px]">check_circle</span>อนุมัติ
-            </button>
-            <button onclick="openReject(${b.booking_id})"
-                class="px-5 py-2.5 rounded-xl font-bold text-sm text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 flex items-center justify-center gap-2">
-                <span class="material-symbols-outlined text-[16px]">cancel</span>ปฏิเสธ
-            </button>
-        </div>
-    </div>
-</div>`;
-          })
-          .join("");
+  const groupedCardsHtml = buildAdminPendingBookingsHtml(pending);
 
   return `
 <div class="p-6 sm:p-8 max-w-4xl">
@@ -394,8 +403,178 @@ function vApprovals() {
         <h2 class="text-2xl font-bold text-slate-800">รายการรออนุมัติ</h2>
         <p class="text-slate-500 text-sm mt-0.5">มี ${pending.length} รายการรอการดำเนินการ</p>
     </header>
-    <div class="space-y-4">${rows}</div>
+    <div class="space-y-4">${groupedCardsHtml}</div>
 </div>`;
+}
+
+function buildAdminPendingBookingsHtml(pendingList) {
+  if (pendingList.length === 0) {
+    return `
+      <div class="text-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl">
+          <span class="material-symbols-outlined text-5xl block mb-2">check_circle</span>
+          <p class="font-medium">ไม่มีรายการรอการอนุมัติ</p>
+      </div>`;
+  }
+
+  const groupedList = [];
+  const seenGroups = {};
+
+  pendingList.forEach((b) => {
+    const gid = b.recurring_group_id;
+    if (!gid) {
+      groupedList.push({ type: "single", booking: b });
+    } else {
+      if (!seenGroups[gid]) {
+        seenGroups[gid] = {
+          type: "group",
+          groupId: gid,
+          room_name: b.room?.room_name || b.room_name || "—",
+          room_code: b.room?.room_code || b.room_code || "—",
+          purpose_type: b.purpose_type,
+          subject: b.subject,
+          bookings: [],
+        };
+        groupedList.push(seenGroups[gid]);
+      }
+      seenGroups[gid].bookings.push(b);
+    }
+  });
+
+  const borderMap = {
+    Pending: "border-l-amber-400",
+    Approved: "border-l-emerald-500",
+    Rejected: "border-l-red-400",
+    Cancelled: "border-l-slate-300",
+  };
+
+  return groupedList
+    .map((item) => {
+      if (item.type === "single") {
+        const b = item.booking;
+        const start = thaiDateShort(b.start_datetime);
+        const ts = timeFromISO(b.start_datetime);
+        const te = timeFromISO(b.end_datetime);
+
+        return `
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all"
+     onclick="viewDetailAdmin(${b.booking_id})">
+    <div class="flex-1 space-y-1.5 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
+            </span>
+            <span class="text-slate-400 text-xs">#${b.booking_id}</span>
+        </div>
+        <h3 class="font-bold text-slate-800">${b.room?.room_name} (${b.room?.room_code})</h3>
+        <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
+        <p class="text-sm text-slate-600">วัตถุประสงค์: ${b.purpose_type} ${b.subject ? `(${b.subject})` : ""}</p>
+        <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
+        </div>
+        ${b.additional_requests ? `<p class="text-xs text-slate-500 italic">"${b.additional_requests}"</p>` : ""}
+    </div>
+    <div class="flex flex-col gap-2 flex-shrink-0 min-w-[140px]">
+        <button onclick="event.stopPropagation(); openApprove(${b.booking_id})"
+            class="px-5 py-2 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+            style="background:#10b981">
+            <span class="material-symbols-outlined text-[16px]">check_circle</span>อนุมัติ
+        </button>
+        <button onclick="event.stopPropagation(); openReject(${b.booking_id})"
+            class="px-5 py-2 rounded-xl font-bold text-sm text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 flex items-center justify-center gap-2 transition-all">
+            <span class="material-symbols-outlined text-[16px]">cancel</span>ปฏิเสธ
+        </button>
+    </div>
+</div>`;
+      } else {
+        const g = item;
+        const canCancelAnyGroup = g.bookings.some(
+          (b) => b.status === "Pending" || b.status === "Approved",
+        );
+
+        const sortedBookings = [...g.bookings].sort(
+          (x, y) => new Date(x.start_datetime) - new Date(y.start_datetime),
+        );
+        const minDateStr = thaiDateShort(sortedBookings[0].start_datetime);
+        const maxDateStr = thaiDateShort(
+          sortedBookings[sortedBookings.length - 1].start_datetime,
+        );
+        const ts = timeFromISO(g.bookings[0].start_datetime);
+        const te = timeFromISO(g.bookings[0].end_datetime);
+
+        const slotsHtml = sortedBookings
+          .map((b) => {
+            const start = thaiDateShort(b.start_datetime);
+            const tsSlot = timeFromISO(b.start_datetime);
+            const teSlot = timeFromISO(b.end_datetime);
+
+            return `
+<div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-white border border-slate-150 gap-3 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer"
+     onclick="event.stopPropagation(); viewDetailAdmin(${b.booking_id})">
+    <div class="min-w-0 flex-1 space-y-1">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-400">#${b.booking_id}</span>
+            <span class="badge-pending px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>
+        </div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${tsSlot} – ${teSlot} น.</span>
+        </div>
+        ${b.additional_requests ? `<p class="text-xs text-slate-500 italic">"${b.additional_requests}"</p>` : ""}
+    </div>
+    <div class="flex-shrink-0 self-end sm:self-center flex gap-2">
+        <button onclick="event.stopPropagation(); openApprove(${b.booking_id})"
+            class="px-2.5 py-1.5 bg-emerald-500 text-white rounded-lg font-bold text-[10px] hover:bg-emerald-600 transition-all">
+            อนุมัติ
+        </button>
+        <button onclick="event.stopPropagation(); openReject(${b.booking_id})"
+            class="px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] hover:bg-red-100 border border-red-100 transition-all">
+            ปฏิเสธ
+        </button>
+    </div>
+</div>`;
+          })
+          .join("");
+
+        return `
+<details class="bg-white border border-slate-200 border-l-4 border-l-indigo-500 rounded-xl shadow-sm overflow-hidden group/details">
+    <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
+        <div class="flex-1 space-y-2 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">กลุ่มรออนุมัติ #${g.groupId}</span>
+                <span class="text-slate-400 text-xs font-semibold">มีรายการจองต่อเนื่องทั้งหมด ${g.bookings.length} วัน</span>
+            </div>
+            <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
+            <p class="text-sm text-slate-600">ผู้จอง: ${sortedBookings[0].booker?.displayname_th || "—"}</p>
+            <p class="text-sm text-slate-600">${g.purpose_type}: ${g.subject || "—"}</p>
+            <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
+            ${
+              canCancelAnyGroup
+                ? `
+            <button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
+                class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
+                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
+            </button>`
+                : ""
+            }
+            <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200">
+                <span class="material-symbols-outlined text-[18px]">expand_more</span>
+            </div>
+        </div>
+    </summary>
+    <div class="px-5 pb-5 pt-1.5 border-t border-slate-100 space-y-2 bg-slate-50/40">
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">รายการวันจองภายในกลุ่ม:</p>
+        ${slotsHtml}
+    </div>
+</details>`;
+      }
+    })
+    .join("");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -408,13 +587,13 @@ function vAllBookings() {
     Rejected: "badge-rejected",
     Cancelled: "badge-rejected",
   };
+
   const rows = bookings
     .map((b) => {
       const start = thaiDateShort(b.start_datetime);
       const ts = timeFromISO(b.start_datetime),
         te = timeFromISO(b.end_datetime);
 
-      // สร้างส่วนแสดงผลเหตุผลการปฏิเสธของแอดมินในตารางใหญ่
       const rejectNote =
         b.reject_reason && b.reject_reason.trim()
           ? `<div class="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 mt-1 font-medium max-w-xs">
@@ -422,7 +601,6 @@ function vAllBookings() {
            </div>`
           : "";
 
-      // สร้างส่วนแสดงหมายเหตุอนุมัติของแอดมินในตารางใหญ่
       const approveNote =
         b.admin_notes && b.admin_notes.trim()
           ? `<div class="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 rounded px-2 py-1 mt-1 font-medium max-w-xs">
@@ -431,7 +609,7 @@ function vAllBookings() {
           : "";
 
       return `
-<tr>
+<tr class="cursor-pointer hover:bg-slate-50 transition-colors" onclick="viewDetailAdmin(${b.booking_id})">
     <td><span class="text-xs text-slate-400">#${b.booking_id}</span></td>
     <td class="font-medium text-slate-800 text-xs">${b.booker?.displayname_th || "—"}</td>
     <td>
@@ -445,12 +623,11 @@ function vAllBookings() {
     <td><span class="${statusMap[b.status] || "badge-pending"} px-2 py-0.5 rounded-full text-[10px] font-bold">${b.status}</span></td>
     <td>
         <div class="flex gap-1.5 flex-wrap">
-            <button onclick="viewDetailAdmin(${b.booking_id})" class="px-2.5 py-1 rounded text-[10px] font-bold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors">รายละเอียด</button>
             ${
               b.status === "Pending"
                 ? `
-            <button onclick="openApprove(${b.booking_id})" class="px-2 py-1 rounded text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">อนุมัติ</button>
-            <button onclick="openReject(${b.booking_id})"  class="px-2 py-1 rounded text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors">ปฏิเสธ</button>
+            <button onclick="event.stopPropagation(); openApprove(${b.booking_id})" class="px-2.5 py-1 rounded text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">อนุมัติ</button>
+            <button onclick="event.stopPropagation(); openReject(${b.booking_id})"  class="px-2.5 py-1 rounded text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors">ปฏิเสธ</button>
             `
                 : ""
             }
@@ -478,7 +655,7 @@ function vAllBookings() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// VIEW: DETAILED BOOKING (รูปแบบเดียวกับของ Lecturer)
+// VIEW: DETAILED BOOKING
 // ═══════════════════════════════════════════════════════════════════
 function vDetailAdmin() {
   const b = bookings.find(
@@ -585,7 +762,6 @@ function vDetailAdmin() {
             }
         </div>
         
-        <!-- ส่วนจัดการการจองของแอดมินทางฝั่งขวา -->
         <div class="col-span-12 lg:col-span-5 space-y-4">
             ${
               b.status === "Pending"
@@ -608,6 +784,15 @@ function vDetailAdmin() {
                 <p class="text-xs font-bold uppercase tracking-wider">ปิดการดำเนินการ</p>
                 <p class="text-xs text-slate-400 mt-1">รายการนี้ได้รับการประมวลผลแล้ว</p>
             </div>`
+            }
+            ${
+              b.recurring_group_id
+                ? `
+            <button onclick="openCancelGroupModal('${b.recurring_group_id}')"
+                class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all">
+                <span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม
+            </button>`
+                : ""
             }
         </div>
     </div>
@@ -635,9 +820,7 @@ function vRooms() {
         </div>
     </div>
     <div class="p-4">
-        <h3 class="font-bold text-slate-800">` +
-        r.room_name +
-        `</h3>
+        <h3 class="font-bold text-slate-800">${r.room_name}</h3>
         <div class="flex gap-3 text-xs text-slate-500 mt-1">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>${r.capacity} ที่นั่ง</span>
             <span>${r.room_type}</span>
@@ -692,22 +875,107 @@ async function toggleRoomActive(roomId, currentlyActive) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// VIEW: REPORTS (skeleton — real analytics would need extra endpoints)
+// VIEW: REPORTS (หน้ารายงานสถิติที่ประมวลค่าจาก JSON จริงของเซิร์ฟเวอร์)
 // ═══════════════════════════════════════════════════════════════════
 function vReports() {
-  const approved = bookings.filter((b) => b.status === "Approved").length;
-  const total = bookings.length;
+  const statsSrc = reportsSummary?.statistics || {};
+
+  // อัปเดตการอ่านค่าสถิติจากโครงสร้าง JSON API ของรายงานรวม
+  const total = statsSrc.total_bookings ?? bookings.length;
+  const approved =
+    statsSrc.by_status?.Approved ??
+    bookings.filter((b) => b.status === "Approved").length;
+  const pending =
+    statsSrc.by_status?.Pending ??
+    bookings.filter((b) => b.status === "Pending").length;
   const pct = total ? Math.round((approved / total) * 100) : 0;
+
+  // วาดแท่งสัดส่วนรายห้องจากข้อมูล by_room ของระบบหลังบ้านโดยตรง (มีระบบ Fallback ในกรณีที่ API ดึงสถิติไม่สำเร็จ)
+  let roomRows = "";
+  if (statsSrc.by_room && Array.isArray(statsSrc.by_room)) {
+    roomRows = statsSrc.by_room
+      .map((r) => {
+        const count = r.booking_count || 0;
+        const pct2 = total ? Math.round((count / total) * 105) : 0; // รักษาอัตราส่วนเพื่อความสวยงาม
+        const renderPct = pct2 > 100 ? 100 : pct2;
+        return `
+        <div class="flex items-center gap-3">
+            <div class="text-xs font-bold text-slate-600 w-24 flex-shrink-0 truncate" title="${r.room_name}">${r.room_code}</div>
+            <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${renderPct > 60 ? "#7e0000" : renderPct > 40 ? "#f59e0b" : "#10b981"}" data-w="${renderPct}"></div>
+            </div>
+            <div class="text-xs font-bold text-slate-700 w-28 text-right flex-shrink-0">${count} ครั้ง (${renderPct}%)</div>
+        </div>`;
+      })
+      .join("");
+  } else {
+    // โครงสร้างประมวลผลสำรองฝั่ง Client
+    roomRows = rooms
+      .map((r) => {
+        const cnt = bookings.filter(
+          (b) => b.room?.room_id === r.room_id && b.status === "Approved",
+        ).length;
+        const pct2 = approved ? Math.round((cnt / approved) * 100) : 0;
+        return `
+        <div class="flex items-center gap-3">
+            <div class="text-xs font-bold text-slate-600 w-24 flex-shrink-0 truncate">${r.room_code}</div>
+            <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${pct2 > 60 ? "#7e0000" : pct2 > 40 ? "#f59e0b" : "#10b981"}" data-w="${pct2}"></div>
+            </div>
+            <div class="text-xs font-bold text-slate-700 w-24 text-right flex-shrink-0">${cnt} ครั้ง (${pct2}%)</div>
+        </div>`;
+      })
+      .join("");
+  }
+
   return `
 <div class="p-6 sm:p-8">
-    <header class="mb-6">
-        <h2 class="text-2xl font-bold text-slate-800">รายงานสถิติ</h2>
-        <p class="text-slate-500 text-sm mt-0.5">สรุปภาพรวมการใช้งานห้อง</p>
+    <header class="mb-6 flex flex-wrap justify-between items-start gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">รายงานสถิติระบบ</h2>
+            <p class="text-slate-500 text-sm mt-0.5">สรุปภาพรวมและสถิติการใช้บริการห้องเรียนทั้งหมดในระบบ</p>
+        </div>
+        
+        <div class="flex gap-2 flex-wrap items-center">
+            <button onclick="openExportModal()"
+                class="px-5 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:opacity-90 transition-all bg-indigo-600">
+                <span class="material-symbols-outlined text-[18px]">download</span>ส่งออกรายงานขั้นสูง
+            </button>
+        </div>
     </header>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-[24px] text-slate-400">calendar_month</span>
+            <div>
+                <p class="text-sm font-bold text-slate-700">ส่งออกข้อมูลรายเดือนแบบรวดเร็ว</p>
+                <p class="text-xs text-slate-400">เลือกช่วงเดือนที่ต้องการส่งออกและรับไฟล์ได้ทันที</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
+            <select id="rptMonthSel" onchange="rptUpdateMonth()"
+                class="px-4 py-2 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:border-primary cursor-pointer w-full md:w-auto">
+                <!-- โหลดตัวเลือกเดือนแบบไดนามิก -->
+            </select>
+            <button onclick="rptExport('csv')"
+                class="px-4 py-2 border border-indigo-100 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-xs hover:bg-indigo-100 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">csv</span>ดาวน์โหลด CSV
+            </button>
+            <button onclick="rptExport('excel')"
+                class="px-4 py-2 border border-emerald-100 bg-emerald-50 text-emerald-700 font-bold rounded-xl text-xs hover:bg-emerald-100 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">table</span>ดาวน์โหลด Excel
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-center">
             <div class="text-3xl font-black text-slate-800 mb-1">${total}</div>
             <div class="text-xs text-slate-500 font-medium">คำขอจองทั้งหมด</div>
+        </div>
+         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-center">
+            <div class="text-3xl font-black text-amber-500 mb-1">${pending}</div>
+            <div class="text-xs text-slate-500 font-medium">รออนุมัติ</div>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-center">
             <div class="text-3xl font-black text-emerald-600 mb-1">${approved}</div>
@@ -718,36 +986,266 @@ function vReports() {
             <div class="text-xs text-slate-500 font-medium">อัตราการอนุมัติ</div>
         </div>
     </div>
+
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <h3 class="font-bold text-slate-700 mb-4">การใช้งานรายห้อง (คิดเป็นสัดส่วนต่อห้องทั้งหมดที่ได้รับการอนุมัติ)</h3>
         <div class="space-y-3">
-            ${rooms
-              .map((r) => {
-                const cnt = bookings.filter(
-                  (b) =>
-                    b.room?.room_id === r.room_id && b.status === "Approved",
-                ).length;
-                // คำนวณสัดส่วนของห้องนั้นๆ เทียบกับการจองของห้องทั้งหมดที่อนุมัติแล้ว
-                const pct2 = approved ? Math.round((cnt / approved) * 100) : 0;
-                return `<div class="flex items-center gap-3">
-                    <div class="text-xs font-bold text-slate-600 w-24 flex-shrink-0 truncate">${r.room_code}</div>
-                    <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${pct2 > 60 ? "#7e0000" : pct2 > 40 ? "#f59e0b" : "#10b981"}" data-w="${pct2}"></div>
-                    </div>
-                    <div class="text-xs font-bold text-slate-700 w-24 text-right flex-shrink-0">${cnt} ครั้ง (${pct2}%)</div>
-                </div>`;
-              })
-              .join("")}
+            ${roomRows}
         </div>
     </div>
 </div>`;
-  // Animate bars
   setTimeout(() => {
     document
       .querySelectorAll("[data-w]")
       .forEach((el) => (el.style.width = el.dataset.w + "%"));
   }, 100);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// REPORTS EXPORT & MODAL CONTROL (FR-RPT-03)
+// ═══════════════════════════════════════════════════════════════════
+let rptMonth = (() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+})();
+
+function buildMonthOptions() {
+  const now = new Date();
+  const sel = document.getElementById("rptMonthSel");
+  if (!sel) return;
+
+  let html = "";
+  // ลูปแสดงเฉพาะเดือนปัจจุบันและเดือนย้อนหลัง 12 เดือน (ไม่แสดงช่วงเวลาในอนาคต)
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const val = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const label = `${LOCAL_MONTHS_TH[m]} ${y + 543}`;
+    html += `<option value="${val}" ${i === 0 ? "selected" : ""}>${label}</option>`;
+  }
+
+  sel.innerHTML = html;
+  rptMonth = sel.value;
+}
+
+function rptUpdateMonth() {
+  const sel = document.getElementById("rptMonthSel");
+  if (sel) rptMonth = sel.value;
+}
+
+function rptExport(format) {
+  const [year, month] = rptMonth.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const dateFrom = `${rptMonth}-01`;
+  const dateTo = `${rptMonth}-${String(lastDay).padStart(2, "0")}`;
+  const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+  window.location.href = `/api/reports/export/${format}/?${params}`;
+}
+
+let expPurpose = "all";
+
+// ฟังก์ชันเปิดโมดอลพร้อมโหลดรายชื่อห้องเรียนจริงเข้าสู่ตัวเลือก dropdown
+function openExportModal() {
+  expSetRange("this_month");
+  expSetPurpose("all");
+
+  const statusEl = document.getElementById("expStatus");
+  if (statusEl) statusEl.value = "";
+
+  const progEl = document.getElementById("expProgramType");
+  if (progEl) progEl.value = "";
+
+  populateExportRooms();
+  expUpdateSummary();
+
+  const modal = document.getElementById("exportModal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+// ผูกข้อมูลรายชื่อห้องเรียนจริงเข้าใน Dropdown ฝั่ง Export ขั้นสูง
+function populateExportRooms() {
+  const sel = document.getElementById("expRoomId");
+  if (!sel) return;
+  sel.innerHTML =
+    '<option value="">ทุกห้อง</option>' +
+    rooms
+      .map(
+        (r) =>
+          `<option value="${r.room_id}">${r.room_name} (${r.room_code})</option>`,
+      )
+      .join("");
+}
+
+function expSetRange(preset) {
+  const now = new Date();
+  let from, to;
+  if (preset === "this_month") {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (preset === "last_month") {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    to = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else if (preset === "this_year") {
+    from = new Date(now.getFullYear(), 0, 1);
+    to = new Date(now.getFullYear(), 11, 31);
+  } else {
+    const fromEl = document.getElementById("expDateFrom");
+    const toEl = document.getElementById("expDateTo");
+    if (fromEl) fromEl.value = "";
+    if (toEl) toEl.value = "";
+    expUpdateSummary();
+    return;
+  }
+
+  // จัดเรียงฟอร์แมตวันที่ทำงานตาม timezone ท้องถิ่นโดยไม่เกิดความเหลื่อมล้ำของโซนเวลา
+  const fmt = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const fromEl = document.getElementById("expDateFrom");
+  const toEl = document.getElementById("expDateTo");
+  if (fromEl) fromEl.value = fmt(from);
+  if (toEl) toEl.value = fmt(to);
+  expUpdateSummary();
+}
+
+// ตรวจสอบความปลอดภัยการเลือกปุ่มสัญลักษณ์ไม่ให้มี Null Pointer Reference
+function expSetPurpose(val) {
+  expPurpose = val;
+  const map = {
+    all: "expPurpAll",
+    teaching: "expPurpTeach",
+    training: "expPurpTrain",
+  };
+
+  Object.values(map).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.className =
+        "flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-slate-200";
+      const icon = el.querySelector(".material-symbols-outlined");
+      if (icon) {
+        icon.className = "material-symbols-outlined text-[20px] text-slate-400";
+        icon.style.color = "";
+      }
+    }
+  });
+
+  const targetEl = document.getElementById(map[val]);
+  if (targetEl) {
+    targetEl.className =
+      "flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-red-800 bg-red-50";
+    const targetIcon = targetEl.querySelector(".material-symbols-outlined");
+    if (targetIcon) {
+      targetIcon.style.color = "#7e0000";
+    }
+  }
+  expUpdateSummary();
+}
+
+// อัปเดตรายละเอียดและรายงานสรุปตัวคัดกรองพารามิเตอร์บนโมดอลให้ครบทุกมิติ
+function expUpdateSummary() {
+  const fromEl = document.getElementById("expDateFrom");
+  const toEl = document.getElementById("expDateTo");
+  const statusEl = document.getElementById("expStatus");
+  const progEl = document.getElementById("expProgramType");
+  const roomSelEl = document.getElementById("expRoomId");
+
+  const from = fromEl ? fromEl.value : "";
+  const to = toEl ? toEl.value : "";
+  const status = statusEl ? statusEl.value : "";
+  const programType = progEl ? progEl.value : "";
+  const roomId = roomSelEl ? roomSelEl.value : "";
+
+  const purposeLabel = {
+    all: "ทั้งหมด",
+    teaching: "สอนเท่านั้น",
+    training: "อบรมเท่านั้น",
+  }[expPurpose];
+  const parts = [];
+  if (from && to) parts.push(`📅 ${from} ถึง ${to}`);
+  else if (!from && !to) parts.push("📅 ทุกช่วงเวลา");
+
+  parts.push(`📋 ประเภท: ${purposeLabel}`);
+  if (status) parts.push(`🔖 สถานะ: ${status}`);
+  if (programType) parts.push(`🎓 หลักสูตร: ${programType}`);
+  if (roomId) {
+    const r = rooms.find((x) => String(x.room_id) === String(roomId));
+    if (r) parts.push(`🚪 ห้อง: ${r.room_code}`);
+  }
+
+  const summaryEl = document.getElementById("expSummary");
+  if (summaryEl) summaryEl.innerHTML = parts.join(" &nbsp;·&nbsp; ");
+}
+
+// อัปเดตการดึงค่าพารามิเตอร์ส่งคำขอขั้นสูงไปยังระบบ Export ตาม API หลังบ้าน
+function triggerExportWithFormat() {
+  const csvEl = document.getElementById("chkCSV");
+  const excelEl = document.getElementById("chkExcel");
+  const isCSV = csvEl ? csvEl.checked : false;
+  const isExcel = excelEl ? excelEl.checked : false;
+
+  if (!isCSV && !isExcel) {
+    alert("กรุณาเลือกรูปแบบไฟล์อย่างน้อย 1 ประเภทครับ");
+    return;
+  }
+
+  const fromEl = document.getElementById("expDateFrom");
+  const toEl = document.getElementById("expDateTo");
+  const statusEl = document.getElementById("expStatus");
+  const progEl = document.getElementById("expProgramType");
+  const roomSelEl = document.getElementById("expRoomId");
+
+  const from = fromEl ? fromEl.value : "";
+  const to = toEl ? toEl.value : "";
+  const status = statusEl ? statusEl.value : "";
+  const programType = progEl ? progEl.value : "";
+  const roomId = roomSelEl ? roomSelEl.value : "";
+
+  const params = new URLSearchParams();
+  if (from) params.set("date_from", from);
+  if (to) params.set("date_to", to);
+  if (expPurpose !== "all") params.set("purpose_type", expPurpose);
+  if (status) params.set("status", status);
+  if (programType) params.set("program_type", programType);
+  if (roomId) params.set("room_id", roomId);
+
+  closeModals();
+
+  if (isCSV) {
+    showToast("กำลังส่งออกไฟล์ CSV...", "download");
+    window.location.href = `/api/reports/export/csv/?${params}`;
+  }
+
+  if (isExcel) {
+    if (isCSV) {
+      setTimeout(() => {
+        showToast("กำลังส่งออกไฟล์ Excel...", "download");
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = `/api/reports/export/excel/?${params}`;
+        document.body.appendChild(iframe);
+        setTimeout(() => document.body.removeChild(iframe), 3000);
+      }, 1500);
+    } else {
+      showToast("กำลังส่งออกไฟล์ Excel...", "download");
+      window.location.href = `/api/reports/export/excel/?${params}`;
+    }
+  }
+}
+
+// ผูกฟังก์ชันแอดมินเข้ากับ window เพื่อความปลอดภัยในการเรียกใช้งานจากแบบฟอร์มภายนอก
+window.rptUpdateMonth = rptUpdateMonth;
+window.rptExport = rptExport;
+window.openExportModal = openExportModal;
+window.expSetRange = expSetRange;
+window.expSetPurpose = expSetPurpose;
+window.expUpdateSummary = expUpdateSummary;
+window.triggerExportWithFormat = triggerExportWithFormat;
 
 // ═══════════════════════════════════════════════════════════════════
 // VIEW: CALENDAR
@@ -796,7 +1294,7 @@ function calNav(d) {
 function calRender() {
   const hdr = document.getElementById("calHdr");
   if (hdr)
-    hdr.textContent = `${["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"][calDate.getMonth()]} ${calDate.getFullYear() + 543}`;
+    hdr.textContent = `${LOCAL_MONTHS_TH[calDate.getMonth()]} ${calDate.getFullYear() + 543}`;
   const g = document.getElementById("calMG");
   if (!g) return;
   const y = calDate.getFullYear(),
@@ -808,7 +1306,6 @@ function calRender() {
     html += `<div class="cal-day p-2 border-r border-b border-slate-100 bg-slate-50/50"></div>`;
   for (let d = 1; d <= dm; d++) {
     const tod = isToday(y, m, d);
-    // Filter bookings for this day (โชว์เฉพาะ Approved และ Pending เท่านั้น)
     const dayBks = bookings.filter((b) => {
       const s = new Date(b.start_datetime);
       return (
@@ -838,28 +1335,12 @@ function calRender() {
   g.innerHTML = html;
 }
 
-// isToday is already defined globally or in common files, but redeclared safely
 function isToday(y, m, d) {
   const t = new Date();
   return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
 }
 
 function calShowDayAdmin(y, m, d) {
-  const months = [
-    "มกราคม",
-    "กุมภาพันธ์",
-    "มีนาคม",
-    "เมษายน",
-    "พฤษภาคม",
-    "มิถุนายน",
-    "กรกฎาคม",
-    "สิงหาคม",
-    "กันยายน",
-    "ตุลาคม",
-    "พฤศจิกายน",
-    "ธันวาคม",
-  ];
-  // คัดกรองการแสดงผลรายการจองบนป๊อปอัปให้มีเฉพาะสถานะ Approved และ Pending เท่านั้น
   const dayBks = bookings.filter((b) => {
     const s = new Date(b.start_datetime);
     return (
@@ -871,26 +1352,24 @@ function calShowDayAdmin(y, m, d) {
     );
   });
   document.getElementById("dayModalTitle").textContent =
-    `${d} ${months[m]} ${y + 543}`;
+    `${d} ${LOCAL_MONTHS_TH[m]} ${y + 543}`;
   document.getElementById("dayModalBody").innerHTML =
     dayBks.length === 0
       ? `<div class="text-center py-8 text-slate-400"><span class="material-symbols-outlined text-4xl block mb-2">event_available</span>ว่างทั้งวัน</div>`
       : dayBks
           .map((b) => {
-            // ดึงข้อความเหตุผลการปฏิเสธของแอดมินมาแสดงบนหน้าปฏิทินเจ้าหน้าที่
             const rejectNote =
               b.reject_reason && b.reject_reason.trim()
                 ? `<p class="text-[11px] text-red-600 bg-red-50 rounded px-2 py-1 mt-1 font-medium"><strong>เหตุผล:</strong> ${b.reject_reason}</p>`
                 : "";
 
-            // ดึงข้อความหมายเหตุเพิ่มเติมในการอนุมัติมาแสดงบนหน้าปฏิทินเจ้าหน้าที่
             const approveNote =
               b.admin_notes && b.admin_notes.trim()
                 ? `<p class="text-[11px] text-emerald-600 bg-emerald-50 rounded px-2 py-1 mt-1 font-medium"><strong>หมายเหตุอนุมัติ:</strong> ${b.admin_notes}</p>`
                 : "";
 
             return `
-<div class="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex justify-between items-start gap-3">
+<div class="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex justify-between items-start gap-3 cursor-pointer" onclick="closeModals(); viewDetailAdmin(${b.booking_id})">
     <div class="min-w-0 flex-1">
         <p class="font-bold text-slate-800 text-sm">${b.room?.room_name}</p>
         <p class="text-xs text-slate-500 mt-0.5">${b.booker?.displayname_th || "—"} · ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}</p>
@@ -915,7 +1394,7 @@ function openApprove(id) {
   );
   if (!b) return;
   document.getElementById("approveDetail").innerHTML =
-    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name} (${b.room?.room_code})<br>
+    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
          ${b.booker?.displayname_th || "—"} · ${thaiDateShort(b.start_datetime)} ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
   document.getElementById("approveNote").value = "";
   document.getElementById("approveModal").classList.remove("hidden");
@@ -928,14 +1407,22 @@ function openReject(id) {
   );
   if (!b) return;
   document.getElementById("rejectDetail").innerHTML =
-    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name} (${b.room?.room_code})<br>
+    `<strong>#${b.booking_id}</strong> — ${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
          ${b.booker?.displayname_th || "—"} · ${thaiDateShort(b.start_datetime)} ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
   document.getElementById("rejectReason").value = "";
   document.getElementById("rejectModal").classList.remove("hidden");
 }
 
 function closeModals() {
-  ["approveModal", "rejectModal", "roomModal", "dayModal"].forEach((id) => {
+  [
+    "approveModal",
+    "rejectModal",
+    "roomModal",
+    "dayModal",
+    "cancelModal",
+    "cancelGroupModal",
+    "exportModal",
+  ].forEach((id) => {
     document.getElementById(id)?.classList.add("hidden");
   });
 }
@@ -973,6 +1460,36 @@ async function doReject() {
     showApiError(err);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// CANCEL GROUP MODAL (สำหรับเจ้าหน้าที่ดูแลระบบในการยกเลิกซีรีส์การจอง)
+// ═══════════════════════════════════════════════════════════════════
+function openCancelGroupModal(groupId) {
+  cancelGroupId = groupId;
+  const displayEl = document.getElementById("cancelGroupIdDisplay");
+  if (displayEl) displayEl.textContent = "#" + groupId;
+  document.getElementById("cancelGroupModal")?.classList.remove("hidden");
+}
+
+function closeCancelGroupModal() {
+  document.getElementById("cancelGroupModal")?.classList.add("hidden");
+}
+
+async function doCancelGroupBooking() {
+  closeCancelGroupModal();
+  try {
+    await api.patch(`/api/bookings/recurring/${cancelGroupId}/cancel/`, {});
+    await loadBookings();
+    showToast("ยกเลิกการจองแบบกลุ่มเรียบร้อยแล้ว", "cancel");
+    go(curView);
+  } catch (err) {
+    showApiError(err);
+  }
+}
+
+window.openCancelGroupModal = openCancelGroupModal;
+window.closeCancelGroupModal = closeCancelGroupModal;
+window.doCancelGroupBooking = doCancelGroupBooking;
 
 // ═══════════════════════════════════════════════════════════════════
 // ROOM MODAL  (Add / Edit)
@@ -1054,4 +1571,7 @@ window.addEventListener("click", (e) => {
   if (e.target === document.getElementById("rejectModal")) closeModals();
   if (e.target === document.getElementById("roomModal")) closeModals();
   if (e.target === document.getElementById("dayModal")) closeModals();
+  if (e.target === document.getElementById("cancelModal")) closeModals();
+  if (e.target === document.getElementById("cancelGroupModal")) closeModals();
+  if (e.target === document.getElementById("exportModal")) closeModals();
 });

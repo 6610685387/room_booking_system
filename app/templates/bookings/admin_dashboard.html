@@ -1,86 +1,109 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}แผงควบคุมเจ้าหน้าที่ — ECE TU Room Booking{% endblock %}
+{% block title %}ผู้ดูแลระบบ — ECE Room Booking{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'ece/css/admin.css' %}">
+<!-- ใช้ไฟล์สไตล์ร่วมกับฝั่งแอดมินเดิม -->
+<link rel="stylesheet" href="{% static 'ece/css/booking.css' %}">
 {% endblock %}
 
 {% block body %}
-<div class="flex h-screen overflow-hidden bg-slate-50">
+<!-- ปรับระบบ Container หลักให้รองรับแนวตั้งบนมือถือ (flex-col) และแนวนอนบนจอใหญ่ (md:flex-row) -->
+<div class="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50 relative">
+
+    <!-- ══════════════════ MOBILE TOP NAV BAR ══════════════════ -->
+    <!-- แสดงเฉพาะบนจอมือถือ (md:hidden) เพื่อประหยัดพื้นที่แสดงผล -->
+    <div
+        class="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 z-30 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()"
+                class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all">
+                <span class="material-symbols-outlined text-[24px]">menu</span>
+            </button>
+            <span class="font-bold text-slate-800 text-sm">ECE Admin Panel</span>
+        </div>
+    </div>
+
+    <!-- ══════════════════ SIDEBAR BACKDROP ══════════════════ -->
+    <!-- ฉากรับแผ่นฟิล์มสีเข้มเวลาเปิดเมนูบนมือถือ คลิกแล้วจะเป็นการปิดหน้าต่างสไลด์ลง -->
+    <div id="sidebarBackdrop" onclick="toggleSidebar()"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden transition-opacity duration-300 opacity-0">
+    </div>
 
     <!-- ══════════════════ SIDEBAR ══════════════════ -->
-    <aside class="w-60 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm z-20">
+    <!-- ปรับเปลี่ยนเมนูให้หุบซ่อนออกซ้ายมือเป็นค่าเริ่มต้นบนหน้าจอมือถือ (-translate-x-full) -->
+    <aside id="mainSidebar"
+        class="fixed md:relative inset-y-0 left-0 w-60 bg-white border-r border-slate-200 flex flex-col shadow-sm z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex-shrink-0">
 
-        <!-- Logo -->
-        <div class="sidebar-logo-wrap">
+        <!-- Logo & Close Button (สำหรับกดปิดแถบเมนูในมือถือ) -->
+        <div class="sidebar-logo-wrap flex items-center justify-between pr-4">
             <img src="{% static 'ece/images/ece-logo.svg' %}" alt="ECE TU" class="sidebar-logo-img">
+            <button onclick="toggleSidebar()"
+                class="md:hidden w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
         </div>
 
-        <!-- User chip -->
-        <div class="px-3 py-2 mx-3 mt-3 mb-1 rounded-xl border flex items-center gap-2"
-            style="background:linear-gradient(135deg,#fff1f2,#fff);border-color:#fecaca">
+        <!-- User Profile Chip -->
+        <div class="px-3 py-2 mx-3 mt-3 mb-1 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
             <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
                 style="background:linear-gradient(135deg,#7e0000,#c0392b)">
                 <span class="material-symbols-outlined text-[14px]">admin_panel_settings</span>
             </div>
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0">
                 <p class="text-xs font-bold text-slate-700 truncate" id="sideUserName">กำลังโหลด...</p>
-                <span class="admin-badge">ADMIN</span>
+                <p class="text-[10px] text-slate-400">เจ้าหน้าที่ / แอดมิน</p>
             </div>
         </div>
 
-        <!-- Nav -->
+        <!-- Navigation Menu (เมื่อคลิกเมนูระบบจะสั่งปิดแถบ Sidebar ในจอมือถืออัตโนมัติ) -->
         <nav class="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
             <div data-view="dashboard"
-                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-                onclick="go('dashboard')">
+                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
+                onclick="go('dashboard'); closeSidebarOnMobile();">
                 <span class="material-symbols-outlined text-[19px]">dashboard</span>
-                <span>แดชบอร์ด</span>
+                <span>แผงควบคุมหลัก</span>
             </div>
-
             <div data-view="approvals"
-                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-                onclick="go('approvals')">
-                <span class="material-symbols-outlined text-[19px]">pending_actions</span>
-                <span class="flex-1">รออนุมัติ</span>
-                <span id="pendingBadge"
-                    class="text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
-                    style="background:#7e0000;display:none"></span>
+                class="nav-item flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
+                onclick="go('approvals'); closeSidebarOnMobile();">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[19px]">pending_actions</span>
+                    <span>รายการรออนุมัติ</span>
+                </div>
+                <!-- ป้ายแจ้งเตือนจำนวนคำขอคงค้าง -->
+                <span id="pendingBadge" class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style="display:none;"></span>
             </div>
-
             <div data-view="all-bookings"
-                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-                onclick="go('all-bookings')">
-                <span class="material-symbols-outlined text-[19px]">list_alt</span>
-                <span>รายการทั้งหมด</span>
+                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
+                onclick="go('all-bookings'); closeSidebarOnMobile();">
+                <span class="material-symbols-outlined text-[19px]">receipt_long</span>
+                <span>รายการจองทั้งหมด</span>
             </div>
-
             <div data-view="rooms"
-                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-                onclick="go('rooms')">
+                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
+                onclick="go('rooms'); closeSidebarOnMobile();">
                 <span class="material-symbols-outlined text-[19px]">meeting_room</span>
                 <span>จัดการห้อง</span>
             </div>
-
             <div data-view="calendar"
-                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-                onclick="go('calendar')">
+                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
+                onclick="go('calendar'); closeSidebarOnMobile();">
                 <span class="material-symbols-outlined text-[19px]">calendar_month</span>
-                <span>ปฏิทิน</span>
+                <span>ปฏิทินห้องว่าง</span>
             </div>
-
             <div data-view="reports"
-                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600"
-                onclick="go('reports')">
-                <span class="material-symbols-outlined text-[19px]">bar_chart</span>
-                <span>รายงาน</span>
+                class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-pointer"
+                onclick="go('reports'); closeSidebarOnMobile();">
+                <span class="material-symbols-outlined text-[19px]">analytics</span>
+                <span>รายงานสถิติ</span>
             </div>
         </nav>
 
-        <!-- Bottom -->
-        <div class="px-3 pb-4 border-t border-slate-100 pt-3">
+        <!-- Bottom Action -->
+        <div class="px-3 pb-4 space-y-0.5 border-t border-slate-100 pt-3">
             <button onclick="doLogout()"
                 class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all">
                 <span class="material-symbols-outlined text-[19px]">logout</span>
@@ -90,18 +113,20 @@
     </aside>
 
     <!-- ══════════════════ MAIN CONTENT ══════════════════ -->
-    <main class="flex-1 overflow-y-auto" id="app">
+    <main class="flex-1 overflow-y-auto flex flex-col" id="app">
+        <!-- JS renders views here -->
         <div class="flex items-center justify-center h-full text-slate-400">
             <div class="text-center">
-                <div class="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
-                    style="border-color:#7e0000;border-top-color:transparent"></div>
-                <p class="text-sm">กำลังโหลดข้อมูล...</p>
+                <div
+                    class="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3">
+                </div>
+                <p class="text-sm">กำลังโหลดข้อมูลระบบจัดการ...</p>
             </div>
         </div>
     </main>
 </div>
 
-<!-- ══════════════════ TOAST ══════════════════ -->
+<!-- ══════════════════ TOAST NOTIFICATION ══════════════════ -->
 <div id="toast"
     class="fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-5 py-3.5 bg-slate-800 text-white rounded-2xl shadow-xl text-sm font-medium"
     style="opacity:0;pointer-events:none;transition:opacity .3s,transform .3s">
@@ -109,149 +134,15 @@
     <span id="toastMsg">สำเร็จ</span>
 </div>
 
-<!-- ══════════════════ APPROVE MODAL ══════════════════ -->
-<div id="approveModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
-    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
-    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4">
-        <div class="p-6">
-            <div class="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                <span class="material-symbols-outlined text-emerald-500 text-[28px]">check_circle</span>
-            </div>
-            <h3 class="font-bold text-slate-800 text-center text-lg mb-1">ยืนยันการอนุมัติ</h3>
-            <div class="text-xs text-slate-500 text-center mb-4 p-3 bg-slate-50 rounded-xl" id="approveDetail"></div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
-                    บันทึกเพิ่มเติม (ถ้ามี)
-                </label>
-                <textarea id="approveNote" rows="2" placeholder="เช่น กรุณาติดต่อรับกุญแจที่สำนักงาน..."
-                    class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-emerald-400"></textarea>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="closeModals()"
-                    class="flex-1 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    ยกเลิก
-                </button>
-                <button onclick="doApprove()"
-                    class="flex-1 py-3 rounded-2xl text-sm font-bold text-white hover:opacity-90 transition-all"
-                    style="background:#10b981">
-                    <span class="flex items-center justify-center gap-1.5">
-                        <span class="material-symbols-outlined text-[16px]">check_circle</span>อนุมัติ
-                    </span>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ══════════════════ REJECT MODAL ══════════════════ -->
-<div id="rejectModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
-    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
-    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4">
-        <div class="p-6">
-            <div class="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
-                <span class="material-symbols-outlined text-red-500 text-[28px]">cancel</span>
-            </div>
-            <h3 class="font-bold text-slate-800 text-center text-lg mb-1">ปฏิเสธการจอง</h3>
-            <div class="text-xs text-slate-500 text-center mb-4 p-3 bg-slate-50 rounded-xl" id="rejectDetail"></div>
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
-                    เหตุผล <span class="text-red-500">*</span>
-                </label>
-                <textarea id="rejectReason" rows="3" placeholder="ระบุเหตุผลที่ไม่อนุมัติ..."
-                    class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-red-400"></textarea>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="closeModals()"
-                    class="flex-1 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    ยกเลิก
-                </button>
-                <button onclick="doReject()"
-                    class="flex-1 py-3 rounded-2xl text-sm font-bold text-white hover:opacity-90 transition-all"
-                    style="background:#ef4444">
-                    <span class="flex items-center justify-center gap-1.5">
-                        <span class="material-symbols-outlined text-[16px]">cancel</span>ปฏิเสธ
-                    </span>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ══════════════════ ROOM MODAL ══════════════════ -->
-<div id="roomModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
-    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
-    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center"
-            style="background:linear-gradient(135deg,#7e0000,#a50000)">
-            <h3 class="font-bold text-white" id="roomModalTitle">เพิ่มห้องใหม่</h3>
-            <button onclick="closeModals()"
-                class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors">
-                <span class="material-symbols-outlined text-white text-[16px]">close</span>
-            </button>
-        </div>
-        <div class="p-6 space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">รหัสห้อง
-                        *</label>
-                    <input type="text" id="rmCode" placeholder="เช่น 406-3"
-                        class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">ความจุ
-                        (ที่นั่ง) *</label>
-                    <input type="number" id="rmSeats" placeholder="เช่น 40" min="1"
-                        class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
-                </div>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">ชื่อห้อง *</label>
-                <input type="text" id="rmName" placeholder="เช่น ห้องประชุม 1"
-                    class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">ประเภทห้อง</label>
-                <select id="rmType"
-                    class="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary bg-white">
-                    <option value="Meeting Room">ห้องประชุม (Meeting Room)</option>
-                    <option value="Classroom">ห้องเรียน (Classroom)</option>
-                </select>
-            </div>
-            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                <div>
-                    <p class="text-sm font-bold text-slate-700">เปิดใช้งาน</p>
-                    <p class="text-xs text-slate-400">ห้องที่ปิดจะไม่ปรากฏในระบบจอง</p>
-                </div>
-                <label class="toggle flex items-center cursor-pointer">
-                    <input type="checkbox" id="rmActive" checked class="hidden">
-                    <div class="w-10 h-5 rounded-full bg-slate-300 transition-all relative">
-                        <div
-                            class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform">
-                        </div>
-                    </div>
-                </label>
-            </div>
-            <div class="flex gap-3 pt-2">
-                <button onclick="closeModals()"
-                    class="flex-1 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    ยกเลิก
-                </button>
-                <button onclick="saveRoom()"
-                    class="flex-1 py-3 rounded-2xl text-sm font-bold text-white hover:opacity-90 transition-all"
-                    style="background:#7e0000">
-                    บันทึก
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ══════════════════ DAY MODAL ══════════════════ -->
+<!-- ══════════════════ DAY MODAL (CALENDAR VIEW) ══════════════════ -->
 <div id="dayModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
     style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
     <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex justify-between items-center">
-            <h3 class="font-bold text-slate-800 text-base" id="dayModalTitle">รายการจอง</h3>
+        <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex justify-between items-start">
+            <div>
+                <h3 class="font-bold text-slate-800 text-base" id="dayModalTitle">รายการจอง</h3>
+                <p class="text-xs text-slate-500 mt-0.5">คิวการใช้งานห้องในวันที่เลือก</p>
+            </div>
             <button onclick="closeModals()"
                 class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
                 <span class="material-symbols-outlined text-[16px]">close</span>
@@ -260,8 +151,335 @@
         <div class="p-6 space-y-3 max-h-96 overflow-y-auto" id="dayModalBody"></div>
     </div>
 </div>
+
+<!-- ══════════════════ APPROVE CONFIRM MODAL ══════════════════ -->
+<div id="approveModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
+    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
+    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <span class="material-symbols-outlined text-emerald-500 text-[24px]">check_circle</span>
+                <h3 class="font-bold text-slate-800 text-base">ยืนยันการอนุมัติ</h3>
+            </div>
+            <p class="text-sm text-slate-600" id="approveDetail"></p>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">หมายเหตุการอนุมัติ
+                    (แชร์ไปยังผู้จอง)</label>
+                <textarea id="approveNote" rows="2" placeholder="เช่น การเตรียมอุปกรณ์เสริม หรือระเบียบการใช้ห้อง..."
+                    class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-primary"></textarea>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeModals()"
+                    class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    ย้อนกลับ
+                </button>
+                <button onclick="doApprove()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-all"
+                    style="background:#10b981">
+                    ยืนยันอนุมัติ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════ REJECT CONFIRM MODAL ══════════════════ -->
+<div id="rejectModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
+    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
+    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <span class="material-symbols-outlined text-red-500 text-[24px]">cancel</span>
+                <h3 class="font-bold text-slate-800 text-base">ปฏิเสธคำขอการจอง</h3>
+            </div>
+            <p class="text-sm text-slate-600" id="rejectDetail"></p>
+            <div>
+                <label
+                    class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">ระบุเหตุผลที่ปฏิเสธ
+                    (บังคับกรอก)</label>
+                <textarea id="rejectReason" rows="2"
+                    placeholder="เช่น ห้องไม่ว่างในเวลาดังกล่าว หรือช่วงเวลาชนกับวิชาเรียนปกติ..."
+                    class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:border-primary"></textarea>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeModals()"
+                    class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    ย้อนกลับ
+                </button>
+                <button onclick="doReject()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-all"
+                    style="background:#ef4444">
+                    ยืนยันปฏิเสธ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════ ROOM MANAGEMENT MODAL (ADD/EDIT) ══════════════════ -->
+<div id="roomModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
+    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
+    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800" id="roomModalTitle">ห้องเรียน</h3>
+            <button onclick="closeModals()"
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">รหัสห้อง</label>
+                    <input type="text" id="rmCode" placeholder="เช่น EE-401"
+                        class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">ชื่อห้อง</label>
+                    <input type="text" id="rmName" placeholder="เช่น ห้องปฏิบัติการคอมพิวเตอร์"
+                        class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">ประเภทห้อง</label>
+                    <select id="rmType"
+                        class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none">
+                        <option value="Meeting Room">ห้องประชุม</option>
+                        <option value="Classroom">ห้องเรียน</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">ความจุที่นั่ง</label>
+                    <input type="number" id="rmSeats" min="1" placeholder="เช่น 60"
+                        class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                <div>
+                    <p class="text-sm font-bold text-slate-700">สถานะเปิดให้บริการ</p>
+                    <p class="text-xs text-slate-400">เปิดให้สามารถทำการค้นหาและส่งขอจองได้</p>
+                </div>
+                <label class="toggle flex items-center cursor-pointer relative w-10 h-5">
+                    <input type="checkbox" id="rmActive" class="sr-only peer">
+                    <div
+                        class="w-full h-full rounded-full bg-slate-300 transition-colors duration-200 peer-checked:bg-emerald-500">
+                    </div>
+                    <div
+                        class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5">
+                    </div>
+                </label>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeModals()"
+                    class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    ยกเลิก
+                </button>
+                <button onclick="saveRoom()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-all"
+                    style="background:#7e0000">
+                    บันทึกข้อมูล
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════ RECURRING GROUP CANCEL MODAL ══════════════════ -->
+<div id="cancelGroupModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
+    style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
+    <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="p-6">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-red-50">
+                <span class="material-symbols-outlined text-red-500 text-[28px]">event_busy</span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-center text-lg mb-1">ยืนยันยกเลิกทั้งกลุ่ม</h3>
+            <p class="text-sm text-slate-500 text-center mb-5">
+                ต้องการปฏิเสธ/ยกเลิกรายการจองทั้งหมดในกลุ่มต่อเนื่องนี้ <span class="font-bold text-slate-700"
+                    id="cancelGroupIdDisplay"></span> หรือไม่?
+                ระบบจะทำการยกเลิกเฉพาะรายการที่ยังไม่ถึงเวลาทำงานเท่านั้น
+            </p>
+            <div class="flex gap-3">
+                <button onclick="closeModals()"
+                    class="flex-1 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    ย้อนกลับ
+                </button>
+                <button onclick="doCancelGroupBooking()"
+                    class="flex-1 py-3 rounded-2xl text-sm font-bold text-white hover:opacity-90 transition-all"
+                    style="background:#ef4444">
+                    ยืนยัน ยกเลิกทั้งกลุ่ม
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════ EXPORT MODAL ══════════════════ -->
+<div id="exportModal"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+        <div class="p-5 flex items-center gap-3" style="background:linear-gradient(135deg,#7e0000,#a50000)">
+            <span class="material-symbols-outlined text-white text-[22px]">download</span>
+            <h3 class="font-bold text-white text-base">Export รายงาน</h3>
+        </div>
+        <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+
+            <!-- ตัวกรอง: วันที่ -->
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">ช่วงวันที่</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">วันเริ่มต้น</label>
+                        <input type="date" id="expDateFrom" onchange="expUpdateSummary()"
+                            class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-red-800">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">วันสิ้นสุด</label>
+                        <input type="date" id="expDateTo" onchange="expUpdateSummary()"
+                            class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-red-800">
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-2 flex-wrap">
+                    <button onclick="expSetRange('this_month')"
+                        class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">เดือนนี้</button>
+                    <button onclick="expSetRange('last_month')"
+                        class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">เดือนที่แล้ว</button>
+                    <button onclick="expSetRange('this_year')"
+                        class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">ปีนี้</button>
+                    <button onclick="expSetRange('all')"
+                        class="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">ทั้งหมด</button>
+                </div>
+            </div>
+
+            <!-- ตัวกรอง: วัตถุประสงค์ -->
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">ประเภทการใช้งาน</p>
+                <div class="grid grid-cols-3 gap-2">
+                    <label id="expPurpAll" onclick="expSetPurpose('all')"
+                        class="flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-red-800 bg-red-50">
+                        <span class="material-symbols-outlined text-[20px]" style="color:#7e0000">apps</span>
+                        <span class="text-[11px] font-bold text-slate-700">ทั้งหมด</span>
+                    </label>
+                    <label id="expPurpTeach" onclick="expSetPurpose('teaching')"
+                        class="flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-slate-200">
+                        <span class="material-symbols-outlined text-[20px] text-slate-400">school</span>
+                        <span class="text-[11px] font-bold text-slate-700">สอน</span>
+                    </label>
+                    <label id="expPurpTrain" onclick="expSetPurpose('training')"
+                        class="flex flex-col items-center gap-1 p-3 border-2 rounded-xl cursor-pointer transition-all border-slate-200">
+                        <span class="material-symbols-outlined text-[20px] text-slate-400">groups</span>
+                        <span class="text-[11px] font-bold text-slate-700">อบรม</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ตัวกรองร่วม: ห้องเรียน & หลักสูตร -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1.5">ระบุห้องเรียน</label>
+                    <select id="expRoomId" onchange="expUpdateSummary()"
+                        class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-red-800">
+                        <option value="">ทุกห้อง</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1.5">หลักสูตร (Program)</label>
+                    <select id="expProgramType" onchange="expUpdateSummary()"
+                        class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-red-800">
+                        <option value="">ทุกหลักสูตร</option>
+                        <option value="Bachelor">ปริญญาตรี (Bachelor)</option>
+                        <option value="Master">ปริญญาโท (Master)</option>
+                        <option value="TEP-TEPE">TEP-TEPE</option>
+                        <option value="TU-PINE">TU-PINE</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-1.5">สถานะการจอง</p>
+                <select id="expStatus" onchange="expUpdateSummary()"
+                    class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:border-red-800">
+                    <option value="">ทุกสถานะ</option>
+                    <option value="Approved">อนุมัติแล้ว</option>
+                    <option value="Pending">รออนุมัติ</option>
+                    <option value="Rejected">ปฏิเสธ</option>
+                    <option value="Cancelled">ยกเลิก</option>
+                </select>
+            </div>
+
+            <!-- กล่องข้อมูลวิเคราะห์พารามิเตอร์เบื้องหลัง -->
+            <div id="expSummary" class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500">
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-slate-100 space-y-4 bg-slate-50/50">
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">เลือกรูปแบบไฟล์ที่ต้องการ</p>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chkCSV" checked
+                            class="rounded text-primary focus:ring-primary w-4 h-4 accent-[#7e0000]">
+                        <span class="ml-2 text-sm text-slate-700 font-medium">ไฟล์ CSV (.csv)</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chkExcel" checked
+                            class="rounded text-primary focus:ring-primary w-4 h-4 accent-[#7e0000]">
+                        <span class="ml-2 text-sm text-slate-700 font-medium">ไฟล์ Excel (.xlsx)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-2">
+                <button onclick="triggerExportWithFormat()"
+                    class="w-full py-3 font-bold rounded-xl text-white text-sm flex items-center justify-center gap-2 hover:opacity-90 shadow-md"
+                    style="background:#7e0000">
+                    <span class="material-symbols-outlined text-[16px]">download</span>ดาวน์โหลดรายงาน
+                </button>
+                <button onclick="closeModals()"
+                    class="w-full py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-200">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- โหลดไฟล์ JavaScript ฝั่งแอดมินหลักที่ได้รับการแก้ไข -->
 <script src="{% static 'ece/js/admin.js' %}"></script>
+<script>
+    // ══════════════════ INTERACTIVE SIDEBAR JS ══════════════════
+    let isSidebarOpen = false;
+
+    // ฟังก์ชันสลับการเปิด/ปิด Sidebar เมื่ออยู่ในขนาดอุปกรณ์หน้าจอมือถือ
+    function toggleSidebar() {
+        const sidebar = document.getElementById("mainSidebar");
+        const backdrop = document.getElementById("sidebarBackdrop");
+        if (!sidebar || !backdrop) return;
+
+        isSidebarOpen = !isSidebarOpen;
+
+        if (isSidebarOpen) {
+            sidebar.classList.remove("-translate-x-full");
+            backdrop.classList.remove("hidden");
+            setTimeout(() => {
+                backdrop.classList.add("opacity-100");
+            }, 20);
+        } else {
+            sidebar.classList.add("-translate-x-full");
+            backdrop.classList.remove("opacity-100");
+            setTimeout(() => {
+                if (!isSidebarOpen) {
+                    backdrop.classList.add("hidden");
+                }
+            }, 300);
+        }
+    }
+
+    // ปิด Sidebar อัตโนมัติเมื่อกดเปลี่ยนหน้าจอ (เพื่อไม่ให้หน้าต่างเปิดค้างบดบังเนื้อหา)
+    function closeSidebarOnMobile() {
+        if (window.innerWidth < 768 && isSidebarOpen) {
+            toggleSidebar();
+        }
+    }
+</script>
 {% endblock %}
