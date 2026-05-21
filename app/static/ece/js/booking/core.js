@@ -316,9 +316,14 @@ async function handleRoute() {
   if (["my-bookings", "detail", "calendar", "dashboard"].includes(view)) {
     if (curView !== view) {
       activeBookingDraft = null;
-      calBookDate = null;
-      calBookKey = null;
-      calBookLabel = null;
+      // ถ้ากำลังเดินทาง calendar → dashboard คือ flow การจองจากปฏิทิน
+      // ให้คง calBookDate ไว้ อย่าล้าง
+      const keepCalDate = curView === "calendar" && view === "dashboard";
+      if (!keepCalDate) {
+        calBookDate = null;
+        calBookKey = null;
+        calBookLabel = null;
+      }
     }
   }
 

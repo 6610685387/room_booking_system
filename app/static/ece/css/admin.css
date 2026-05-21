@@ -47,3 +47,10 @@
 
 /* Util bar */
 .util-bar { transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+/* Badge: Cancelled — grey */
+.badge-cancelled {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+}

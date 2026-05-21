@@ -14,8 +14,18 @@ function vRoomBooking() {
 
   const preDateStart = draft.date_start || calBookDate || "";
   const preDateEnd = draft.date_end || calBookDate || "";
-  const preTimeStart = draft.time_start || "08:00";
-  const preTimeEnd = draft.time_end || "10:00";
+  // Default เวลาเป็นเวลาปัจจุบัน (ปัดขึ้นเป็นชั่วโมงถัดไป)
+  const _nowForTime = new Date();
+  _nowForTime.setMinutes(0, 0, 0);
+  _nowForTime.setHours(_nowForTime.getHours() + (new Date().getMinutes() > 0 ? 1 : 0));
+  const _defaultTimeStart = draft.time_start
+    ? ""
+    : `${String(_nowForTime.getHours()).padStart(2,"0")}:00`;
+  const _defaultTimeEnd = draft.time_end
+    ? ""
+    : `${String(_nowForTime.getHours() + 1 < 24 ? _nowForTime.getHours() + 1 : 23).padStart(2,"0")}:${_nowForTime.getHours() + 1 < 24 ? "00" : "59"}`;
+  const preTimeStart = draft.time_start || _defaultTimeStart;
+  const preTimeEnd = draft.time_end || _defaultTimeEnd;
   const prePurpose = draft.purpose_type || "teaching";
   const preSubjCode = draft.subject_code || "";
   const preSubjName = draft.subject_name || "";
@@ -52,6 +62,24 @@ function vRoomBooking() {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+  // ดาว Favorite สำหรับหน้าจอง
+  const isFavRoom = favRooms.some((r) => String(r.room_id) === String(room.room_id));
+  const favColorBook = isFavRoom
+    ? "text-amber-400 [font-variation-settings:'FILL'_1]"
+    : "text-white/70 hover:text-amber-400 [font-variation-settings:'FILL'_0]";
+  const favBtnBook = `
+    <button onclick="toggleFavourite('${room.room_id}', event); setTimeout(()=>{ const el=document.getElementById('bookFavBtn'); if(el){ const isFav=favRooms.some(r=>String(r.room_id)===String('${room.room_id}')); el.querySelector('span').className='material-symbols-outlined text-[22px] '+(isFav ? 'text-amber-400 [font-variation-settings:\\'FILL\\'_1]' : 'text-white/70 [font-variation-settings:\\'FILL\\'_0]'); } }, 400)"
+      id="bookFavBtn"
+      class="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center shadow hover:scale-110 transition-all z-20">
+      <span class="material-symbols-outlined text-[22px] ${favColorBook}">star</span>
+    </button>`;
+
+  // ป้ายเลขห้องมุมรูป
+  const roomCodeBadgeBook = `
+    <div class="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-sm text-white text-xs font-black z-20 select-none uppercase tracking-wider shadow">
+        ${room.room_code}
+    </div>`;
+
   return `
 <div class="p-6 sm:p-8">
     <div class="flex items-center gap-2 text-sm text-slate-400 mb-5">
@@ -65,6 +93,8 @@ function vRoomBooking() {
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="h-44 relative overflow-hidden bg-slate-100">
                     ${imgHtml}
+                    ${favBtnBook}
+                    ${roomCodeBadgeBook}
                     <div class="absolute inset-0 flex items-end p-5" style="background:linear-gradient(to top,rgba(0,0,0,.65),transparent)">
                         <div>
                             <h2 class="text-2xl font-bold text-white">${room.room_name}</h2>
@@ -159,7 +189,7 @@ function vRoomBooking() {
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">เวลาเริ่ม <span class="text-red-500">*</span></label>
-                            <input type="time" id="time_start" value="${preTimeStart}" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+                            <input type="time" id="time_start" value="${preTimeStart}" onchange="autoSetEndTime()" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">เวลาสิ้นสุด <span class="text-red-500">*</span></label>
@@ -484,6 +514,32 @@ async function submitBooking(roomId) {
     return;
   }
 
+  // ── Step 1: Pre-flight conflict check ───────────────────────────────────
+  btn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> กำลังตรวจสอบ...`;
+
+  let conflictReport = null;
+  try {
+    conflictReport = await api.post("/api/bookings/check-conflict/", payload);
+  } catch (checkErr) {
+    // ถ้า check-conflict ล้มเหลว ให้ข้ามไปส่งจองตรงๆ แทน
+    console.warn("Conflict pre-check failed, proceeding to submit:", checkErr);
+  }
+
+  if (conflictReport?.has_conflict && !payload.skip_conflicts) {
+    showConflictAlert(conflictReport);
+    showToast("มีเวลาจองที่ชนกัน กรุณาตรวจสอบด้านล่าง", "error");
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
+    return;
+  }
+
+  // ซ่อน alert เก่า (กรณี skip_conflicts เปิดอยู่ หรือไม่มี conflict)
+  const _conflictEl = document.getElementById("conflictAlert");
+  if (_conflictEl) _conflictEl.classList.add("hidden");
+
+  // ── Step 2: Submit booking ───────────────────────────────────────────────
+  btn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> กำลังส่ง...`;
+
   try {
     const result = await api.post("/api/bookings/", payload);
     calBookDate = null;
@@ -496,8 +552,12 @@ async function submitBooking(roomId) {
     );
     navigate("my-bookings");
   } catch (err) {
+    // Safety net: อาจเกิด race condition หลังผ่าน pre-check
     if (err.status === 409) {
-      await fetchAndShowConflictAlert(err.data?.report, payload);
+      const fallbackReport = err.data?.report
+        ? { ...err.data.report, suggested_rooms: [] }
+        : null;
+      if (fallbackReport) showConflictAlert(fallbackReport);
       showToast(err.data?.error || "มีเวลาจองที่ชนกัน", "error");
     } else {
       showToast(
@@ -536,30 +596,29 @@ function selectSuggestedRoom(newRoomId) {
 }
 window.selectSuggestedRoom = selectSuggestedRoom;
 
-async function fetchAndShowConflictAlert(report, payload) {
+/**
+ * showConflictAlert — แสดง conflict alert โดยรับ response จาก /api/bookings/check-conflict/ โดยตรง
+ * ไม่ต้อง call API ซ้ำ เพราะ suggested_rooms ถูกส่งมาพร้อมกันแล้ว
+ */
+function showConflictAlert(conflictReport) {
   const el = document.getElementById("conflictAlert");
-  if (!el || !report) return;
+  if (!el || !conflictReport) return;
 
+  // ── Suggested rooms ──────────────────────────────────────────────────────
   let suggestionsHtml = "";
-  try {
-    const conflictReport = await api.post(
-      "/api/bookings/check-conflict/",
-      payload,
-    );
-    const suggestedRooms = conflictReport.suggested_rooms || [];
+  const suggestedRooms = conflictReport.suggested_rooms || [];
+  if (suggestedRooms.length > 0) {
+    const favIds = new Set(favRooms.map((r) => Number(r.room_id)));
+    const sorted = [...suggestedRooms].sort((a, b) => {
+      const aF = favIds.has(Number(a.room_id)) ? 1 : 0;
+      const bF = favIds.has(Number(b.room_id)) ? 1 : 0;
+      return bF - aF;
+    });
 
-    if (suggestedRooms.length > 0) {
-      const favIds = new Set(favRooms.map((r) => Number(r.room_id)));
-      const sortedSuggestions = [...suggestedRooms].sort((a, b) => {
-        const aIsFav = favIds.has(Number(a.room_id)) ? 1 : 0;
-        const bIsFav = favIds.has(Number(b.room_id)) ? 1 : 0;
-        return bIsFav - aIsFav;
-      });
-
-      const cards = sortedSuggestions
-        .map((r) => {
-          const isFav = favIds.has(Number(r.room_id));
-          return `
+    const cards = sorted
+      .map((r) => {
+        const isFav = favIds.has(Number(r.room_id));
+        return `
 <div class="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-xl hover:border-primary transition-all">
     <div class="min-w-0 pr-2">
         <div class="flex items-center gap-1.5 flex-wrap">
@@ -571,31 +630,36 @@ async function fetchAndShowConflictAlert(report, payload) {
     </div>
     <button onclick="selectSuggestedRoom(${r.room_id})" class="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">add_circle</span>จองห้องนี้</button>
 </div>`;
-        })
-        .join("");
+      })
+      .join("");
 
-      suggestionsHtml = `
+    suggestionsHtml = `
 <div class="mt-3.5 space-y-2">
     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-primary">meeting_room</span>ห้องแนะนำอื่นที่ว่างตรงเวลาของท่าน:</p>
     <div class="space-y-1.5 max-h-60 overflow-y-auto pr-1">${cards}</div>
 </div>`;
-    }
-  } catch (err) {
-    console.error("Failed to fetch alternative suggested rooms:", err);
   }
 
-  const conflicts = (report.conflicts || [])
-    .map(
-      (c) =>
-        `<li class="text-xs text-red-700">• ${c.date} ${c.start_time}–${c.end_time} (${c.conflict_type})</li>`,
-    )
-    .join("");
+  // ── Conflict list (booking + blackout) ───────────────────────────────────
+  const bookingConflicts = (conflictReport.conflicts || []).map(
+    (c) =>
+      `<li class="text-xs text-red-700">• ${c.date} ${c.start_time}–${c.end_time} (ถูกจองโดย ${c.booker_name || "ผู้อื่น"})</li>`,
+  );
+  const blackoutConflicts = (conflictReport.blackouts || []).map(
+    (c) =>
+      `<li class="text-xs text-orange-700">• ${c.date} — ปิดปรับปรุง${c.reason ? `: ${c.reason}` : ""}</li>`,
+  );
+  const conflictItems = [...bookingConflicts, ...blackoutConflicts].join("");
+
+  const totalCount =
+    (conflictReport.summary?.conflict_count || 0) +
+    (conflictReport.summary?.blackout_count || 0);
 
   el.innerHTML = `
 <div class="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-4">
     <div>
-        <p class="text-sm font-bold text-red-700 flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-[18px]">warning</span>มีวันที่และช่วงเวลาจองชน (${report.summary?.conflict_count || 0} วัน)</p>
-        <ul class="space-y-0.5 max-h-32 overflow-y-auto pl-1">${conflicts}</ul>
+        <p class="text-sm font-bold text-red-700 flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-[18px]">warning</span>มีวันที่และช่วงเวลาจองชน (${totalCount} วัน)</p>
+        <ul class="space-y-0.5 max-h-32 overflow-y-auto pl-1">${conflictItems}</ul>
         <p class="text-[11px] text-slate-500 mt-2">เปิดสวิตช์ "ข้ามวันที่ชน" ด้านบนเพื่อเลือกจองเฉพาะวันที่ว่าง</p>
     </div>
     ${suggestionsHtml}
@@ -631,3 +695,19 @@ async function rebookFromHistory(bookingId) {
   }
 }
 window.rebookFromHistory = rebookFromHistory;
+// ตั้งเวลาสิ้นสุดอัตโนมัติ +1 ชม. เมื่อผู้ใช้เลือกเวลาเริ่ม
+function autoSetEndTime() {
+  const startEl = document.getElementById("time_start");
+  const endEl = document.getElementById("time_end");
+  if (!startEl || !endEl) return;
+  const [hStr, mStr] = startEl.value.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const newH = h + 1;
+  if (newH >= 24) {
+    endEl.value = "23:59";
+  } else {
+    endEl.value = `${String(newH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+}
+window.autoSetEndTime = autoSetEndTime;
