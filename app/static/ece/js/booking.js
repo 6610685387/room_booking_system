@@ -549,10 +549,13 @@ function renderRoomCards() {
                <div class="text-sm font-black text-slate-700">${room.room_code}</div>
              </div>`;
 
-    const favIcon = isFav ? "star" : "grade";
+    const favIcon = "star";
+
+    // ใช้ font-variation-settings เพื่อควบคุมการถมสี (FILL) ของ Material Symbols
     const favColor = isFav
-      ? "text-amber-500 fill-amber-500"
-      : "text-slate-400 hover:text-amber-500";
+      ? "text-amber-500 [font-variation-settings:'FILL'_1]"
+      : "text-slate-400 hover:text-amber-500 [font-variation-settings:'FILL'_0]";
+
     const favBtn = `
       <button onclick="toggleFavourite('${room.room_id}', event)" 
               class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-105 transition-all z-10">
