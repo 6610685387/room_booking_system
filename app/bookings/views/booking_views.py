@@ -258,7 +258,7 @@ class BookingViewSet(viewsets.ViewSet):
         """
         qs = (
             Booking.objects.filter(booker=request.user)
-            .select_related("room", "teaching_info", "training_info")
+            .select_related("room", "teaching_info", "training_info", "recurring_group")
             .order_by("-start_datetime")
         )
 
@@ -283,6 +283,14 @@ class BookingViewSet(viewsets.ViewSet):
             elif bk.purpose_type == "training" and hasattr(bk, "training_info"):
                 subject = bk.training_info.topic
 
+            is_recurring = False
+            if (
+                bk.recurring_group_id
+                and hasattr(bk, "recurring_group")
+                and bk.recurring_group
+            ):
+                is_recurring = bk.recurring_group.date_start != bk.recurring_group.date_end
+
             results.append(
                 {
                     "booking_id": bk.booking_id,
@@ -293,6 +301,7 @@ class BookingViewSet(viewsets.ViewSet):
                     "status": bk.status,
                     "purpose_type": bk.purpose_type,
                     "recurring_group_id": bk.recurring_group_id,
+                    "is_recurring": is_recurring,
                     "subject": subject,
                     "additional_requests": bk.additional_requests,
                     "reject_reason": bk.reject_reason,
@@ -311,7 +320,7 @@ class BookingViewSet(viewsets.ViewSet):
         """
         bk = get_object_or_404(
             Booking.objects.select_related(
-                "room", "booker", "teaching_info", "training_info"
+                "room", "booker", "teaching_info", "training_info", "recurring_group"
             ),
             pk=pk,
         )
@@ -320,6 +329,14 @@ class BookingViewSet(viewsets.ViewSet):
         now_bkk = localtime(timezone.now())
         local_start = localtime(bk.start_datetime)
         can_cancel = (bk.status in ["Pending", "Approved"]) and (local_start > now_bkk)
+
+        is_recurring = False
+        if (
+            bk.recurring_group_id
+            and hasattr(bk, "recurring_group")
+            and bk.recurring_group
+        ):
+            is_recurring = bk.recurring_group.date_start != bk.recurring_group.date_end
 
         data = {
             "booking_id": bk.booking_id,
@@ -340,6 +357,7 @@ class BookingViewSet(viewsets.ViewSet):
             "teaching_info": None,
             "training_info": None,
             "recurring_group_id": bk.recurring_group_id,
+            "is_recurring": is_recurring,
             "additional_requests": bk.additional_requests,
             "admin_notes": bk.admin_notes,
             "reject_reason": bk.reject_reason,
