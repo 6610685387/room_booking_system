@@ -1,0 +1,76 @@
+/* ───────────────────────────────────────────────
+   booking.css  –  Styles for ece-booking page
+─────────────────────────────────────────────── */
+
+/* ── Room cards ── */
+.room-card { transition: box-shadow .2s, transform .2s; }
+.room-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-2px); }
+
+/* ── Timeline bar ── */
+.tl-bg {
+    height: 8px; background: #e2e8f0;
+    border-radius: 99px; position: relative; overflow: hidden;
+}
+.tl-bar { position: absolute; height: 100%; border-radius: 99px; background: #fb923c; }
+
+/* ── Calendar ── */
+.cal-grid  { display: grid; grid-template-columns: repeat(7,1fr); }
+.week-grid { display: grid; grid-template-columns: 56px repeat(7,1fr); }
+.cal-day {
+    min-height: 110px;
+    transition: background .12s;
+    cursor: pointer;
+}
+.cal-day:hover { background: #f8fafc; }
+.cal-day.pre-selected {
+    background: #fff1f2 !important;
+    outline: 2px solid #7e0000;
+    outline-offset: -2px;
+}
+
+/* ── Calendar chip ── */
+.chip-approved { background:#d1fae5; border-left:2px solid #10b981; color:#065f46; }
+.chip-pending  { background:#fef3c7; border-left:2px solid #f59e0b; color:#92400e; }
+.block-approved { background:#d1fae5; border-left:4px solid #10b981; color:#065f46; }
+.block-pending  { background:#fef3c7; border-left:4px solid #f59e0b; color:#92400e; }
+
+/* ── View tabs ── */
+.view-tab {
+    padding: 6px 15px;
+    font-weight: 700;
+    font-size: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s;
+    color: #64748b;
+    border: none;
+    background: transparent;
+}
+.view-tab.active { background: #7e0000; color: #fff; }
+
+/* ── Filter dropdown ── */
+.filter-dd {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 210px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.10);
+    z-index: 200;
+    padding: 8px;
+}
+.filter-dd.open { display: block; }
+.filter-opt {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .1s;
+}
+.filter-opt:hover { background: #f8fafc; }
+.filter-opt input[type=checkbox] { accent-color: #7e0000; width:14px; height:14px; }
+
+/* ── Day-of-week pill ── */
+.day-pill input:checked + div { background:#7e0000; color:#fff; border-color:#7e0000; }

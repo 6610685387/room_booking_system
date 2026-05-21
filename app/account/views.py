@@ -30,10 +30,8 @@ def _tu_headers():
 
 def _redirect_by_role(user):
     if user.role == User.Role.ADMIN:
-        return redirect("/login-success/admin/")
-    if user.role == User.Role.STUDENT:
-        return redirect("/login-success/student/")
-    return redirect("/login-success/lecturer/")
+        return redirect("/api/bookings/dashboard/admin/")
+    return redirect("/api/bookings/dashboard/lecturer/")
 
 
 def _upsert_and_login(request, username, profile_defaults, fallback_role):
