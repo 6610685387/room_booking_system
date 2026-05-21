@@ -309,6 +309,43 @@ class BookingAPITest(APITestCase):
         self.assertEqual(response_my.data[0]["additional_requests"], "Request mic")
         self.assertEqual(response_my.data[0]["admin_notes"], "Approved with mic")
 
+    def test_is_recurring_flag(self):
+        # สร้าง Single Booking
+        group_single = RecurringGroup.objects.create(
+            booker=self.lecturer, room=self.room, day_pattern="Mon",
+            date_start=date(2026, 5, 4), date_end=date(2026, 5, 4), # วันเดียวกัน
+            time_start=time(10, 0), time_end=time(12, 0)
+        )
+        Booking.objects.create(
+            room=self.room, booker=self.lecturer, 
+            start_datetime=make_aware(datetime.combine(date(2026, 5, 4), time(10, 0)), BKK), 
+            end_datetime=make_aware(datetime.combine(date(2026, 5, 4), time(12, 0)), BKK), 
+            status="Approved", purpose_type="training", recurring_group=group_single
+        )
+
+        # สร้าง Recurring Booking
+        group_recur = RecurringGroup.objects.create(
+            booker=self.lecturer, room=self.room, day_pattern="Tue",
+            date_start=date(2026, 5, 5), date_end=date(2026, 5, 12), # คนละวัน
+            time_start=time(10, 0), time_end=time(12, 0)
+        )
+        Booking.objects.create(
+            room=self.room, booker=self.lecturer, 
+            start_datetime=make_aware(datetime.combine(date(2026, 5, 5), time(10, 0)), BKK), 
+            end_datetime=make_aware(datetime.combine(date(2026, 5, 5), time(12, 0)), BKK), 
+            status="Approved", purpose_type="training", recurring_group=group_recur
+        )
+
+        url_my = reverse("bookings:booking-my-bookings")
+        response = self.client.get(url_my)
+        self.assertEqual(response.status_code, 200)
+        
+        # ตรวจสอบค่า is_recurring
+        # รายการแรกสุด (start_datetime 2026-05-05) ต้องเป็น True
+        self.assertTrue(response.data[0]["is_recurring"])
+        # รายการที่สอง (start_datetime 2026-05-04) ต้องเป็น False
+        self.assertFalse(response.data[1]["is_recurring"])
+
     def test_cancel_recurring_booking(self):
         # สร้าง Group และ Booking 2 วันในอนาคต
         group = RecurringGroup.objects.create(
