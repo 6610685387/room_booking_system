@@ -19,7 +19,7 @@ class BlackoutPeriodSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlackoutPeriod
         fields = "__all__"
-        read_only_fields = ["blackout_id"]
+        read_only_fields = ["blackout_id", "created_by"]
 
     def validate(self, data):
         if data["start_datetime"] > data["end_datetime"]:
