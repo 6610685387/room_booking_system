@@ -201,7 +201,7 @@ async function refreshDashboardRooms() {
   };
 
   await Promise.all([loadRooms(params), loadFavRooms()]);
-  await loadAllSchedules(); // โหลดข้อมูลสล็อตจองรวมใหม่เมื่อค้นหาห้องแดชบอร์ด
+  await loadAllSchedules();
   redrawRooms();
 }
 
@@ -242,7 +242,7 @@ async function refreshDataSilent() {
     buildCalBookings();
 
     if (curView === "dashboard") {
-      await loadAllSchedules(); // เรียกซิงค์ข้อมูลสล็อตรายสัปดาห์เบื้องหลังแบบเงียบ
+      await loadAllSchedules();
       redrawRooms();
     } else if (curView === "calendar") {
       calRender();
@@ -483,6 +483,26 @@ function vDashboard() {
 </div>`;
 }
 
+function isBusy(room) {
+  const h = new Date().getHours();
+  const todayKey = calFKey(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    new Date().getDate(),
+  );
+  const todayBk = (calBookings[todayKey] || []).filter(
+    (b) => b.room === room.room_code,
+  );
+  return todayBk.some((b) => b.h <= h && b.h + b.dur > h);
+}
+
+// ตรวจสอบวิเคราะห์สถานะการจอง ณ ชั่วโมงปัจจุบันจากสล็อตจองของวันนี้
+function getCurrentBookingStatusFromList(todayBks) {
+  const h = new Date().getHours();
+  const activeBk = todayBks.find((b) => b.h <= h && b.h + b.dur > h);
+  return activeBk ? activeBk.status : null;
+}
+
 function renderRoomCards() {
   if (rooms.length === 0)
     return `<div class="text-center py-16 text-slate-400">
@@ -515,7 +535,6 @@ function renderRoomCards() {
     const currentStatus = getCurrentBookingStatusFromList(todayBks);
     const isFav = favIds.has(String(room.room_id));
 
-    // แสดงพล็อตเวลาตามสี แดง (ถูกจองแล้ว) และ ส้ม (รอพิจารณาคำขอจอง)
     const bars = todayBks
       .map((b) => {
         const l = ((b.h - 8) / 12) * 100,
@@ -874,8 +893,12 @@ function vRoomBooking() {
                         </div>
                     </div>
 
+                    <!-- Rule 5: ติดตั้งปุ่มเลือกวัน จ-ศ ทั้งหมด หรือเอาออกทั้งหมด -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-2">วันในสัปดาห์ <span class="text-slate-400 font-normal">(เลือกหลายวันสำหรับ Recurring)</span></label>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">วันในสัปดาห์</label>
+                            <button type="button" onclick="toggleAllWeekdays()" id="btnToggleAllDays" class="text-xs font-bold text-primary hover:underline">เลือกทุกวัน</button>
+                        </div>
                         <div class="flex gap-2 flex-wrap">${dayPills}</div>
                     </div>
 
@@ -924,6 +947,23 @@ function vRoomBooking() {
 </div>`;
 }
 
+// ฟังก์ชันช่วยสลับการเลือกวันทำงาน (จันทร์ - ศุกร์) ทั้งหมดแบบสวิตช์เปิด/ปิด
+function toggleAllWeekdays() {
+  const checkboxes = document.querySelectorAll("input[name='rec_day']");
+  const anyUnchecked = Array.from(checkboxes).some((cb) => !cb.checked);
+
+  checkboxes.forEach((cb) => {
+    cb.checked = anyUnchecked;
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  const btn = document.getElementById("btnToggleAllDays");
+  if (btn) {
+    btn.textContent = anyUnchecked ? "ล้างทั้งหมด" : "เลือกทุกวัน";
+  }
+}
+window.toggleAllWeekdays = toggleAllWeekdays;
+
 function hlPurpose(n) {
   document.getElementById("pl1").style =
     n === 1 ? "border-color:#7e0000;background:#fff1f2" : "";
@@ -949,16 +989,16 @@ function syncBookingDates(triggerSource) {
   const startVal = startEl.value;
   const endVal = endEl.value;
 
+  // หากเปลี่ยนวันที่เริ่มต้นกับวันสิ้นสุดเป็นวันเดียวกัน (Single Day Booking)
+  // ให้ล้างค่าปุ่มวันในสัปดาห์ทั้งหมดโดยอัตโนมัติ เพื่อให้เป็นสอดคล้องกับ Rule 1 ที่ไม่ต้องส่งวันไป
   if (startVal && startVal === endVal) {
-    const [year, month, day] = startVal.split("-").map(Number);
-    const dateObj = new Date(year, month - 1, day);
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const dayOfWeek = dayNames[dateObj.getDay()];
-
     document.querySelectorAll("input[name='rec_day']").forEach((cb) => {
-      cb.checked = cb.value === dayOfWeek;
+      cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     });
+
+    const btn = document.getElementById("btnToggleAllDays");
+    if (btn) btn.textContent = "เลือกทุกวัน";
   }
 }
 
@@ -1081,17 +1121,24 @@ async function submitBooking(roomId) {
     ...document.querySelectorAll("input[name=rec_day]:checked"),
   ].map((c) => c.value);
 
+  const dateStart = document.getElementById("date_start").value;
+  const dateEnd = document.getElementById("date_end").value;
+
+  // กฎข้อที่ 1: ตรวจสอบสถานะการจองแบบวันเดียว (เริ่มและสิ้นสุดวันเดียวกัน หรือไม่ได้ระบุสิ้นสุด)
+  const isSingleDay = !dateEnd || dateStart === dateEnd;
+
+  if (isSingleDay && days.length > 0) {
+    showToast("เลือกแค่วันเดียวไม่ต้องส่งวัน", "error");
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
+    return;
+  }
+
   const payload = {
     room_id: roomId,
-    date_start: document.getElementById("date_start").value,
-    date_end: document.getElementById("date_end").value,
-    days_of_week: days.length
-      ? days
-      : [
-          ["Mon", "Mon", "Tue", "Wed", "Thu", "Fri", "Mon"][
-            new Date().getDay()
-          ],
-        ],
+    date_start: dateStart,
+    date_end: dateEnd || dateStart,
+    days_of_week: null, // กำหนดค่าด้านล่างตามโครงสร้างและกฎ
     time_start: document.getElementById("time_start").value,
     time_end: document.getElementById("time_end").value,
     purpose_type: purposeType,
@@ -1099,6 +1146,20 @@ async function submitBooking(roomId) {
     additional_requests:
       document.getElementById("additional_requests")?.value || "",
   };
+
+  // จัดการ parameter days_of_week ให้สอดคล้องกับพฤติกรรมการจอง
+  if (isSingleDay) {
+    // กฎข้อที่ 1: ไม่ส่งข้อมูลวันเมื่อจองวันเดียวกัน ปล่อยให้ API หลังบ้านบังคับวันให้อย่างถูกต้อง
+    payload.days_of_week = null;
+  } else {
+    if (days.length === 0) {
+      // กฎข้อที่ 2: เลือกจองเป็นช่วงวันที่แต่ไม่เลือกปุ่มวันในสัปดาห์ ให้ติ๊กเลือกและจองให้ครบทุกวัน (Mon - Sun)
+      payload.days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    } else {
+      // กฎข้อที่ 3: เลือกจองช่วงวันที่และระบุวันในสัปดาห์ ให้จองเฉพาะวันที่กำหนด
+      payload.days_of_week = days;
+    }
+  }
 
   if (purposeType === "teaching") {
     payload.teaching_info = {
@@ -1112,6 +1173,37 @@ async function submitBooking(roomId) {
     };
   }
 
+  // กฎข้อที่ 4: ตรวจสอบความครบถ้วนและส่ง msg error ชี้แจงรายละเอียดสิ่งที่ขาดหาย
+  if (!payload.date_start) {
+    showToast("กรอกข้อมูลไม่ครบ: กรุณาระบุวันที่เริ่มการจอง", "error");
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
+    return;
+  }
+
+  if (purposeType === "teaching") {
+    if (
+      !payload.teaching_info.subject_code ||
+      !payload.teaching_info.subject_name ||
+      !payload.teaching_info.program_type
+    ) {
+      showToast(
+        "กรอกข้อมูลไม่ครบ: กรุณาระบุรหัสวิชา ชื่อวิชา และหลักสูตรให้ครบถ้วน",
+        "error",
+      );
+      btn.disabled = false;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
+      return;
+    }
+  } else {
+    if (!payload.training_info.topic) {
+      showToast("กรอกข้อมูลไม่ครบ: กรุณาระบุหัวข้อการอบรมหรือติว", "error");
+      btn.disabled = false;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
+      return;
+    }
+  }
+
   const now = new Date();
   const todayY = now.getFullYear();
   const todayM = String(now.getMonth() + 1).padStart(2, "0");
@@ -1121,13 +1213,6 @@ async function submitBooking(roomId) {
   const curHour = String(now.getHours()).padStart(2, "0");
   const curMin = String(now.getMinutes()).padStart(2, "0");
   const curTimeStr = `${curHour}:${curMin}`;
-
-  if (!payload.date_start) {
-    showToast("กรุณาเลือกวันที่เริ่ม", "error");
-    btn.disabled = false;
-    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
-    return;
-  }
 
   if (payload.date_start < todayStr) {
     showToast("ไม่สามารถเลือกวันที่จองย้อนหลังในอดีตได้", "error");
@@ -1143,16 +1228,14 @@ async function submitBooking(roomId) {
     return;
   }
 
-  if (payload.date_start === todayStr) {
-    if (payload.time_start < curTimeStr) {
-      showToast(
-        `ไม่สามารถเลือกเวลาเริ่มย้อนหลังได้ (เวลาปัจจุบันคือ ${curTimeStr} น.)`,
-        "error",
-      );
-      btn.disabled = false;
-      btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
-      return;
-    }
+  if (payload.date_start === todayStr && payload.time_start < curTimeStr) {
+    showToast(
+      `ไม่สามารถเลือกเวลาเริ่มย้อนหลังได้ (เวลาปัจจุบันคือ ${curTimeStr} น.)`,
+      "error",
+    );
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
+    return;
   }
 
   if (payload.time_start >= payload.time_end) {
@@ -1176,8 +1259,12 @@ async function submitBooking(roomId) {
   } catch (err) {
     if (err.status === 409) {
       showConflictAlert(err.data?.report);
+      showToast(err.data?.error || "มีเวลาจองที่ชนกัน", "error");
     } else {
-      showToast(err.message || "เกิดข้อผิดพลาด", "error");
+      // กฎข้อที่ 4: การแสดงข้อความ error จริงจากฝั่งเซิร์ฟเวอร์หลังบ้าน
+      const serverError =
+        err.data?.error || err.message || "เกิดข้อผิดพลาดในการจอง";
+      showToast(serverError, "error");
     }
     btn.disabled = false;
     btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">send</span> ส่งคำขอจอง`;
