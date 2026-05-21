@@ -102,21 +102,82 @@ function openEditRoom(roomId) {
   );
   if (!r) return;
   editRoomId = roomId;
-  document.getElementById("roomModalTitle").textContent = "แก้ไขห้อง";
-  document.getElementById("rmCode").value = r.room_code;
-  document.getElementById("rmName").value = r.room_name;
-  document.getElementById("rmType").value = r.room_type || "Meeting Room";
-  document.getElementById("rmSeats").value = r.capacity;
-  document.getElementById("rmActive").checked = r.is_active !== false;
+  
+  // 1. จัดการข้อมูลพื้นฐานของห้อง (เช็คก่อนเซ็ตค่า)
+  const elTitle = document.getElementById("roomModalTitle");
+  if (elTitle) elTitle.textContent = "แก้ไขห้อง";
 
+  const elCode = document.getElementById("rmCode");
+  if (elCode) elCode.value = r.room_code || "";
+
+  const elName = document.getElementById("rmName");
+  if (elName) elName.value = r.room_name || "";
+
+  const elType = document.getElementById("rmType");
+  if (elType) elType.value = r.room_type || "Meeting Room";
+
+  const elSeats = document.getElementById("rmSeats");
+  if (elSeats) elSeats.value = r.capacity || "";
+  
+  // 2. จัดการ Checkbox สถานะเปิดให้บริการ
+  const elActive = document.getElementById("rmActive");
+  if (elActive) {
+    elActive.checked = r.is_active !== false;
+  }
+
+  // 3. จัดการฟอร์ม Blackout (ป้องกัน Error ถ้ายังไม่ได้ใส่ HTML)
+  const boStart = document.getElementById("modalBoStart");
+  if (boStart) boStart.value = "";
+
+  const boEnd = document.getElementById("modalBoEnd");
+  if (boEnd) boEnd.value = "";
+
+  const boReason = document.getElementById("modalBoReason");
+  if (boReason) boReason.value = "";
+
+  // 4. เรียกฟังก์ชันซ่อน/แสดงฟอร์ม Blackout (ต้องมีฟังก์ชันนี้ในไฟล์ด้วย)
+  if (typeof toggleBlackoutFields === 'function') {
+    toggleBlackoutFields();
+  }
+
+  // 5. จัดการรูปภาพและปุ่มลบ
   const imgEl = document.getElementById("rmImage");
   if (imgEl) imgEl.value = "";
 
   const btnDelete = document.getElementById("btnDeleteRoom");
   if (btnDelete) btnDelete.classList.remove("hidden");
 
-  document.getElementById("roomModal").classList.remove("hidden");
+  // 6. เปิด Modal
+  const modal = document.getElementById("roomModal");
+  if (modal) modal.classList.remove("hidden");
 }
+
+// ใช้ window. เพื่อบังคับให้ฟังก์ชันนี้เป็น Global (HTML จะมองเห็นแน่นอน)
+window.toggleBlackoutFields = function() {
+    console.log("ฟังก์ชัน toggleBlackoutFields ทำงานแล้ว!"); // ล็อกดูว่ามันถูกเรียกไหม
+    
+    const elActive = document.getElementById("rmActive");
+    const blackoutDiv = document.getElementById("blackoutFields");
+    
+    if (elActive && blackoutDiv) {
+        console.log("สถานะ Checkbox (true=เปิด, false=ปิด):", elActive.checked);
+        
+        if (!elActive.checked) {
+            blackoutDiv.classList.remove("hidden");
+        } else {
+            blackoutDiv.classList.add("hidden");
+            
+            const boStart = document.getElementById("modalBoStart");
+            const boEnd = document.getElementById("modalBoEnd");
+            const boReason = document.getElementById("modalBoReason");
+            if (boStart) boStart.value = "";
+            if (boEnd) boEnd.value = "";
+            if (boReason) boReason.value = "";
+        }
+    } else {
+        console.error("หา Element ไม่เจอ: rmActive หรือ blackoutFields");
+    }
+};
 
 function saveRoom() {
   const code = document.getElementById("rmCode").value.trim();
@@ -126,6 +187,27 @@ function saveRoom() {
     showToast("กรุณากรอกข้อมูลรหัสห้องและชื่อห้องให้ครบ", "error");
     return;
   }
+
+  const isActive = document.getElementById("rmActive").checked;
+
+    if (!isActive) {
+        const startVal = document.getElementById("modalBoStart").value;
+        const endVal = document.getElementById("modalBoEnd").value;
+        const reasonVal = document.getElementById("modalBoReason").value;
+
+        if (!startVal || !endVal || !reasonVal) {
+            showToast("กรุณากรอกเวลาเริ่ม เวลาสิ้นสุด และเหตุผลให้ครบถ้วน", "error");
+            return; 
+        }
+
+        const startDate = new Date(startVal);
+        const endDate = new Date(endVal);
+        
+        if (endDate <= startDate) {
+            showToast("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น", "error");
+            return; 
+        }
+    }
 
   const isEdit = !!editRoomId;
   document.getElementById("saveConfirmTitle").textContent = isEdit
@@ -159,7 +241,6 @@ async function executeSaveRoom() {
   formData.append("room_name", name);
   formData.append("room_type", type);
   formData.append("capacity", seats !== "" ? Number(seats) : "");
-  formData.append("is_active", isActive ? "true" : "false");
 
   if (imageInput && imageInput.files && imageInput.files[0]) {
     formData.append("room_image", imageInput.files[0]);
@@ -226,7 +307,30 @@ async function executeSaveRoom() {
       throw new Error(errMsg);
     }
 
-    await response.json();
+    const resData = await response.json();
+
+    if (!isActive) {
+      const boData = new FormData();
+      // ปรับ id ให้ตรงกับที่ backend ส่งกลับมา (เช่น resData.id หรือ resData.room_id)
+      boData.append("room", editRoomId || resData.id || resData.room_id); 
+      boData.append("start_datetime", document.getElementById("modalBoStart").value);
+      boData.append("end_datetime", document.getElementById("modalBoEnd").value);
+      boData.append("reason", document.getElementById("modalBoReason").value);
+
+      const boResponse = await fetch("/api/admin/blackout/", {
+        method: "POST",
+        headers: headers,
+        body: boData,
+        credentials: "same-origin",
+      });
+
+      if (!boResponse.ok) {
+        const errorDetail = await boResponse.text();
+        console.error("Blackout Error:", errorDetail);
+        throw new Error(`บันทึกห้องสำเร็จ แต่สร้าง Blackout ไม่สำเร็จ\nสาเหตุจาก Backend: ${errorDetail}`);
+      }
+    }
+
     showToast(
       editRoomId ? "แก้ไขห้องเรียบร้อยแล้ว" : "เพิ่มห้องเรียบร้อยแล้ว",
       "check_circle",
