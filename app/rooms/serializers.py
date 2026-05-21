@@ -6,7 +6,7 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = "__all__"
-        read_only_fields = ["room_id", "created_at", "updated_at"]
+        read_only_fields = ["room_id", "created_at", "updated_at", "updated_by"]
 
 
 class RoomBriefSerializer(serializers.ModelSerializer):
@@ -30,4 +30,4 @@ class BlackoutPeriodSerializer(serializers.ModelSerializer):
 class BlackoutPeriodReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlackoutPeriod
-        fields = ["blackout_id", "room_id", "start_datetime", "end_datetime", "reason"]
+        fields = ["blackout_id", "room", "start_datetime", "end_datetime", "reason"]

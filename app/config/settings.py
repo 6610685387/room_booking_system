@@ -257,3 +257,7 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 INSTALLED_APPS += ["django_celery_beat"]  # noqa: F821
+
+SPECTACULAR_SETTINGS = {
+    'COMPONENT_SPLIT_REQUEST': True,
+}

@@ -1,11 +1,13 @@
 from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import localtime
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, status, serializers
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from drf_spectacular.utils import extend_schema
 from rooms.models import Room
-from rooms.serializers import RoomBriefSerializer
+from rooms.serializers import RoomSerializer
 from bookings.models import Booking
 
 
@@ -17,10 +19,105 @@ def blackout_room(request):
     return Response(status=204)
 
 
-class AdminCRUDViewSet(viewsets.ModelViewSet):
-    queryset = Room.objects.all()
-    serializer_class = RoomBriefSerializer
+@extend_schema(
+    request={"multipart/form-data": RoomSerializer}, 
+    responses=RoomSerializer
+)
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+@parser_classes([MultiPartParser, FormParser])
+def room_list_create_api(request):
+    if request.method == "GET":
+        rooms = Room.objects.all()
+        serializer = RoomSerializer(rooms, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+    elif request.method == "POST":
+        room_code = request.data.get("room_code")
+        room_name = request.data.get("room_name")
+        room_type = request.data.get("room_type")
+        capacity = request.data.get("capacity")
+        is_active_str = request.data.get("is_active", "True")
+        room_image = request.FILES.get("room_image")
+
+        if not all([room_code, room_name, room_type, capacity]):
+            return Response({"error": "ข้อมูลไม่ครบถ้วน"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if Room.objects.filter(room_code=room_code).exists():
+            return Response({"error": "room_code นี้มีในระบบแล้ว"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            capacity_int = int(capacity)
+            if capacity_int <= 0:
+                return Response({"error": "capacity ต้องมากกว่า 0"}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return Response({"error": "capacity ต้องเป็นตัวเลข"}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_active = str(is_active_str).lower() in ['true', '1', 't', 'y', 'yes']
+
+        room = Room.objects.create(
+            room_code=room_code,
+            room_name=room_name,
+            room_type=room_type,
+            capacity=capacity_int,
+            is_active=is_active,
+            room_image=room_image,
+            updated_by=request.user
+        )
+
+        return Response(RoomSerializer(room).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(methods=["PATCH"], request={"multipart/form-data": RoomSerializer}, responses={200: RoomSerializer})
+@extend_schema(methods=["GET", "DELETE"], request=None) 
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAdminUser])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def room_detail_api(request, room_id):
+    room = get_object_or_404(Room, pk=room_id)
+
+    if request.method == "GET":
+        return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
+
+    elif request.method == "PATCH":
+        room_code = request.data.get("room_code")
+        capacity = request.data.get("capacity")
+
+        if room_code and room_code != room.room_code:
+            if Room.objects.filter(room_code=room_code).exists():
+                return Response({"error": "room_code นี้มีในระบบแล้ว"}, status=status.HTTP_400_BAD_REQUEST)
+            room.room_code = room_code
+
+        if capacity is not None:
+            try:
+                capacity_int = int(capacity)
+                if capacity_int <= 0:
+                    return Response({"error": "capacity ต้องมากกว่า 0"}, status=status.HTTP_400_BAD_REQUEST)
+                room.capacity = capacity_int
+            except ValueError:
+                return Response({"error": "capacity ต้องเป็นตัวเลข"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if "room_name" in request.data:
+            room.room_name = request.data.get("room_name")
+        if "room_type" in request.data:
+            room.room_type = request.data.get("room_type")
+        if "is_active" in request.data:
+            is_active_str = request.data.get("is_active")
+            room.is_active = str(is_active_str).lower() in ['true', '1', 't', 'y', 'yes']
+        if "room_image" in request.FILES:
+            room.room_image = request.FILES.get("room_image")
+
+        room.updated_by = request.user
+        room.save()
+
+        return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
+
+    elif request.method == "DELETE":
+        room.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT) #Delete success
+
+
+# ------- Booking -------
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
