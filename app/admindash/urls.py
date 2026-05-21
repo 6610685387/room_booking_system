@@ -6,8 +6,8 @@ urlpatterns = [
     path("", views.dashboard, name="admin_dashboard"),
     path("blackout/", views.blackout_room, name="blackout"),
     # --- room ---
-    path('api/rooms/', views.room_list_create_api, name='room_list_create'),
-    path('api/rooms/<int:room_id>/', views.room_detail_api, name='room_detail'),
+    path('rooms/', views.room_list_create_api, name='room_list_create'),
+    path('rooms/<int:room_id>/', views.room_detail_api, name='room_detail'),
     # --- booking ---
     path("bookings/", views.admin_booking_list, name="admin_booking_list"),
     path("bookings/<int:booking_id>/approve/", views.admin_booking_approve, name="admin_booking_approve"),
