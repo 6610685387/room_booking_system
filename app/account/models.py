@@ -7,29 +7,31 @@ from django.db import models
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, username, **extra_fields):
+    def create_user(self, username, password=None, **extra_fields):
         if not username:
             raise ValueError("ต้องมี username")
         user = self.model(username=username, **extra_fields)
-        user.set_unusable_password()
+        
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+            
         user.save(using=self._db)
         return user
 
     def create_superuser(self, username, password=None, **extra_fields):
-        extra_fields.setdefault("role", "Admin")
+        extra_fields.setdefault("role", "admin")
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        user = self.model(username=username, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
+        
+        return self.create_user(username, password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         ADMIN = 'admin', 'ผู้ดูแลระบบ (Admin)'
         LECTURER = 'lecturer', 'อาจารย์ (Lecturer)'
-        STUDENT = 'student', 'นักศึกษา (Student)'
 
     user_id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=50, unique=True)
@@ -61,4 +63,4 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_admin(self):
-        return self.role == "Admin"
+        return self.role == self.Role.ADMIN
