@@ -1,20 +1,53 @@
 from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import localtime
-from rest_framework import viewsets, status, serializers
+from django.utils import timezone
+from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema
-from rooms.models import Room
-from rooms.serializers import RoomSerializer
+from rooms.models import Room, BlackoutPeriod
+from rooms.serializers import RoomSerializer, BlackoutPeriodSerializer
 from bookings.models import Booking
 
+# --- Blackout ---
+class BlackoutPeriodCreateView(generics.CreateAPIView):
+    queryset = BlackoutPeriod.objects.all()
+    serializer_class = BlackoutPeriodSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-def blackout_room(request):
-    return Response(status=204)
+    def perform_create(self, serializer):
+        blackout = serializer.save(created_by=self.request.user)
+        
+        now = timezone.now()
+        if blackout.start_datetime <= now <= blackout.end_datetime:
+            room = blackout.room
+            room.is_active = False
+            room.save(update_fields=['is_active'])
 
+class BlackoutPeriodDeleteView(generics.DestroyAPIView):
+    queryset = BlackoutPeriod.objects.all()
+    serializer_class = BlackoutPeriodSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'blackout_id'
 
+    def perform_destroy(self, instance):
+        room = instance.room
+        
+        instance.delete()
+        
+        now = timezone.now()
+        has_active_blackout = room.blackout_periods.filter(
+            start_datetime__lte=now,
+            end_datetime__gte=now
+        ).exists()
+        
+        if not has_active_blackout and not room.is_active:
+            room.is_active = True
+            room.save(update_fields=['is_active'])
+
+# --- Room CRUD ---
 @extend_schema(
     request={"multipart/form-data": RoomSerializer}, 
     responses=RoomSerializer
@@ -25,6 +58,20 @@ def blackout_room(request):
 def room_list_create_api(request):
     if request.method == "GET":
         rooms = Room.objects.all()
+        now = timezone.now()
+        
+        for room in rooms:
+            is_blackout = BlackoutPeriod.objects.filter(
+                room=room,
+                start_datetime__lte=now,
+                end_datetime__gte=now
+            ).exists()
+            
+            expected_active = not is_blackout
+            if room.is_active != expected_active:
+                room.is_active = expected_active
+                room.save(update_fields=['is_active'])
+
         serializer = RoomSerializer(rooms, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -73,6 +120,18 @@ def room_detail_api(request, room_id):
     room = get_object_or_404(Room, pk=room_id)
 
     if request.method == "GET":
+        now = timezone.now()
+        is_blackout = BlackoutPeriod.objects.filter(
+            room=room,
+            start_datetime__lte=now,
+            end_datetime__gte=now
+        ).exists()
+
+        expected_active = not is_blackout
+        if room.is_active != expected_active:
+            room.is_active = expected_active
+            room.save(update_fields=['is_active'])
+
         return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
 
     elif request.method == "PATCH":
