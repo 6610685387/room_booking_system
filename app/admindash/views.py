@@ -62,6 +62,20 @@ class BlackoutPeriodDeleteView(generics.DestroyAPIView):
 def room_list_create_api(request):
     if request.method == "GET":
         rooms = Room.objects.all()
+        now = timezone.now()
+        
+        for room in rooms:
+            is_blackout = BlackoutPeriod.objects.filter(
+                room=room,
+                start_datetime__lte=now,
+                end_datetime__gte=now
+            ).exists()
+            
+            expected_active = not is_blackout
+            if room.is_active != expected_active:
+                room.is_active = expected_active
+                room.save(update_fields=['is_active'])
+
         serializer = RoomSerializer(rooms, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -110,6 +124,18 @@ def room_detail_api(request, room_id):
     room = get_object_or_404(Room, pk=room_id)
 
     if request.method == "GET":
+        now = timezone.now()
+        is_blackout = BlackoutPeriod.objects.filter(
+            room=room,
+            start_datetime__lte=now,
+            end_datetime__gte=now
+        ).exists()
+
+        expected_active = not is_blackout
+        if room.is_active != expected_active:
+            room.is_active = expected_active
+            room.save(update_fields=['is_active'])
+
         return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
 
     elif request.method == "PATCH":
