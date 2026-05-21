@@ -354,7 +354,7 @@ async function loadRoomScheduleForView() {
 </table>
 <div class="flex gap-4 mt-3 text-xs font-bold">
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded"></span>ถูกจองแล้ว</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded"></span>รออนุมัติ (Pending)</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded"></span>รออนุมัติ</span>
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-slate-300 bg-white" style="background:#ffffff"></span>ว่าง</span>
 </div>${blackoutNote}`;
 }

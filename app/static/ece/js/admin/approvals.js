@@ -50,6 +50,14 @@ function buildAdminPendingBookingsHtml(pendingList) {
     }
   });
 
+  // คัดกรองและปรับโครงสร้าง: หากกลุ่มจองซ้ำ (Group) มีรายการจองเพียง 1 รายการ ให้เปลี่ยนไปแสดงผลแบบการ์ดเดี่ยว (Single)
+  const finalGroupedList = groupedList.map((item) => {
+    if (item.type === "group" && item.bookings.length === 1) {
+      return { type: "single", booking: item.bookings[0] };
+    }
+    return item;
+  });
+
   const borderMap = {
     Pending: "border-l-amber-400",
     Approved: "border-l-emerald-500",
@@ -57,7 +65,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
     Cancelled: "border-l-slate-300",
   };
 
-  return groupedList
+  return finalGroupedList
     .map((item) => {
       if (item.type === "single") {
         const b = item.booking;
@@ -73,14 +81,19 @@ function buildAdminPendingBookingsHtml(pendingList) {
             <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                 <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
             </span>
-            <span class="text-slate-400 text-xs">#${b.booking_id}</span>
+            
         </div>
-        <h3 class="font-bold text-slate-800">${b.room?.room_name} (${b.room?.room_code})</h3>
+        <h3 class="font-bold text-slate-800">${b.room?.room_name || b.room_name || "—"} (${b.room?.room_code || b.room_code || "—"})</h3>
         <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
-        <p class="text-sm text-slate-600">วัตถุประสงค์: ${b.purpose_type} ${b.subject ? `(${b.subject})` : ""}</p>
+        <p class="text-sm text-slate-600">วัตถุประสงค์: ${
+          {
+            teaching: "สอนปกติ/ชดเชย",
+            training: "จัดอบรม/ติว",
+          }[b.purpose_type] || "ไม่ทราบ"
+        } ${b.subject ? `(${b.subject})` : ""}</p>
         <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
-            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
         </div>
         ${b.additional_requests ? `<p class="text-xs text-slate-500 italic">"${b.additional_requests}"</p>` : ""}
     </div>
@@ -149,12 +162,17 @@ function buildAdminPendingBookingsHtml(pendingList) {
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">กลุ่มรออนุมัติ #${g.groupId}</span>
-                <span class="text-slate-400 text-xs font-semibold">มีรายการจองต่อเนื่องทั้งหมด ${g.bookings.length} วัน</span>
+                <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ</span>
+                <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
             <p class="text-sm text-slate-600">ผู้จอง: ${sortedBookings[0].booker?.displayname_th || "—"}</p>
-            <p class="text-sm text-slate-600">${g.purpose_type}: ${g.subject || "—"}</p>
+            <p class="text-sm text-slate-600">${
+              {
+                teaching: "สอนปกติ/ชดเชย",
+                training: "จัดอบรม/ติว",
+              }[g.purpose_type] || "ไม่ทราบ"
+            }: ${g.subject || "—"}</p>
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>

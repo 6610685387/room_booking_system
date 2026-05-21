@@ -110,7 +110,10 @@ function buildMyBookingsHtml(filteredList) {
     <div class="flex-1 space-y-2 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">${badge(b.status)}<span class="text-slate-400 text-xs">#${b.booking_id}</span></div>
         <h3 class="text-base font-bold text-slate-800 truncate">${b.room_name} (${b.room_code})</h3>
-        <p class="text-sm text-slate-600">${b.purpose_type}: ${b.subject || "—"}</p>
+        <p class="text-sm text-slate-600">${({
+            "teaching": "สอนปกติ/ชดเชย",
+            "training": "จัดอบรม/ติว"
+        }[b.purpose_type] || "ไม่ทราบ")}: ${b.subject || "—"}</p>
         <div class="flex flex-wrap gap-3 text-xs text-slate-500">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}${end !== start ? " – " + end : ""}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te}</span>
@@ -172,11 +175,14 @@ function buildMyBookingsHtml(filteredList) {
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">กลุ่มต่อเนื่อง #${g.groupId}</span>
-                <span class="text-slate-400 text-xs font-semibold">มีทริกเกอร์จองทั้งหมด ${g.bookings.length} วัน</span>
+                <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">รายการจองแบบต่อเนื่อง</span>
+                <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
-            <p class="text-sm text-slate-600">${g.purpose_type}: ${g.subject || "—"}</p>
+            <p class="text-sm text-slate-600">${({
+                "teaching": "สอนปกติ/ชดเชย",
+                "training": "จัดอบรม/ติว"
+            }[g.purpose_type] || "ไม่ทราบ")}: ${g.subject || "—"}</p>
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>

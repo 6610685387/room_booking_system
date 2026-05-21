@@ -74,18 +74,25 @@ function vDashboard() {
             const ts = timeFromISO(b.start_datetime),
               te = timeFromISO(b.end_datetime);
             return `
-<tr class="cursor-pointer hover:bg-slate-50 transition-colors" onclick="viewDetailAdmin(${b.booking_id})">
-    <td><span class="text-xs text-slate-400">#${b.booking_id}</span></td>
-    <td><div class="font-medium text-slate-800 text-xs">${b.booker?.displayname_th || "—"}</div></td>
-    <td><div class="text-xs text-slate-700 font-bold">${b.room?.room_name} (${b.room?.room_code})</div>
-        <div class="text-[11px] text-slate-400">${b.purpose_type} ${b.subject ? `· ${b.subject}` : ""}</div></td>
-    <td class="text-xs text-slate-600">${start} · ${ts}–${te}</td>
-    <td>
-        <div class="flex gap-1.5 flex-wrap">
+<tr class="cursor-pointer hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0" onclick="viewDetailAdmin(${b.booking_id})">
+
+    <td class="py-4 px-5 align-middle text-left"><div class="font-medium text-slate-800 text-xs">${b.booker?.displayname_th || "—"}</div></td>
+    <td class="py-4 px-5 align-middle text-left">
+        <div class="text-xs text-slate-700 font-bold">${b.room?.room_name} (${b.room?.room_code})</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">${
+          {
+            teaching: "สอนปกติ/ชดเชย",
+            training: "จัดอบรม/ติว",
+          }[b.purpose_type] || "ไม่ทราบ"
+        } ${b.subject ? `· ${b.subject}` : ""}</div>
+    </td>
+    <td class="py-4 px-5 align-middle text-left text-xs text-slate-600">${start} · ${ts}–${te}</td>
+    <td class="py-4 px-5 align-middle text-left">
+        <div class="flex gap-1.5 flex-wrap items-center">
             <button onclick="event.stopPropagation(); openApprove(${b.booking_id})"
-                class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white hover:opacity-90" style="background:#10b981">อนุมัติ</button>
+                class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white hover:opacity-90 active:scale-95 transition-all" style="background:#10b981">อนุมัติ</button>
             <button onclick="event.stopPropagation(); openReject(${b.booking_id})"
-                class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100">ปฏิเสธ</button>
+                class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 active:scale-95 transition-all">ปฏิเสธ</button>
         </div>
     </td>
 </tr>`;
@@ -146,9 +153,17 @@ function vDashboard() {
                 <button onclick="go('approvals')" class="text-xs font-bold hover:underline" style="color:#7e0000">ดูทั้งหมด →</button>
             </div>
             <div class="overflow-x-auto">
-                <table class="data-table w-full">
-                    <thead><tr><th>ID</th><th>ผู้จอง</th><th>ห้อง / วัตถุประสงค์</th><th>วันเวลา</th><th>การจัดการ</th></tr></thead>
-                    <tbody>${pendingRows}</tbody>
+                <table class="data-table w-full border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-slate-400 text-[11px] uppercase tracking-wider">
+
+                            <th class="py-3 px-5 text-left font-bold">ผู้จอง</th>
+                            <th class="py-3 px-5 text-left font-bold">ห้อง / วัตถุประสงค์</th>
+                            <th class="py-3 px-5 text-left font-bold">วันเวลา</th>
+                            <th class="py-3 px-5 text-left font-bold">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">${pendingRows}</tbody>
                 </table>
             </div>
         </div>

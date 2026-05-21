@@ -26,7 +26,7 @@ function vRooms() {
         <h3 class="font-bold text-slate-800">${r.room_name}</h3>
         <div class="flex gap-3 text-xs text-slate-500 mt-1">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>${r.capacity} ที่นั่ง</span>
-            <span>${r.room_type}</span>
+            <span>${{ "Meeting Room": "ห้องประชุม", "Classroom": "ห้องเรียน" }[r.room_type] || "ไม่ทราบ"}</span>
         </div>
         <div class="flex gap-2 mt-3">
             <button onclick="openEditRoom(${r.room_id})"

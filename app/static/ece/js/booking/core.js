@@ -8,8 +8,9 @@
 // ═══════════════════════════════════════════════════════════════════
 let rooms = []; // GET /api/rooms/
 let favRooms = []; // GET /api/rooms/favourites/
-let myBookings = []; // GET /api/bookings/my/
-let calBookings = {}; // built from myBookings
+let myBookings = []; // GET /api/bookings/my/ (รายการของตัวเองสำหรับสิทธิ์ยกเลิก)
+let allBookings = []; // GET /api/bookings/ (รายการทั้งหมดสำหรับแสดงผลบนปฏิทิน)
+let calBookings = {}; // built from allBookings
 let allSchedules = {}; // สำหรับเก็บตารางจองรวมของทุกห้อง (รวมข้อมูลผู้ใช้อื่นด้วย)
 let activeBookingDraft = null; // ถังเก็บร่างฟอร์มเดิมชั่วคราวเพื่อส่งต่อไปยังห้องแนะนำสำรองเมื่อเกิดเหตุจองชน
 
@@ -59,7 +60,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const topNameEl = document.getElementById("topUserName");
   if (topNameEl) topNameEl.textContent = displayName;
 
-  await Promise.all([loadRooms(), loadFavRooms(), loadMyBookings()]);
+  // โหลดรายการจองของตนเอง (myBookings) และรายการจองทั้งหมด (allBookings)
+  await Promise.all([
+    loadRooms(),
+    loadFavRooms(),
+    loadMyBookings(),
+    loadAllBookings(),
+  ]);
   await loadAllSchedules(); // โหลดตารางจองภาพรวมของทุกห้องตั้งแต่เริ่มต้นระบบ
 
   // เริ่มระบบตรวจจับเส้นทาง Hash และบูตหน้าแรกตาม URL ปัจจุบันเมื่อเปิดหรือรีเฟรชหน้าเว็บ
@@ -135,11 +142,22 @@ async function loadAllSchedules() {
   await Promise.all(promises);
 }
 
+// โหลดรายการจองของตนเอง
 async function loadMyBookings() {
   try {
     const data = await api.get(`/api/bookings/my/?_t=${Date.now()}`);
     myBookings = data || [];
-    buildCalBookings();
+  } catch (err) {
+    showApiError(err);
+  }
+}
+
+// โหลดรายการจองของทุกคนมาแสดงบนปฏิทิน
+async function loadAllBookings() {
+  try {
+    const data = await api.get(`/api/bookings/?_t=${Date.now()}`);
+    allBookings = data || [];
+    buildCalBookings(); // ประกอบปฏิทินด้วยรายการจองทั้งหมด
   } catch (err) {
     showApiError(err);
   }
@@ -162,7 +180,8 @@ async function loadRoomSchedule(roomId, weekStart) {
 
 function buildCalBookings() {
   calBookings = {};
-  myBookings.forEach((b) => {
+
+  allBookings.forEach((b) => {
     if (b.status !== "Approved" && b.status !== "Pending") return;
 
     const start = new Date(b.start_datetime);
@@ -172,16 +191,24 @@ function buildCalBookings() {
     const key = `${y}-${m}-${d}`;
     if (!calBookings[key]) calBookings[key] = [];
     const end = new Date(b.end_datetime);
+
+    // ตรวจสอบสิทธิ์ยกเลิก: จะยกเลิกได้เฉพาะรายการที่เป็นของผู้ใช้คนนี้เท่านั้น (มีอยู่ใน myBookings)
+    const isMine = myBookings.some((mb) => mb.booking_id === b.booking_id);
+
+    const roomCode = b.room_code || (b.room ? b.room.room_code : "—");
+    const roomName = b.room_name || (b.room ? b.room.room_name : "—");
+
     calBookings[key].push({
-      room: b.room_code,
-      roomFull: `${b.room_name} (${b.room_code})`,
+      room_id: b.room_id || (b.room ? b.room.room_id : null),
+      room: roomCode,
+      roomFull: `${roomName} (${roomCode})`,
       time: `${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`,
       h: start.getHours(),
       dur: (end - start) / 3600000,
       subj: b.subject || b.purpose_type,
       status: b.status,
       id: b.booking_id,
-      can_cancel: b.can_cancel,
+      can_cancel: b.can_cancel && isMine, // ต้องมีสิทธิ์แคนเซิลและเป็นห้องของตนเองจริง
     });
   });
 }
@@ -210,14 +237,18 @@ async function refreshDataSilent() {
       query += `&capacity=${encodeURIComponent(params.capacity)}`;
     if (params.q) query += `&q=${encodeURIComponent(params.q)}`;
 
-    const [roomsData, bookingsData, favRoomsData] = await Promise.all([
-      api.get(query),
-      api.get(`/api/bookings/my/?_t=${Date.now()}`),
-      api.get(`/api/rooms/favourites/?_t=${Date.now()}`),
-    ]);
+    // ดึงค่าข้อมูลทั้งหมด รวมถึง allBookings เพื่ออัปเดตปฏิทินแบบเรียลไทม์
+    const [roomsData, myBookingsData, allBookingsData, favRoomsData] =
+      await Promise.all([
+        api.get(query),
+        api.get(`/api/bookings/my/?_t=${Date.now()}`),
+        api.get(`/api/bookings/?_t=${Date.now()}`),
+        api.get(`/api/rooms/favourites/?_t=${Date.now()}`),
+      ]);
 
     rooms = roomsData || [];
-    myBookings = bookingsData || [];
+    myBookings = myBookingsData || [];
+    allBookings = allBookingsData || [];
     favRooms = favRoomsData || [];
     buildCalBookings();
 
@@ -264,7 +295,6 @@ function navigate(view, params = {}) {
   if (params.detailId) searchParams.set("detailId", params.detailId);
 
   const paramStr = searchParams.toString();
-  // อัปเดต Hash บน URL ซึ่งระบบจะรับข้อมูลและเปลี่ยนหน้าอัตโนมัติผ่านคำสั่ง handleRoute
   window.location.hash = paramStr ? `${view}?${paramStr}` : view;
 }
 
@@ -275,7 +305,6 @@ async function handleRoute() {
   let roomId = null;
   let detailId = null;
 
-  // ตรวจสอบพารามิเตอร์คิวรีผ่าน URL (เช่น room-booking?roomId=5)
   if (hash.includes("?")) {
     const parts = hash.split("?");
     view = parts[0];
@@ -284,7 +313,6 @@ async function handleRoute() {
     detailId = params.get("detailId");
   }
 
-  // ล้างแบบร่างและวันที่จองเฉพาะเมื่อมีการสลับหน้าเมนูหลักจริงๆ
   if (["my-bookings", "detail", "calendar", "dashboard"].includes(view)) {
     if (curView !== view) {
       activeBookingDraft = null;
@@ -298,7 +326,6 @@ async function handleRoute() {
   if (roomId) curRoomId = String(roomId);
   if (detailId) curDetailId = detailId;
 
-  // ไฮไลต์ปุ่มเมนูในแถบ Sidebar
   const sideMap = {
     dashboard: "dashboard",
     "room-booking": "dashboard",

@@ -123,7 +123,12 @@ function renderRoomCards() {
                 <h3 class="text-base font-bold text-slate-800">${room.room_name}</h3>
                 <div class="flex gap-3 mt-0.5 text-xs text-slate-500">
                     <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>${room.capacity} ที่นั่ง</span>
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">meeting_room</span>${room.room_type}</span>
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">meeting_room</span>${
+                      {
+                        "Meeting Room": "ห้องประชุม",
+                        Classroom: "ห้องเรียน",
+                      }[room.room_type] || "ไม่ทราบ"
+                    }</span>
                 </div>
             </div>
             ${badgeHtml}

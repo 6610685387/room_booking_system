@@ -67,7 +67,7 @@ function vReports() {
         <div class="flex gap-2 flex-wrap items-center">
             <button onclick="openExportModal()"
                 class="px-5 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:opacity-90 transition-all bg-indigo-600">
-                <span class="material-symbols-outlined text-[18px]">download</span>ส่งออกรายงานขั้นสูง
+                <span class="material-symbols-outlined text-[18px]">download</span>ดาวน์โหลดรายงานแบบละเอียด
             </button>
         </div>
     </header>
@@ -76,8 +76,8 @@ function vReports() {
         <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-[24px] text-slate-400">calendar_month</span>
             <div>
-                <p class="text-sm font-bold text-slate-700">ส่งออกข้อมูลรายเดือนแบบรวดเร็ว</p>
-                <p class="text-xs text-slate-400">เลือกช่วงเดือนที่ต้องการส่งออกและรับไฟล์ได้ทันที</p>
+                <p class="text-sm font-bold text-slate-700">ส่งออกรายงานรายเดือน</p>
+                <p class="text-xs text-slate-400">เลือกช่วงเดือนและดาวน์โหลดไฟล์ได้ทันที</p>
             </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
@@ -115,7 +115,7 @@ function vReports() {
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h3 class="font-bold text-slate-700 mb-4">การใช้งานรายห้อง (คิดเป็นสัดส่วนต่อห้องทั้งหมดที่ได้รับการอนุมัติ)</h3>
+        <h3 class="font-bold text-slate-700 mb-4">สัดส่วนการใช้งานรายห้อง จากห้องที่ได้รับอนุมัติทั้งหมด</h3>
         <div class="space-y-3">${roomRows}</div>
     </div>
 </div>`;
