@@ -230,19 +230,25 @@
         <div class="p-6 space-y-4">
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">รหัสห้อง</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">
+                        รหัสห้อง <span class="text-red-500">*</span>
+                    </label>
                     <input type="text" id="rmCode" placeholder="เช่น EE-401"
                         class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">ชื่อห้อง</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">
+                        ชื่อห้อง <span class="text-red-500">*</span>
+                    </label>
                     <input type="text" id="rmName" placeholder="เช่น ห้องปฏิบัติการคอมพิวเตอร์"
                         class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">ประเภทห้อง</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">
+                        ประเภทห้อง <span class="text-red-500">*</span>
+                    </label>
                     <select id="rmType"
                         class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none">
                         <option value="Meeting Room">ห้องประชุม</option>
@@ -250,7 +256,9 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">ความจุที่นั่ง</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">
+                        ความจุที่นั่ง <span class="text-red-500">*</span>
+                    </label>
                     <input type="number" id="rmSeats" min="1" placeholder="เช่น 60"
                         class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
                 </div>
