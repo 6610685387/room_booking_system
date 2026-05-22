@@ -39,20 +39,24 @@ function vDashboard() {
     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-5 flex flex-wrap gap-3 items-center">
         <div class="flex-1 min-w-[200px] relative">
             <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
-            <input type="text" placeholder="ค้นหาชื่อห้อง หรือรหัสห้อง..." value="${dashSearch}" oninput="debounceSearch(this.value)" class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+            <input type="text" id="dashInputSearch" placeholder="ค้นหาชื่อห้อง หรือรหัสห้อง..." value="${dashSearch}" oninput="debounceSearch(this.value)" class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
         </div>
         <div class="relative min-w-[140px]">
             <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">groups</span>
-            <input type="number" placeholder="ความจุขั้นต่ำ..." value="${dashCapacity}" min="1" oninput="debounceCapacity(this.value)" class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+            <input type="number" id="dashInputCap" placeholder="ความจุขั้นต่ำ..." value="${dashCapacity}" min="1" oninput="debounceCapacity(this.value)" class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
         </div>
         <div class="relative min-w-[150px]">
-            <select onchange="dashType=this.value;refreshDashboardRooms()" class="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary appearance-none cursor-pointer">
+            <select id="dashInputType" onchange="dashType=this.value;refreshDashboardRooms()" class="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary appearance-none cursor-pointer">
                 <option value="all" ${dashType === "all" ? "selected" : ""}>ทุกประเภท</option>
                 <option value="Meeting Room" ${dashType === "Meeting Room" ? "selected" : ""}>ห้องประชุม</option>
                 <option value="Classroom" ${dashType === "Classroom" ? "selected" : ""}>ห้องเรียน</option>
             </select>
             <span class="material-symbols-outlined absolute right-3 top-2.5 text-slate-400 pointer-events-none text-[18px]">expand_more</span>
         </div>
+        
+        <button onclick="clearDashboardSearch()" class="px-4 py-2.5 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl text-sm font-bold flex items-center gap-1 transition-all" title="ล้างการค้นหา">
+            <span class="material-symbols-outlined text-[18px]">refresh</span>ล้างค่า
+        </button>
     </div>
     
     <div class="space-y-4" id="dashRooms">${renderRoomCards()}</div>
@@ -252,12 +256,11 @@ function renderRoomCards() {
                 <h3 class="text-base font-bold text-slate-800">${room.room_name}</h3>
                 <div class="flex gap-3 mt-0.5 text-xs text-slate-500">
                     <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>${room.capacity} ที่นั่ง</span>
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">meeting_room</span>${
-                      {
-                        "Meeting Room": "ห้องประชุม",
-                        Classroom: "ห้องเรียน",
-                      }[room.room_type] || "ไม่ทราบ"
-                    }</span>
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">meeting_room</span>${{
+        "Meeting Room": "ห้องประชุม",
+        Classroom: "ห้องเรียน",
+      }[room.room_type] || "ไม่ทราบ"
+      }</span>
                 </div>
             </div>
             ${badgeHtml}
@@ -373,6 +376,33 @@ function debounceCapacity(val) {
     refreshDashboardRooms();
   }, 300);
 }
+
+// ═══════════════════════════════════════════════════════
+//  DASHBOARD — Reset Search
+// ═══════════════════════════════════════════════════════
+function clearDashboardSearch() {
+  // 1. รีเซ็ตตัวแปรในระบบ
+  dashSearch = "";
+  dashCapacity = "";
+  dashType = "all";
+
+  // 2. เคลียร์ค่าที่แสดงในหน้าจอ (เอาข้อความที่พิมพ์ค้างไว้ออก)
+  const searchInput = document.getElementById("dashInputSearch");
+  const capInput = document.getElementById("dashInputCap");
+  const typeInput = document.getElementById("dashInputType");
+
+  if (searchInput) searchInput.value = "";
+  if (capInput) capInput.value = "";
+  if (typeInput) typeInput.value = "all";
+
+  // 3. สั่งโหลดข้อมูลห้องใหม่ให้แสดงทั้งหมด
+  refreshDashboardRooms();
+}
+
+// อย่าลืมแนบเข้า window เพื่อให้คลิกจาก HTML ได้
+window.clearDashboardSearch = clearDashboardSearch;
+
+
 // ═══════════════════════════════════════════════════════
 //  QUICK BOOK — Modal open/close & UI helpers
 // ═══════════════════════════════════════════════════════
@@ -383,25 +413,25 @@ function openQuickBook() {
 
   // Default วันที่/เวลา
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const roundedH = now.getMinutes() > 0 ? now.getHours() + 1 : now.getHours();
   const startH = Math.min(roundedH, 23);
-  const endH   = Math.min(startH + 1, 23);
-  const endM   = startH + 1 >= 24 ? 59 : 0;
+  const endH = Math.min(startH + 1, 23);
+  const endM = startH + 1 >= 24 ? 59 : 0;
 
-  const dateEl   = document.getElementById("qb_date_start");
-  const tsEl     = document.getElementById("qb_time_start");
-  const teEl     = document.getElementById("qb_time_end");
-  const dateEndEl= document.getElementById("qb_date_end");
+  const dateEl = document.getElementById("qb_date_start");
+  const tsEl = document.getElementById("qb_time_start");
+  const teEl = document.getElementById("qb_time_end");
+  const dateEndEl = document.getElementById("qb_date_end");
 
-  if (dateEl)    dateEl.value   = todayStr;
-  if (dateEndEl) dateEndEl.value= todayStr;
-  if (tsEl)      tsEl.value     = `${String(startH).padStart(2,"0")}:00`;
-  if (teEl)      teEl.value     = `${String(endH).padStart(2,"0")}:${String(endM).padStart(2,"0")}`;
+  if (dateEl) dateEl.value = todayStr;
+  if (dateEndEl) dateEndEl.value = todayStr;
+  if (tsEl) tsEl.value = `${String(startH).padStart(2, "0")}:00`;
+  if (teEl) teEl.value = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 
   // Set min date
-  if (dateEl)    dateEl.min = todayStr;
-  if (dateEndEl) dateEndEl.min= todayStr;
+  if (dateEl) dateEl.min = todayStr;
+  if (dateEndEl) dateEndEl.min = todayStr;
 
   // Reset result area
   const res = document.getElementById("qbResult");
@@ -434,12 +464,12 @@ document.addEventListener("click", (e) => {
 function qbHlPurpose(n) {
   const base = "flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer transition-all";
   const active = `${base}" style="border-color:#7e0000;background:#fff1f2`;
-  document.getElementById("qbpl1").setAttribute("style", n===1 ? "border-color:#7e0000;background:#fff1f2" : "");
-  document.getElementById("qbpl2").setAttribute("style", n===2 ? "border-color:#7e0000;background:#fff1f2" : "");
+  document.getElementById("qbpl1").setAttribute("style", n === 1 ? "border-color:#7e0000;background:#fff1f2" : "");
+  document.getElementById("qbpl2").setAttribute("style", n === 2 ? "border-color:#7e0000;background:#fff1f2" : "");
   document.getElementById("qbpl1").className = `${base}`;
   document.getElementById("qbpl2").className = `${base}`;
-  document.getElementById("qb_teaching_fields").className = n===1 ? "space-y-3" : "hidden space-y-3";
-  document.getElementById("qb_training_fields").className  = n===2 ? "space-y-3" : "hidden space-y-3";
+  document.getElementById("qb_teaching_fields").className = n === 1 ? "space-y-3" : "hidden space-y-3";
+  document.getElementById("qb_training_fields").className = n === 2 ? "space-y-3" : "hidden space-y-3";
 }
 
 function qbAutoEndTime() {
@@ -448,7 +478,7 @@ function qbAutoEndTime() {
   if (!s || !e) return;
   const [h, m] = s.value.split(":").map(Number);
   const nh = h + 1;
-  e.value = nh >= 24 ? "23:59" : `${String(nh).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  e.value = nh >= 24 ? "23:59" : `${String(nh).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -461,9 +491,9 @@ function qbTimeToMin(t) {
 }
 
 function qbDayName(dateStr) {
-  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const [y, mo, d] = dateStr.split("-").map(Number);
-  return days[new Date(y, mo-1, d).getDay()];
+  return days[new Date(y, mo - 1, d).getDay()];
 }
 
 /**
@@ -528,19 +558,19 @@ async function submitQuickBook() {
 
   // อ่านค่าจากฟอร์ม
   const purposeEl = document.querySelector("input[name=qb_purp]:checked");
-  const purpose   = purposeEl ? purposeEl.value : "teaching";
+  const purpose = purposeEl ? purposeEl.value : "teaching";
   const dateStart = document.getElementById("qb_date_start")?.value || "";
-  const dateEnd   = document.getElementById("qb_date_end")?.value || "";
+  const dateEnd = document.getElementById("qb_date_end")?.value || "";
   const timeStart = document.getElementById("qb_time_start")?.value || "";
-  const timeEnd   = document.getElementById("qb_time_end")?.value || "";
-  const minCap    = parseInt(document.getElementById("qb_capacity")?.value || "0", 10);
-  const roomType  = document.getElementById("qb_room_type")?.value || "all";
+  const timeEnd = document.getElementById("qb_time_end")?.value || "";
+  const minCap = parseInt(document.getElementById("qb_capacity")?.value || "0", 10);
+  const roomType = document.getElementById("qb_room_type")?.value || "all";
 
   // Validate
   const errs = [];
-  if (!dateStart)        errs.push("วันที่เริ่ม");
-  if (!timeStart)        errs.push("เวลาเริ่ม");
-  if (!timeEnd)          errs.push("เวลาสิ้นสุด");
+  if (!dateStart) errs.push("วันที่เริ่ม");
+  if (!timeStart) errs.push("เวลาเริ่ม");
+  if (!timeEnd) errs.push("เวลาสิ้นสุด");
   if (!minCap || minCap < 1) errs.push("จำนวนผู้ใช้");
 
   if (purpose === "teaching") {
@@ -557,8 +587,8 @@ async function submitQuickBook() {
   }
 
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-  const curTime  = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const curTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
   if (dateStart < todayStr) {
     showToast("ไม่สามารถจองย้อนหลังได้", "error"); return;
@@ -590,7 +620,7 @@ async function submitQuickBook() {
       msg = `<p class="font-bold text-red-700 mb-1">ไม่มีห้องที่รองรับผู้ใช้ได้ถึง ${minCap} คน</p>
              <p class="text-sm text-slate-500">ลองลดจำนวนผู้ใช้หรือเปลี่ยนประเภทห้อง</p>`;
     } else {
-      const names = (found.conflicted||[]).map(r=>`<span class="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold">${r.room_code}</span>`).join(" ");
+      const names = (found.conflicted || []).map(r => `<span class="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold">${r.room_code}</span>`).join(" ");
       msg = `<p class="font-bold text-red-700 mb-1">ไม่มีห้องว่างในช่วงเวลาที่เลือก</p>
              ${names ? `<p class="text-xs text-slate-500 mt-1">ห้องที่ถูกจองแล้ว: ${names}</p>` : ""}
              <p class="text-sm text-slate-500 mt-1">ลองเปลี่ยนวัน/เวลา หรือเลือกประเภทห้องอื่น</p>`;
@@ -608,7 +638,7 @@ async function submitQuickBook() {
   <div>
     <p class="font-bold text-emerald-700 text-sm">พบห้องที่เหมาะสม!</p>
     <p class="text-slate-700 font-bold">${room.room_name} <span class="text-slate-400 font-normal">(${room.room_code})</span></p>
-    <p class="text-xs text-slate-500">${room.capacity} ที่นั่ง · ${{"Meeting Room":"ห้องประชุม","Classroom":"ห้องเรียน"}[room.room_type]||room.room_type}</p>
+    <p class="text-xs text-slate-500">${room.capacity} ที่นั่ง · ${{ "Meeting Room": "ห้องประชุม", "Classroom": "ห้องเรียน" }[room.room_type] || room.room_type}</p>
   </div>
 </div>`;
   resEl.className = "block";
@@ -617,12 +647,12 @@ async function submitQuickBook() {
 
   // สร้าง payload และส่ง API
   const payload = {
-    room_id:    room.room_id,
+    room_id: room.room_id,
     date_start: dateStart,
-    date_end:   dateEnd || dateStart,
+    date_end: dateEnd || dateStart,
     days_of_week: null,
     time_start: timeStart,
-    time_end:   timeEnd,
+    time_end: timeEnd,
     purpose_type: purpose,
     skip_conflicts: false,
     additional_requests: "",
@@ -646,7 +676,7 @@ async function submitQuickBook() {
     calBookDate = null; calBookKey = null; calBookLabel = null;
     await loadMyBookings();
     showToast(
-      `จองห้อง ${room.room_code} สำเร็จ! (${result.booking_ids?.length||1} รายการ)`,
+      `จองห้อง ${room.room_code} สำเร็จ! (${result.booking_ids?.length || 1} รายการ)`,
       "check_circle"
     );
     navigate("my-bookings");
@@ -674,14 +704,14 @@ async function submitQuickBook() {
       }
       resEl.className = "block";
     } else {
-      resEl.innerHTML = `<div class="p-4 bg-red-50 border border-red-200 rounded-xl"><p class="font-bold text-red-700 text-sm">${err.message||"เกิดข้อผิดพลาด"}</p></div>`;
+      resEl.innerHTML = `<div class="p-4 bg-red-50 border border-red-200 rounded-xl"><p class="font-bold text-red-700 text-sm">${err.message || "เกิดข้อผิดพลาด"}</p></div>`;
       resEl.className = "block";
     }
   }
 }
 
-window.openQuickBook   = openQuickBook;
-window.closeQuickBook  = closeQuickBook;
-window.qbHlPurpose     = qbHlPurpose;
-window.qbAutoEndTime   = qbAutoEndTime;
+window.openQuickBook = openQuickBook;
+window.closeQuickBook = closeQuickBook;
+window.qbHlPurpose = qbHlPurpose;
+window.qbAutoEndTime = qbAutoEndTime;
 window.submitQuickBook = submitQuickBook;
