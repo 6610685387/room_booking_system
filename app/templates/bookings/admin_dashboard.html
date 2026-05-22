@@ -272,14 +272,23 @@
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">รูปภาพห้อง</label>
                 
+                <input type="hidden" id="removeExistingImage" name="remove_image" value="false">
+
                 <input type="file" id="rmImage" accept="image/*" class="hidden" onchange="updateRmImageText(this)">
                 
-                <label for="rmImage" class="w-full p-1 border border-slate-200 rounded-xl text-xs flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors">
-                    <div class="py-1.5 px-3 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
-                        เลือกไฟล์
-                    </div>
-                    <span id="rmImageText" class="text-slate-500">ยังไม่ได้เลือกไฟล์</span>
-                </label>
+                <div class="flex items-center gap-2">
+                    <label for="rmImage" class="flex-1 p-1 border border-slate-200 rounded-xl text-xs flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden">
+                        <div class="py-1.5 px-3 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 flex-shrink-0">
+                            เลือกไฟล์
+                        </div>
+                        <span id="rmImageText" class="text-slate-500 truncate">ยังไม่ได้เลือกไฟล์</span>
+                    </label>
+
+                    <button type="button" id="removeImageBtn" onclick="removeSelectedImage()" 
+                        class="hidden p-2 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors border border-transparent hover:border-red-100 flex-shrink-0">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                </div>
             </div>
 
             <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">

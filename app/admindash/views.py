@@ -180,6 +180,7 @@ def room_detail_api(request, room_id):
     elif request.method == "PATCH":
         room_code = request.data.get("room_code")
         capacity = request.data.get("capacity")
+        remove_image_flag = request.data.get("remove_image")
 
         if room_code and room_code != room.room_code:
             if Room.objects.filter(room_code=room_code).exists():
@@ -202,8 +203,13 @@ def room_detail_api(request, room_id):
         if "is_active" in request.data:
             is_active_str = request.data.get("is_active")
             room.is_active = str(is_active_str).lower() in ['true', '1', 't', 'y', 'yes']
+
         if "room_image" in request.FILES:
             room.room_image = request.FILES.get("room_image")
+        elif remove_image_flag == "true":
+            if room.room_image:
+                room.room_image.delete(save=False) 
+            room.room_image = None
 
         room.updated_by = request.user
         room.save()

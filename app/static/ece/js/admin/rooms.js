@@ -175,9 +175,28 @@ function openEditRoom(roomId, blackout=false) {
     toggleBlackoutFields();
   }
 
-  // 5. จัดการรูปภาพและปุ่มลบ
+  // 5. จัดการรูปภาพ
   const imgEl = document.getElementById("rmImage");
-  if (imgEl) imgEl.value = "";
+  const removeFlag = document.getElementById("removeExistingImage");
+  if (removeFlag) removeFlag.value = "false"; // รีเซ็ตค่าทุกครั้งที่เปิดหน้าต่าง
+
+  if (imgEl) {
+      imgEl.value = "";
+      updateRmImageText(imgEl); // รีเซ็ตหน้าตาก่อน
+  }
+
+  // เช็ครูปเดิม
+  if (r.room_image) {
+    const textSpan = document.getElementById('rmImageText');
+    const removeBtn = document.getElementById('removeImageBtn');
+    if (textSpan) {
+        textSpan.textContent = "มีรูปภาพเดิมอยู่แล้ว";
+        textSpan.classList.replace('text-slate-500', 'text-emerald-600');
+    }
+    if (removeBtn) {
+        removeBtn.classList.remove('hidden'); // แสดงปุ่มลบ
+    }
+  }
 
   const btnDelete = document.getElementById("btnDeleteRoom");
   if (btnDelete) btnDelete.classList.remove("hidden");
@@ -189,14 +208,39 @@ function openEditRoom(roomId, blackout=false) {
 
 function updateRmImageText(input) {
     const textSpan = document.getElementById('rmImageText');
+    const removeBtn = document.getElementById('removeImageBtn');
+    const removeFlag = document.getElementById('removeExistingImage');
+
     if (input.files && input.files.length > 0) {
         textSpan.textContent = input.files[0].name;
         textSpan.classList.replace('text-slate-500', 'text-slate-800');
+        removeBtn.classList.remove('hidden');
+        if (removeFlag) removeFlag.value = "false"; 
     } else {
         textSpan.textContent = 'ยังไม่ได้เลือกไฟล์';
         textSpan.classList.replace('text-slate-800', 'text-slate-500');
+        removeBtn.classList.add('hidden');
     }
 }
+
+function removeSelectedImage() {
+    const input = document.getElementById('rmImage');
+    const removeFlag = document.getElementById('removeExistingImage');
+
+    input.value = '';
+    if (removeFlag) removeFlag.value = "true";
+
+    const textSpan = document.getElementById('rmImageText');
+    if (textSpan) {
+        textSpan.textContent = 'ไม่มีรูปภาพ';
+        textSpan.classList.remove('text-emerald-600', 'text-slate-800');
+        textSpan.classList.add('text-slate-500');
+    }
+
+    const removeBtn = document.getElementById('removeImageBtn');
+    if (removeBtn) removeBtn.classList.add('hidden'); 
+}
+
 
 function toggleBlackoutFields() {
   const elActive = document.getElementById("isBlackout");
@@ -304,6 +348,9 @@ async function executeSaveRoom() {
   formData.append("room_name", name);
   formData.append("room_type", type);
   formData.append("capacity", seats !== "" ? Number(seats) : "");
+
+  const removeImageFlag = document.getElementById("removeExistingImage")?.value || "false";
+  formData.append("remove_image", removeImageFlag);
 
   if (imageInput && imageInput.files && imageInput.files[0]) {
     formData.append("room_image", imageInput.files[0]);
