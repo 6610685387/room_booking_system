@@ -5,15 +5,21 @@
 
 let isGroupAction = false; // ตัวแปรสำหรับตรวจสอบว่าเป็นการอนุมัติแบบกลุ่มหรือไม่
 
+
 function vApprovals() {
   const pending = bookings.filter((b) => b.status === "Pending");
   const groupedCardsHtml = buildAdminPendingBookingsHtml(pending);
 
   return `
 <div class="p-6 sm:p-8 max-w-4xl">
-    <header class="mb-6">
-        <h2 class="text-2xl font-bold text-slate-800">รายการรออนุมัติ</h2>
-        <p class="text-slate-500 text-sm mt-0.5">มี ${pending.length} รายการรอการดำเนินการ</p>
+    <header class="mb-6 flex items-start justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">รายการรออนุมัติ</h2>
+            <p class="text-slate-500 text-sm mt-0.5">มี ${pending.length} รายการรอการดำเนินการ</p>
+        </div>
+        <button onclick="loadBookings().then(()=>renderCurrentView())" class="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-primary px-3 py-2 rounded-xl hover:bg-slate-100 transition-all">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>รีเฟรช
+        </button>
     </header>
     <div class="space-y-4">${groupedCardsHtml}</div>
 </div>`;

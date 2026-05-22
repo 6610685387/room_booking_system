@@ -277,9 +277,14 @@ function vAllBookings() {
 
   return `
 <div class="p-6 sm:p-8 max-w-4xl" onclick="closeRoomDropdown()">
-    <header class="mb-5">
-        <h2 class="text-2xl font-bold text-slate-800">รายการจองทั้งหมด</h2>
-        <p class="text-slate-500 text-sm mt-0.5">ทั้งหมด ${bookings.length} รายการ</p>
+    <header class="mb-5 flex items-start justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">รายการจองทั้งหมด</h2>
+            <p class="text-slate-500 text-sm mt-0.5">ทั้งหมด ${bookings.length} รายการ</p>
+        </div>
+        <button onclick="loadBookings().then(()=>renderCurrentView())" class="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-primary px-3 py-2 rounded-xl hover:bg-slate-100 transition-all">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>รีเฟรช
+        </button>
     </header>
 
     <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">

@@ -136,8 +136,7 @@ function vDashboard() {
             <h2 class="text-2xl font-bold text-slate-800">แดชบอร์ดเจ้าหน้าที่</h2>
             <p class="text-slate-500 text-sm mt-0.5">ภาพรวมระบบจองห้อง ณ วันนี้</p>
         </div>
-        <button onclick="Promise.all([loadRooms(),loadBookings()]).then(()=>go('dashboard'))"
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-primary px-3 py-2 rounded-xl hover:bg-slate-100 transition-all">
+        <button onclick="Promise.all([loadRooms(),loadBookings()]).then(()=>renderCurrentView())" class="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-primary px-3 py-2 rounded-xl hover:bg-slate-100 transition-all">
             <span class="material-symbols-outlined text-[16px]">refresh</span>รีเฟรช
         </button>
     </div>
