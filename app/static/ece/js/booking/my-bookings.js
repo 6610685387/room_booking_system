@@ -167,6 +167,7 @@ function buildMyBookingsHtml(filteredList) {
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}${end !== start ? " – " + end : ""}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
         </div>
+        ${b.additional_requests ? `<p class="text-xs text-slate-500 italic mt-1.5">"คำขอพิเศษ: ${b.additional_requests}"</p>` : ""}
         ${b.reject_reason ? `<div class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5 mt-1.5"><span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">admin_panel_settings</span><strong>เหตุผลที่ปฏิเสธ:</strong> ${b.reject_reason}</div>` : ""}
         ${adminNotesText ? `<div class="text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-1.5 flex items-start gap-1.5 mt-1.5"><span class="material-symbols-outlined text-[13px] mt-0.5 flex-shrink-0">info</span><strong>หมายเหตุอนุมัติ:</strong> ${adminNotesText}</div>` : ""}
     </div>
