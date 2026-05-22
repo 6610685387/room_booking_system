@@ -155,7 +155,7 @@ async function loadMyBookings() {
 // โหลดรายการจองของทุกคนมาแสดงบนปฏิทิน
 async function loadAllBookings() {
   try {
-    const data = await api.get(`/api/bookings/?_t=${Date.now()}`);
+    const data = await api.get(`/api/admin/bookings/?_t=${Date.now()}`);
     allBookings = data || [];
     buildCalBookings(); // ประกอบปฏิทินด้วยรายการจองทั้งหมด
   } catch (err) {
@@ -208,7 +208,9 @@ function buildCalBookings() {
       subj: b.subject || b.purpose_type,
       status: b.status,
       id: b.booking_id,
-      can_cancel: b.can_cancel && isMine, // ต้องมีสิทธิ์แคนเซิลและเป็นห้องของตนเองจริง
+      can_view: b.booker && b.booker.user_id !== null,
+      can_cancel: b.can_cancel && isMine,
+      is_mine: isMine,
     });
   });
 }
@@ -242,7 +244,7 @@ async function refreshDataSilent() {
       await Promise.all([
         api.get(query),
         api.get(`/api/bookings/my/?_t=${Date.now()}`),
-        api.get(`/api/bookings/?_t=${Date.now()}`),
+        api.get(`/api/admin/bookings/?_t=${Date.now()}`),
         api.get(`/api/rooms/favourites/?_t=${Date.now()}`),
       ]);
 

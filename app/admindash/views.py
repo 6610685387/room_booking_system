@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import localtime
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -215,17 +216,23 @@ def room_detail_api(request, room_id):
 
 
 # ------- Booking -------
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def admin_booking_list(request):
+    user = request.user
+    is_admin = user.is_admin
+
     qs = (
         Booking.objects.select_related("room", "booker", "teaching_info", "training_info")
         .order_by("-created_at")
     )
+    
     status_param = request.query_params.get("status")
     if status_param:
         qs = qs.filter(status=status_param)
+
+    if not is_admin:
+        qs = qs.filter(Q(status__in=["Pending", "Approved"]) | Q(booker=user))
 
     results = []
     for bk in qs:
@@ -234,6 +241,9 @@ def admin_booking_list(request):
             subject = f"{bk.teaching_info.subject_code} {bk.teaching_info.subject_name}"
         elif bk.purpose_type == "training" and hasattr(bk, "training_info"):
             subject = bk.training_info.topic
+
+        is_owner = (bk.booker == user)
+        show_full_info = is_admin or is_owner
 
         results.append({
             "booking_id": bk.booking_id,
@@ -244,20 +254,21 @@ def admin_booking_list(request):
                 "capacity": bk.room.capacity,
             },
             "booker": {
-                "user_id": bk.booker.user_id,
-                "displayname_th": bk.booker.displayname_th,
+                "user_id": bk.booker.user_id if show_full_info else None,
+                "displayname_th": bk.booker.displayname_th if show_full_info else "ไม่ระบุตัวตน",
             },
             "start_datetime": localtime(bk.start_datetime).isoformat(),
             "end_datetime": localtime(bk.end_datetime).isoformat(),
             "status": bk.status,
             "purpose_type": bk.purpose_type,
             "subject": subject,
-            "additional_requests": bk.additional_requests,
-            "admin_notes": bk.admin_notes,
-            "reject_reason": bk.reject_reason,
+            "additional_requests": bk.additional_requests if show_full_info else None,
+            "admin_notes": bk.admin_notes if show_full_info else None,
+            "reject_reason": bk.reject_reason if show_full_info else None,
             "recurring_group_id": bk.recurring_group_id,
             "created_at": localtime(bk.created_at).isoformat(),
         })
+        
     return Response(results, status=200)
 
 

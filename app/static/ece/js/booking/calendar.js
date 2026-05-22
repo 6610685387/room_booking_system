@@ -224,25 +224,37 @@ function calShowDay(dateStr, key) {
       ? `<div class="text-center py-8 text-slate-400"><span class="material-symbols-outlined text-4xl block mb-2">event_available</span><p class="text-sm font-medium">ยังไม่มีการจองในวันนี้</p></div>`
       : items
           .map((b) => {
-            const cancelBtn = b.can_cancel
-              ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก</button>`
-              : "";
+            const canViewDetail = b.can_view;
+
+            const cancelBtn = (b.can_cancel && canViewDetail)
+                ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก</button>`
+                : "";
+
+            const baseCardClass = `p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-red-100 bg-red-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3`;
+            const actionAttr = canViewDetail 
+                ? `class="${baseCardClass} cursor-pointer" onclick="closeDayModal(); navigate('detail',{detailId:${b.id}})"` 
+                : `class="${baseCardClass} opacity-80"`; 
+
+            const displayRoom = canViewDetail ? b.roomFull : "ช่วงเวลานี้มีการจองแล้ว";
+            const displaySubj = canViewDetail ? b.subj : "ไม่ระบุชื่อผู้จองและรายละเอียด";
 
             return `
-<div class="p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-red-100 bg-red-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3 cursor-pointer" onclick="closeDayModal(); navigate('detail',{detailId:${b.id}})">
-    <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2 mb-1.5">
-            <span class="w-2 h-2 rounded-full ${b.status === "Approved" ? "bg-red-500" : "bg-amber-500"}"></span>
-            <span class="text-xs font-bold ${b.status === "Approved" ? "text-red-700" : "text-amber-700"} uppercase tracking-wider">${b.status === "Approved" ? "ถูกจองแล้ว" : "รออนุมัติ"}</span>
-        </div>
-        <p class="font-bold text-slate-800 truncate">${b.roomFull}</p>
-        <p class="text-sm text-slate-600 mt-0.5">เวลา ${b.time} น.</p>
-        <p class="text-xs text-slate-500 mt-1 truncate">${b.subj}</p>
-    </div>
-    ${cancelBtn}
-</div>`;
-          })
-          .join("");
+        <div ${actionAttr}>
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span class="w-2 h-2 rounded-full ${b.status === "Approved" ? "bg-red-500" : "bg-amber-500"}"></span>
+                    <span class="text-xs font-bold ${b.status === "Approved" ? "text-red-700" : "text-amber-700"} uppercase tracking-wider">
+                        ${b.status === "Approved" ? "ถูกจองแล้ว" : "รออนุมัติ"}${b.is_mine ? " (ของคุณ)" : ""}
+                    </span>
+                </div>
+                <p class="font-bold text-slate-800 truncate">${displayRoom}</p>
+                <p class="text-sm text-slate-600 mt-0.5">เวลา ${b.time} น.</p>
+                <p class="text-xs text-slate-500 mt-1 truncate">${displaySubj}</p>
+            </div>
+            ${cancelBtn}
+        </div>`;
+        })
+      .join("");
 
   calDayModalKey = key;
   calDayModalLabel = dateStr;

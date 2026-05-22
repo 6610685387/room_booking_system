@@ -15,40 +15,33 @@ class TrainingInfoSerializer(serializers.ModelSerializer):
         model = TrainingInfo
         fields = ["topic"]
 
-
-class BookingReadSerializer(serializers.ModelSerializer):
-    room = RoomBriefSerializer(read_only=True)
-    booker = UserBriefSerializer(read_only=True)
-    approved_by = UserBriefSerializer(read_only=True)
-    teaching_info = TeachingInfoSerializer(read_only=True)
-    training_info = TrainingInfoSerializer(read_only=True)
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
-    purpose_display = serializers.CharField(
-        source="get_purpose_type_display", read_only=True
-    )
+# --- Lecturer Read ---
+class BookingPublicSerializer(serializers.ModelSerializer):
+    booker_display = serializers.SerializerMethodField()
+    room_name = serializers.CharField(source='room.room_name', read_only=True)
 
     class Meta:
         model = Booking
         fields = [
-            "booking_id",
-            "room",
-            "booker",
-            "approved_by",
-            "start_datetime",
-            "end_datetime",
-            "status",
-            "status_display",
-            "purpose_type",
-            "purpose_display",
-            "reject_reason",
-            "teaching_info",
-            "training_info",
-            "recurring_group",
-            "additional_requests",
-            "admin_notes",
-            "notification_email",
-            "created_at",
+            'booking_id', 'room', 'room_name', 'start_datetime', 
+            'end_datetime', 'status', 'purpose_type', 'booker_display'
         ]
+
+    def get_booker_display(self, obj):
+        request = self.context.get('request')
+        if request and request.user == obj.booker:
+            return getattr(obj.booker, 'username', 'You') 
+        return "ไม่ระบุตัวตน (Anonymous)"
+
+# --- Admin Read ---
+class BookingAdminSerializer(serializers.ModelSerializer):
+    booker_name = serializers.CharField(source='booker.username', read_only=True)
+    room_name = serializers.CharField(source='room.room_name', read_only=True)
+    approved_by_name = serializers.CharField(source='approved_by.username', read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = '__all__'
 
 
 class BookingWriteSerializer(serializers.ModelSerializer):
