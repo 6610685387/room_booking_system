@@ -120,7 +120,7 @@ class BlackoutPeriodDeleteView(generics.DestroyAPIView):
 @parser_classes([MultiPartParser, FormParser])
 def room_list_create_api(request):
     if request.method == "GET":
-        rooms = Room.objects.all()
+        rooms = Room.objects.filter(is_deleted=False)
         now = timezone.now()
 
         for room in rooms:
@@ -192,7 +192,7 @@ def room_list_create_api(request):
 @permission_classes([IsAdminUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def room_detail_api(request, room_id):
-    room = get_object_or_404(Room, pk=room_id)
+    room = get_object_or_404(Room, pk=room_id, is_deleted=False)
 
     if request.method == "GET":
         now = timezone.now()
@@ -256,8 +256,10 @@ def room_detail_api(request, room_id):
         return Response(RoomSerializer(room).data, status=status.HTTP_200_OK)
 
     elif request.method == "DELETE":
-        room.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)  # Delete success
+        room.is_deleted = True
+        room.is_active = False
+        room.save(update_fields=['is_deleted', 'is_active'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ------- Booking -------
@@ -325,7 +327,7 @@ def admin_booking_list(request):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def admin_booking_approve(request, booking_id):
-    bk = get_object_or_404(Booking, pk=booking_id)
+    bk = get_object_or_404(Booking, pk=booking_id, is_deleted=False)
     if bk.status != "Pending":
         return Response(
             {"error": f"สถานะปัจจุบันคือ {bk.status} ไม่สามารถอนุมัติได้"}, status=400
