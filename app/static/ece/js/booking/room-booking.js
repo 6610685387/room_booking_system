@@ -652,7 +652,7 @@ function showConflictAlert(conflictReport) {
   // ── Conflict list (booking + blackout) ───────────────────────────────────
   const bookingConflicts = (conflictReport.conflicts || []).map(
     (c) =>
-      `<li class="text-xs text-red-700">• ${c.date} ${c.start_time}–${c.end_time} (ถูกจองโดย ${c.booker_name || "ผู้อื่น"})</li>`,
+      `<li class="text-xs text-red-700">• ${c.date} ${c.start_time}–${c.end_time} (ถูกจองเรียบร้อยแล้ว)</li>`,
   );
   const blackoutConflicts = (conflictReport.blackouts || []).map(
     (c) =>
