@@ -42,28 +42,21 @@ async function doLogin(e) {
     try {
         const resp = await fetch('/login/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',  // บอก Django ว่าเป็น AJAX → คืน JSON
+            },
             body: body.toString(),
-            redirect: 'follow',
             credentials: 'same-origin',
         });
 
-        if (resp.ok || resp.redirected) {
-            const finalUrl = resp.url || '';
-            if (finalUrl.includes('login')) {
-                const text = await resp.text();
-                if (text.includes('ไม่ถูกต้อง') || text.includes('error') || text.includes('Error')) {
-                    setLoading(false);
-                    showError('Username หรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
-                } else {
-                    window.location.href = resp.url;
-                }
-            } else {
-                window.location.href = resp.url || '/login-success/lecturer/';
-            }
+        const data = await resp.json();
+
+        if (resp.ok && data.redirect) {
+            window.location.href = data.redirect;
         } else {
             setLoading(false);
-            showError('Username หรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
+            showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
         }
     } catch (err) {
         setLoading(false);
