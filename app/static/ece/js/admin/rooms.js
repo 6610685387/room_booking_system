@@ -33,12 +33,13 @@ function vRooms() {
         <div class="flex gap-2 mt-3">
             <button onclick="event.stopPropagation(); openEditRoom(${r.room_id})"
                 class="flex-1 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 flex items-center justify-center gap-1">
-                <span class="material-symbols-outlined text-[14px]">edit</span>แก้ไข
+                <span class="material-symbols-outlined text-[14px]">edit</span>
+                แก้ไข
             </button>
-            <button onclick="event.stopPropagation(); toggleRoomActive(${r.room_id}, ${r.is_active !== false})"
-                class="flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1 ${r.is_active !== false ? "text-red-600 border border-red-100 bg-red-50 hover:bg-red-100" : "text-emerald-600 border border-emerald-100 bg-emerald-50 hover:bg-emerald-100"}">
-                <span class="material-symbols-outlined text-[14px]">${r.is_active !== false ? "block" : "check_circle"}</span>
-                ${r.is_active !== false ? "ปิดชั่วคราว" : "เปิดใช้งาน"}
+            <button onclick="event.stopPropagation(); openEditRoom(${r.room_id}, true)"
+                class="flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1 text-red-600 border border-red-100 bg-red-50 hover:bg-red-100">
+                <span class="material-symbols-outlined text-[14px]">block</span>
+                ปิดชั่วคราว
             </button>
         </div>
     </div>
@@ -131,7 +132,7 @@ function openAddRoom() {
   document.getElementById("roomModal").classList.remove("hidden");
 }
 
-function openEditRoom(roomId) {
+function openEditRoom(roomId, blackout=false) {
   const r = rooms.find(
     (x) => x.room_id === roomId || String(x.room_id) === String(roomId),
   );
@@ -156,7 +157,9 @@ function openEditRoom(roomId) {
 
   // 2. รีเซ็ต Blackout checkbox (แต่ละการแก้ไขเริ่มต้นใหม่)
   const elBlackout = document.getElementById("isBlackout");
-  if (elBlackout) elBlackout.checked = false;
+  if (elBlackout) {
+      elBlackout.checked = blackout; 
+  }
 
   // 3. จัดการฟอร์ม Blackout (ป้องกัน Error ถ้ายังไม่ได้ใส่ HTML)
   const boStart = document.getElementById("modalBoStart");
