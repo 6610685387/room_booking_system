@@ -158,7 +158,11 @@ def notify_admin_new_booking_bulk(bookings, group) -> bool:
 
 
 def notify_booker_pending(booking) -> bool:
-    booker_email = booking.notification_email or booking.booker.email
+    booker_email = (
+        booking.notification_email
+        or booking.booker.notification_email
+        or booking.booker.email
+    )
     if not booker_email:
         logger.warning(
             "booker %s ไม่มีอีเมล — ข้ามการแจ้งสถานะ pending", booking.booker.username
@@ -181,7 +185,11 @@ def notify_booker_pending(booking) -> bool:
 
 
 def notify_booker_approved(booking) -> bool:
-    booker_email = booking.notification_email or booking.booker.email
+    booker_email = (
+        booking.notification_email
+        or booking.booker.notification_email
+        or booking.booker.email
+    )
     if not booker_email:
         logger.warning(
             "booker %s ไม่มีอีเมล — ข้ามการแจ้งอนุมัติ", booking.booker.username
@@ -205,7 +213,11 @@ def notify_booker_approved(booking) -> bool:
 
 
 def notify_booker_rejected(booking) -> bool:
-    booker_email = booking.notification_email or booking.booker.email
+    booker_email = (
+        booking.notification_email
+        or booking.booker.notification_email
+        or booking.booker.email
+    )
     if not booker_email:
         logger.warning(
             "booker %s ไม่มีอีเมล — ข้ามการแจ้งปฏิเสธ", booking.booker.username
@@ -248,7 +260,11 @@ def notify_admin_cancelled(booking, cancelled_by_username: str = "") -> bool:
 
 
 def notify_booker_reminder(booking) -> bool:
-    booker_email = booking.notification_email or booking.booker.email
+    booker_email = (
+        booking.notification_email
+        or booking.booker.notification_email
+        or booking.booker.email
+    )
     if not booker_email:
         logger.warning("booker %s ไม่มีอีเมล — ข้าม reminder", booking.booker.username)
         return False

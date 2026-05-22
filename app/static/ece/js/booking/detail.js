@@ -74,6 +74,7 @@ function vDetail() {
                     <div><p class="text-xs text-slate-400 font-bold mb-1">วัตถุประสงค์</p><p class="font-medium">${{ teaching: "สอนปกติ/ชดเชย", training: "จัดอบรม/ติว" }[b.purpose_type] || b.purpose_type}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">วันที่</p><p class="font-medium">${start}${end !== start ? " – " + end : ""}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">เวลา</p><p class="font-medium">${ts} – ${te} น.</p></div>
+                    ${b.notification_email ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">อีเมลแจ้งเตือน</p><p class="font-medium">${b.notification_email}</p></div>` : ""}
                     ${subjectText ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">วิชา / หัวข้อ</p><p class="font-medium">${subjectText}</p></div>` : ""}
                     ${b.additional_requests ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">คำขอเพิ่มเติม</p><p class="text-sm text-slate-600">${b.additional_requests}</p></div>` : ""}
                 </div>

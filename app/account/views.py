@@ -544,3 +544,21 @@ class MeAPIView(APIView):
     def get(self, request):
         serializer = MeSerializer(request.user)
         return Response(serializer.data)
+
+    @extend_schema(
+        summary="อัปเดตข้อมูลผู้ใช้ปัจจุบัน",
+        description="อัปเดตข้อมูลบางส่วน เช่น notification_email",
+        request=MeSerializer,
+        responses={
+            200: MeSerializer,
+            400: OpenApiResponse(description="ข้อมูลไม่ถูกต้อง"),
+            401: OpenApiResponse(description="ยังไม่ได้ login หรือ token หมดอายุ"),
+        },
+        tags=["Auth"],
+    )
+    def patch(self, request):
+        serializer = MeSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

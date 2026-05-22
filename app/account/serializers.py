@@ -56,9 +56,20 @@ class MeSerializer(serializers.ModelSerializer):
             "displayname_th",
             "displayname_en",
             "email",
+            "notification_email",
             "department",
             "faculty",
             "role",
             "created_at",
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            "user_id",
+            "username",
+            "displayname_th",
+            "displayname_en",
+            "email",
+            "department",
+            "faculty",
+            "role",
+            "created_at",
+        ]
