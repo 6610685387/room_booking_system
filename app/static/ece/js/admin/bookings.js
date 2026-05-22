@@ -461,14 +461,14 @@ function groupCard(g, opacityClass = "") {
       ? `<button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
                 class="px-4 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
                 style="background:#10b981">
-                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งกลุ่ม
+                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งหมด
             </button>`
       : ""
     }
             ${canCancelAnyGroup
       ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
                 class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
-                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
+                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งหมด
             </button>`
       : ""
     }
@@ -513,14 +513,14 @@ function vDetailAdmin() {
     ? `<button onclick="event.stopPropagation(); openApproveGroup('${b.recurring_group_id}')"
         class="w-full py-3 text-white rounded-xl font-bold text-sm hover:opacity-90 flex items-center justify-center gap-2 transition-all shadow-sm"
         style="background:#10b981">
-        <span class="material-symbols-outlined text-[18px]">check_circle</span>อนุมัติการจองทั้งกลุ่ม
+        <span class="material-symbols-outlined text-[18px]">check_circle</span>อนุมัติการจองทั้งหมด
        </button>`
     : "";
 
   const groupCancelBtn = (isGroup && b.status !== "Approved" && groupBookings.some((x) => x.status === "Pending"))
     ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${b.recurring_group_id}')"
         class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all">
-        <span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกการจองทั้งกลุ่ม
+        <span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกการจองทั้งหมด
       </button>`
     : "";
 

@@ -71,7 +71,7 @@ function vDetail() {
                 <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wider">ข้อมูลห้อง</h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div><p class="text-xs text-slate-400 font-bold mb-1">ห้อง</p><p class="font-bold text-slate-800">${rName} (${rCode})</p></div>
-                    <div><p class="text-xs text-slate-400 font-bold mb-1">วัตถุประสงค์</p><p class="font-medium">${ {teaching: "สอนปกติ/ชดเชย", training: "จัดอบรม/ติว"}[b.purpose_type] || b.purpose_type }</p></div>
+                    <div><p class="text-xs text-slate-400 font-bold mb-1">วัตถุประสงค์</p><p class="font-medium">${{ teaching: "สอนปกติ/ชดเชย", training: "จัดอบรม/ติว" }[b.purpose_type] || b.purpose_type}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">วันที่</p><p class="font-medium">${start}${end !== start ? " – " + end : ""}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">เวลา</p><p class="font-medium">${ts} – ${te} น.</p></div>
                     ${subjectText ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">วิชา / หัวข้อ</p><p class="font-medium">${subjectText}</p></div>` : ""}
@@ -83,7 +83,7 @@ function vDetail() {
         </div>
         <div class="col-span-12 lg:col-span-5 space-y-4">
             ${b.can_cancel ? `<button onclick="openCancelModal(${b.booking_id})" class="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-bold text-sm hover:bg-red-100 border border-red-100 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">cancel</span>ยกเลิกการจองนี้</button>` : ""}
-            ${b.recurring_group_id ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>` : ""}
+            ${b.recurring_group_id ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งหมด</button>` : ""}
         </div>
     </div>
 </div>`;
