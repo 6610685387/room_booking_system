@@ -174,75 +174,78 @@ function calRenderWeek() {
   wb.style.gridTemplateColumns = "56px repeat(7,1fr)";
 
   // ผูก Event สำหรับ Drag-to-select
+  let isDragging = false;
+  let dragStart = null;
+  let dragEnd = null;
+
   wb.onmousedown = (e) => {
     const slot = e.target.closest(".cal-slot");
     if (!slot) return;
-    calIsDragging = true;
-    calDragStart = slot;
-    calDragEnd = slot;
-    calUpdateDragHighlight();
+    isDragging = true;
+    dragStart = slot;
+    dragEnd = slot;
+    updateHighlight();
   };
+
   wb.onmouseover = (e) => {
-    if (!calIsDragging) return;
+    if (!isDragging) return;
     const slot = e.target.closest(".cal-slot");
     if (slot) {
-      calDragEnd = slot;
-      calUpdateDragHighlight();
+      dragEnd = slot;
+      updateHighlight();
     }
   };
-}
 
-let calIsDragging = false;
-let calDragStart = null;
-let calDragEnd = null;
+  const onMouseUp = () => {
+    if (isDragging) {
+      isDragging = false;
+      finalizeDrag();
+    }
+  };
+  window.addEventListener("mouseup", onMouseUp, { once: true });
 
-// onmouseup ต้องเป็น global เพื่อดักเคสปล่อยนอกพื้นที่
-window.addEventListener("mouseup", () => {
-  if (calIsDragging) {
-    calIsDragging = false;
-    calFinalizeDrag();
-  }
-});
+  function updateHighlight() {
+    wb.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+    if (!dragStart || !dragEnd) return;
 
-function calUpdateDragHighlight() {
-  document.querySelectorAll(".cal-slot").forEach(s => s.classList.remove("drag-highlight"));
-  if (!calDragStart || !calDragEnd) return;
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    if (d1 !== d2) return; 
 
-  const d1 = calDragStart.dataset.date;
-  const d2 = calDragEnd.dataset.date;
-  if (d1 !== d2) return; // ลากข้ามวันยังไม่รองรับใน UI นี้
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
 
-  const t1 = parseInt(calDragStart.dataset.time);
-  const t2 = parseInt(calDragEnd.dataset.time);
-  const minT = Math.min(t1, t2);
-  const maxT = Math.max(t1, t2);
-
-  document.querySelectorAll(`.cal-slot[data-date="${d1}"]`).forEach(s => {
-    const t = parseInt(s.dataset.time);
-    if (t >= minT && t <= maxT) s.classList.add("drag-highlight");
-  });
-}
-
-function calFinalizeDrag() {
-  if (!calDragStart || !calDragEnd) return;
-  const d1 = calDragStart.dataset.date;
-  const d2 = calDragEnd.dataset.date;
-  if (d1 !== d2) {
-    document.querySelectorAll(".cal-slot").forEach(s => s.classList.remove("drag-highlight"));
-    return;
+    wb.querySelectorAll(`.cal-slot[data-date="${d1}"]`).forEach((s) => {
+      const t = parseInt(s.dataset.time);
+      if (t >= minT && t <= maxT) s.classList.add("drag-highlight");
+    });
   }
 
-  const t1 = parseInt(calDragStart.dataset.time);
-  const t2 = parseInt(calDragEnd.dataset.time);
-  const minT = Math.min(t1, t2);
-  const maxT = Math.max(t1, t2);
+  function finalizeDrag() {
+    if (!dragStart || !dragEnd) return;
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    if (d1 !== d2) {
+      wb.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+      return;
+    }
 
-  calBookDate = d1;
-  calBookTimeStart = `${String(minT).padStart(2, "0")}:00`;
-  calBookTimeEnd   = `${String(maxT + 1).padStart(2, "0")}:00`;
-  if (calBookTimeEnd === "24:00") calBookTimeEnd = "23:59";
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
 
-  navigate("dashboard");
+    calBookDate = d1;
+    calBookTimeStart = `${String(minT).padStart(2, "0")}:00`;
+    calBookTimeEnd   = `${String(maxT + 1).padStart(2, "0")}:00`;
+    if (calBookTimeEnd === "24:00") calBookTimeEnd = "23:59";
+
+    // ล้าง highlight และนำทาง
+    wb.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+    navigate("dashboard");
+  }
 }
 
 function calSwitchView(v) {

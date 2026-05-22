@@ -348,7 +348,8 @@ async function loadRoomScheduleForView() {
       colDate.setDate(sunday.getDate() + i);
       const dateNum = colDate.getDate();
       const monthShort = MONTHS_TH_SHORT[colDate.getMonth()];
-      return `<th class="p-2 border border-slate-200 text-slate-600 font-bold text-center text-xs whitespace-nowrap">${label} ${dateNum} ${monthShort}</th>`;
+      const dateVal = `${colDate.getFullYear()}-${String(colDate.getMonth() + 1).padStart(2, "0")}-${String(colDate.getDate()).padStart(2, "0")}`;
+      return `<th class="p-2 border border-slate-200 text-slate-600 font-bold text-center text-xs whitespace-nowrap" data-date="${dateVal}">${label} ${dateNum} ${monthShort}</th>`;
     })
     .join("");
 
@@ -402,6 +403,7 @@ async function loadRoomScheduleForView() {
   if (!table) return;
 
   let isDragging = false;
+  let isSelecting = true;
   let dragStart = null;
   let dragEnd = null;
 
@@ -409,9 +411,10 @@ async function loadRoomScheduleForView() {
     const slot = e.target.closest(".cal-slot");
     if (!slot) return;
     isDragging = true;
+    isSelecting = !slot.classList.contains("drag-highlight");
     dragStart = slot;
     dragEnd = slot;
-    updateHighlight();
+    updateHighlightBox();
 
     const onMouseUp = () => {
       if (isDragging) {
@@ -428,64 +431,97 @@ async function loadRoomScheduleForView() {
     const slot = e.target.closest(".cal-slot");
     if (slot) {
       dragEnd = slot;
-      updateHighlight();
+      updateHighlightBox();
     }
   };
 
-  function updateHighlight() {
-    table.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+  function updateHighlightBox() {
     if (!dragStart || !dragEnd) return;
-
     const d1 = dragStart.dataset.date;
     const d2 = dragEnd.dataset.date;
-    if (d1 !== d2) return; // ไม่รองรับการลากข้ามวันในตารางนี้
-
     const t1 = parseInt(dragStart.dataset.time);
     const t2 = parseInt(dragEnd.dataset.time);
+
     const minT = Math.min(t1, t2);
     const maxT = Math.max(t1, t2);
 
-    table.querySelectorAll(`.cal-slot[data-date="${d1}"]`).forEach((s) => {
+    const allTh = Array.from(table.querySelectorAll("th[data-date]")).map(th => th.dataset.date);
+    const idx1 = allTh.indexOf(d1);
+    const idx2 = allTh.indexOf(d2);
+    if (idx1 === -1 || idx2 === -1) return;
+
+    const minDIdx = Math.min(idx1, idx2);
+    const maxDIdx = Math.max(idx1, idx2);
+    const targetDates = allTh.slice(minDIdx, maxDIdx + 1);
+
+    table.querySelectorAll(".cal-slot.drag-temp").forEach(s => {
+        s.classList.remove("drag-temp");
+        s.style.backgroundColor = "";
+    });
+
+    table.querySelectorAll(".cal-slot").forEach(s => {
       const t = parseInt(s.dataset.time);
-      if (t >= minT && t <= maxT) s.classList.add("drag-highlight");
+      const d = s.dataset.date;
+      if (t >= minT && t <= maxT && targetDates.includes(d)) {
+        s.classList.add("drag-temp");
+        if (isSelecting) {
+            s.style.backgroundColor = "rgba(239, 68, 68, 0.15)";
+        } else {
+            s.style.backgroundColor = "rgba(100, 116, 139, 0.1)";
+        }
+      }
     });
   }
 
   function finalizeDrag() {
-    if (!dragStart || !dragEnd) return;
-    const d1 = dragStart.dataset.date;
-    const d2 = dragEnd.dataset.date;
-    if (d1 !== d2) {
-      table.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
-      return;
-    }
+    table.querySelectorAll(".cal-slot.drag-temp").forEach(s => {
+      s.classList.remove("drag-temp");
+      s.style.backgroundColor = "";
+      if (isSelecting) {
+          s.classList.add("drag-highlight");
+      } else {
+          s.classList.remove("drag-highlight");
+      }
+    });
 
-    const t1 = parseInt(dragStart.dataset.time);
-    const t2 = parseInt(dragEnd.dataset.time);
-    const minT = Math.min(t1, t2);
-    const maxT = Math.max(t1, t2);
+    const highlighted = Array.from(table.querySelectorAll(".cal-slot.drag-highlight"));
+    if (highlighted.length === 0) return;
 
-    // อัปเดตฟอร์มโดยตรง
+    const selectedDates = [...new Set(highlighted.map(s => s.dataset.date))].sort();
+    const selectedTimes = highlighted.map(s => parseInt(s.dataset.time));
+    const minT = Math.min(...selectedTimes);
+    const maxT = Math.max(...selectedTimes);
+
+    const startDate = selectedDates[0];
+    const endDate = selectedDates[selectedDates.length - 1];
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const selectedDaysOfWeek = selectedDates.map(d => {
+      const [y, m, day] = d.split("-").map(Number);
+      return dayNames[new Date(y, m - 1, day).getDay()];
+    });
+
     const startEl = document.getElementById("date_start");
     const endEl = document.getElementById("date_end");
     const tsEl = document.getElementById("time_start");
     const teEl = document.getElementById("time_end");
 
-    if (startEl) startEl.value = d1;
-    if (endEl) endEl.value = d1;
+    if (startEl) startEl.value = startDate;
+    if (endEl) endEl.value = endDate;
     if (tsEl) tsEl.value = `${String(minT).padStart(2, "0")}:00`;
-    
+
     let endH = maxT + 1;
     if (teEl) {
       if (endH >= 24) teEl.value = "23:59";
       else teEl.value = `${String(endH).padStart(2, "0")}:00`;
     }
 
-    // Trigger sync/validation
+    document.querySelectorAll("input[name='rec_day']").forEach(cb => {
+      cb.checked = selectedDaysOfWeek.includes(cb.value);
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
     if (startEl) startEl.dispatchEvent(new Event("change"));
-    
-    // ล้าง highlight
-    table.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
   }
 }
 
