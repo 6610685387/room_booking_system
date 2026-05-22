@@ -322,8 +322,6 @@ function bookingCard(b, opacityClass = "") {
             <span class="${badgeClass} px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1">
                 <span class="material-symbols-outlined text-[11px]">${badgeIcon}</span>${labelTh}
             </span>
-            <span class="text-slate-400 text-xs">#${b.booking_id}</span>
-            ${b.recurring_group_id ? `<span class="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[10px] font-bold text-indigo-600">กลุ่ม #${b.recurring_group_id}</span>` : ""}
         </div>
         <h3 class="font-bold text-slate-800">${b.room?.room_name || "—"} <span class="font-normal text-slate-500 text-sm">(${b.room?.room_code || "—"})</span></h3>
         <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
@@ -437,7 +435,7 @@ function groupCard(g, opacityClass = "") {
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
             </div>
-            ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-500 italic mt-1">"คำขอพิเศษ: ${sortedBookings[0].additional_requests}"</p>` : ""}
+            ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
             ${
