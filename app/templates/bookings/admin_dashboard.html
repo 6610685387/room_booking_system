@@ -337,7 +337,7 @@
             <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-red-50">
                 <span class="material-symbols-outlined text-red-500 text-[28px]">event_busy</span>
             </div>
-            <h3 class="font-bold text-slate-800 text-center text-lg mb-1">ยืนยันยกเลิกทั้งกลุ่ม</h3>
+            <h3 class="font-bold text-slate-800 text-center text-lg mb-1">ยืนยันยกเลิกทั้งหมด</h3>
             <p class="text-sm text-slate-500 text-center mb-5">
                 ต้องการปฏิเสธ/ยกเลิกรายการจองทั้งหมดในกลุ่มต่อเนื่องนี้ <span class="font-bold text-slate-700"
                     id="cancelGroupIdDisplay"></span> หรือไม่?
@@ -351,7 +351,7 @@
                 <button onclick="doCancelGroupBooking()"
                     class="flex-1 py-3 rounded-2xl text-sm font-bold text-white hover:opacity-90 transition-all"
                     style="background:#ef4444">
-                    ยืนยัน ยกเลิกทั้งกลุ่ม
+                    ยืนยัน ยกเลิกทั้งหมด
                 </button>
             </div>
         </div>
@@ -546,8 +546,10 @@
         <h3 class="text-lg font-bold text-slate-800 mb-2">ยืนยันการลบ</h3>
         <p class="text-sm text-slate-500 mb-6">ต้องการลบช่วงเวลา Blackout นี้ใช่หรือไม่?</p>
         <div class="flex gap-3">
-            <button onclick="closeDeleteModal()" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-sm">ยกเลิก</button>
-            <button onclick="confirmDeleteBlackout()" class="flex-1 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 font-bold text-sm">ยืนยันลบ</button>
+            <button onclick="closeDeleteModal()"
+                class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-sm">ยกเลิก</button>
+            <button onclick="confirmDeleteBlackout()"
+                class="flex-1 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 font-bold text-sm">ยืนยันลบ</button>
         </div>
     </div>
 </div>
