@@ -11,22 +11,22 @@ function vDetail() {
   const sCfg = {
     Pending: {
       bar: "bg-amber-100 border-amber-200 text-amber-700",
-      label: "รอการอนุมัติ (Pending)",
+      label: "รอการอนุมัติ",
       ping: true,
     },
     Approved: {
       bar: "bg-green-100 border-green-200 text-green-700",
-      label: "อนุมัติแล้ว (Approved)",
+      label: "อนุมัติแล้ว",
       ping: false,
     },
     Rejected: {
       bar: "bg-red-100 border-red-200 text-red-700",
-      label: "ไม่อนุมัติ (Rejected)",
+      label: "ไม่อนุมัติ",
       ping: false,
     },
     Cancelled: {
       bar: "bg-slate-100 border-slate-200 text-slate-600",
-      label: "ยกเลิกแล้ว (Cancelled)",
+      label: "ยกเลิกแล้ว",
       ping: false,
     },
   }[b.status] || {
@@ -55,7 +55,7 @@ function vDetail() {
                 <span class="material-symbols-outlined text-[18px]">arrow_back</span>
             </button>
             <div>
-                <h2 class="text-xl font-bold">รายละเอียดการจอง <span class="text-slate-400 font-normal text-base">#${b.booking_id}</span></h2>
+                <h2 class="text-xl font-bold">รายละเอียดการจอง</h2>
                 <p class="text-xs text-slate-500 mt-0.5">สร้างเมื่อ ${created}</p>
             </div>
         </div>
@@ -71,7 +71,7 @@ function vDetail() {
                 <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wider">ข้อมูลห้อง</h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div><p class="text-xs text-slate-400 font-bold mb-1">ห้อง</p><p class="font-bold text-slate-800">${rName} (${rCode})</p></div>
-                    <div><p class="text-xs text-slate-400 font-bold mb-1">วัตถุประสงค์</p><p class="font-medium">${b.purpose_type}</p></div>
+                    <div><p class="text-xs text-slate-400 font-bold mb-1">วัตถุประสงค์</p><p class="font-medium">${ {teaching: "สอนปกติ/ชดเชย", training: "จัดอบรม/ติว"}[b.purpose_type] || b.purpose_type }</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">วันที่</p><p class="font-medium">${start}${end !== start ? " – " + end : ""}</p></div>
                     <div><p class="text-xs text-slate-400 font-bold mb-1">เวลา</p><p class="font-medium">${ts} – ${te} น.</p></div>
                     ${subjectText ? `<div class="col-span-2"><p class="text-xs text-slate-400 font-bold mb-1">วิชา / หัวข้อ</p><p class="font-medium">${subjectText}</p></div>` : ""}

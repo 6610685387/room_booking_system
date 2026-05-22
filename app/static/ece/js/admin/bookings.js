@@ -197,6 +197,18 @@ function vAllBookings() {
     return item;
   });
 
+  const now = new Date();
+  const isPast = (item) => {
+    if (item.type === "single") {
+      return new Date(item.booking.end_datetime) < now;
+    } else {
+      const sorted = [...item.bookings].sort(
+        (x, y) => new Date(x.end_datetime) - new Date(y.end_datetime),
+      );
+      return new Date(sorted[sorted.length - 1].end_datetime) < now;
+    }
+  };
+
   // ฟังก์ชันช่วยเหลือในการประมวลผลดึงระดับความสำคัญและเวลาใช้งานเร็วสุด เพื่อจัดเรียงลำดับ
   const getGroupPriorityAndDate = (item) => {
     if (item.type === "single") {
@@ -217,8 +229,13 @@ function vAllBookings() {
     }
   };
 
-  // 3. จัดเรียง: Pending ขึ้นบนสุด (Priority 0) -> ถัดมาเรียงตามเวลาที่ใกล้จะมาถึงก่อน (Ascending) -> Cancelled ไว้ล่างสุด
+  // 3. จัดเรียง: Upcoming ขึ้นก่อน -> Pending ขึ้นบนสุด (Priority 0) -> ถัดมาเรียงตามเวลาที่ใกล้จะมาถึงก่อน (Ascending) -> Past ไว้ล่างสุด
   finalGroupedList.sort((a, b) => {
+    const aPast = isPast(a);
+    const bPast = isPast(b);
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+
     const infoA = getGroupPriorityAndDate(a);
     const infoB = getGroupPriorityAndDate(b);
 
@@ -231,10 +248,13 @@ function vAllBookings() {
   // 4. เรนเดอร์การ์ดรายการตามประเภทกลุ่มและเดี่ยว
   const cardsHtml = finalGroupedList.length
     ? finalGroupedList.map((item) => {
+        const itemPast = isPast(item);
+        const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
+
         if (item.type === "single") {
-          return bookingCard(item.booking);
+          return bookingCard(item.booking, opacityClass);
         } else {
-          return groupCard(item);
+          return groupCard(item, opacityClass);
         }
       }).join("")
     : `<div class="text-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl">
@@ -261,7 +281,7 @@ function vAllBookings() {
 }
 
 // ── Single booking card ───────────────────────────────────────────────────────
-function bookingCard(b) {
+function bookingCard(b, opacityClass = "") {
   const start = thaiDateShort(b.start_datetime);
   const ts    = timeFromISO(b.start_datetime);
   const te    = timeFromISO(b.end_datetime);
@@ -295,15 +315,13 @@ function bookingCard(b) {
     : "";
 
   return `
-<div class="bg-white border border-slate-200 border-l-4 ${borderClass} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:shadow transition-all"
+<div class="bg-white border border-slate-200 border-l-4 ${borderClass} ${opacityClass} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:shadow transition-all"
      onclick="viewDetailAdmin(${b.booking_id})">
     <div class="flex-1 space-y-1.5 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
             <span class="${badgeClass} px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1">
                 <span class="material-symbols-outlined text-[11px]">${badgeIcon}</span>${labelTh}
             </span>
-            <span class="text-slate-400 text-xs">#${b.booking_id}</span>
-            ${b.recurring_group_id ? `<span class="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[10px] font-bold text-indigo-600">กลุ่ม #${b.recurring_group_id}</span>` : ""}
         </div>
         <h3 class="font-bold text-slate-800">${b.room?.room_name || "—"} <span class="font-normal text-slate-500 text-sm">(${b.room?.room_code || "—"})</span></h3>
         <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
@@ -321,7 +339,7 @@ function bookingCard(b) {
 }
 
 // ── Grouped recurring bookings card ───────────────────────────────────────────
-function groupCard(g) {
+function groupCard(g, opacityClass = "") {
   const canCancelAnyGroup = g.bookings.some(
     (b) => b.status === "Pending" || b.status === "Approved",
   );
@@ -403,7 +421,7 @@ function groupCard(g) {
     .join("");
 
   return `
-<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} rounded-xl shadow-sm overflow-hidden group/details">
+<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} ${opacityClass} rounded-xl shadow-sm overflow-hidden group/details">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
@@ -417,6 +435,7 @@ function groupCard(g) {
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
             </div>
+            ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
             ${
