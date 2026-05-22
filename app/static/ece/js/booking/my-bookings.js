@@ -115,7 +115,7 @@ function buildMyBookingsHtml(filteredList) {
     return item;
   });
 
-  // ฟังก์ชันคำนวณระบุสล็อตเวลาเริ่มจองที่เก่าที่สุดหรือใกล้ที่สุด เพื่อจัดเรียงลำดับ
+  // ฟังก์ชันคำนวณระบุสล็อตเวลาเริ่มจองที่เก่าที่สุดหรือใกล้ที่สุดเพื่อจัดเรียงลำดับ
   const getEarliestDate = (item) => {
     if (item.type === "single") {
       return new Date(item.booking.start_datetime);
@@ -125,8 +125,7 @@ function buildMyBookingsHtml(filteredList) {
     }
   };
 
-  // 2. จัดเรียงลำดับคิวจองจากรายการที่ใกล้ถึงกำหนดใช้งานมากที่สุดขึ้นก่อน (Ascending Order)
-  // แต่ย้ายรายการที่ผ่านไปแล้ว (Past) ไปไว้ข้างล่างสุด
+  // ตรวจสอบเงื่อนไขว่าการจองนั้นเกิดขึ้นในอดีต (ผ่านพ้นไปแล้ว) หรือไม่
   const now = new Date();
   const isPast = (item) => {
     if (item.type === "single") {
@@ -139,6 +138,7 @@ function buildMyBookingsHtml(filteredList) {
     }
   };
 
+  // 2. จัดเรียงลำดับคิวจอง โดยสล็อตที่ผ่านไปแล้ว (Past) จะถูกย้ายไปไว้ล่างสุด และสล็อตใกล้มาถึงขึ้นบนสุด
   finalGroupedList.sort((a, b) => {
     const aPast = isPast(a);
     const bPast = isPast(b);
@@ -167,24 +167,23 @@ function buildMyBookingsHtml(filteredList) {
           te = timeFromISO(b.end_datetime);
         const adminNotesText = b.admin_notes || b.admin_note || "";
 
-        // กำหนดปุ่มจองซ้ำให้สามารถกดจองได้เฉพาะรายการที่ "อนุมัติแล้ว" เท่านั้น
+        // ปุ่มจองซ้ำสำหรับคิวจองเดี่ยว (จำกัดให้สิทธ์เฉพาะที่ได้รับการอนุมัติแล้วเท่านั้น)
         const isApproved = b.status === "Approved";
         const rebookBtn = isApproved
           ? `<button onclick="event.stopPropagation(); rebookFromHistory(${b.booking_id})" class="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">autorenew</span>จองซ้ำ</button>`
           : `<button onclick="event.stopPropagation();" class="px-3.5 py-2 bg-slate-50 text-slate-300 border border-slate-100 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-not-allowed" title="จองซ้ำได้เฉพาะรายการที่อนุมัติแล้วเท่านั้น"><span class="material-symbols-outlined text-[15px]">autorenew</span>จองซ้ำ</button>`;
 
         return `
-<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all" onclick="navigate('detail',{detailId:${b.booking_id}})">
-    <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all ${opacityClass}" onclick="navigate('detail',{detailId:${b.booking_id}})">
+    <div class="flex-1 space-y-2 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
             ${badge(b.status)}
-            
         </div>
         <h3 class="text-base font-bold text-slate-800 truncate">${b.room_name} (${b.room_code})</h3>
         <p class="text-sm text-slate-600">${({
             "teaching": "สอนปกติ/ชดเชย",
             "training": "จัดอบรม/ติว"
-          }[b.purpose_type] || "ไม่ทราบ")}: ${b.subject || "—"}</p>
+        }[b.purpose_type] || "ไม่ทราบ")}: ${b.subject || "—"}</p>
         <div class="flex flex-wrap gap-3 text-xs text-slate-500">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}${end !== start ? " – " + end : ""}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
@@ -243,6 +242,14 @@ function buildMyBookingsHtml(filteredList) {
           }
         }
 
+        // ค้นหาคิวจองที่อนุมัติแล้วรายการแรกในกลุ่ม เพื่อนำมาใช้ตั้งต้นสำหรับ "จองซ้ำ"
+        const firstApproved = g.bookings.find((b) => b.status === "Approved");
+        
+        // ปุ่มจองซ้ำระดับกลุ่ม (แสดงผลถัดจากปุ่มยกเลิกกลุ่มใน Summary Header)
+        const groupRebookBtn = firstApproved
+          ? `<button onclick="event.stopPropagation(); rebookFromHistory(${firstApproved.booking_id})" class="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">autorenew</span>จองซ้ำทั้งกลุ่ม</button>`
+          : `<button onclick="event.stopPropagation();" class="px-3.5 py-2 bg-slate-50 text-slate-300 border border-slate-100 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-not-allowed" title="จองซ้ำระดับกลุ่มได้เฉพาะเมื่อกลุ่มนั้นมีรายการที่อนุมัติแล้วเท่านั้น"><span class="material-symbols-outlined text-[15px]">autorenew</span>จองซ้ำทั้งกลุ่ม</button>`;
+
         const slotsHtml = sortedBookings
           .map((b) => {
             const start = thaiDateShort(b.start_datetime);
@@ -250,7 +257,7 @@ function buildMyBookingsHtml(filteredList) {
               teSlot = timeFromISO(b.end_datetime);
             const adminNotesText = b.admin_notes || b.admin_note || "";
 
-            // ตรวจสอบปุ่มจองซ้ำในคิวย่อยแบบกลุ่ม
+            // ตรวจสอบปุ่มจองซ้ำในคิวย่อยแบบกลุ่มรายวัน
             const isApproved = b.status === "Approved";
             const subRebookBtn = isApproved
               ? `<button onclick="event.stopPropagation(); rebookFromHistory(${b.booking_id})" class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all"><span class="material-symbols-outlined text-[13px]">autorenew</span>จองซ้ำ</button>`
@@ -266,38 +273,41 @@ function buildMyBookingsHtml(filteredList) {
     </div>
     <div class="flex-shrink-0 self-end sm:self-center flex gap-1.5 items-center">
         ${subRebookBtn}
-        ${b.can_cancel
-                ? `<button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] hover:bg-red-100 border border-red-100 transition-all">ยกเลิกคิวนี้</button>`
-                : `<span class="text-[10px] text-slate-300 font-semibold px-2">ยกเลิกไม่ได้</span>`
-              }
+        ${
+          b.can_cancel
+            ? `<button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] hover:bg-red-100 border border-red-100 transition-all">ยกเลิกคิวนี้</button>`
+            : `<span class="text-[10px] text-slate-300 font-semibold px-2">ยกเลิกไม่ได้</span>`
+        }
     </div>
 </div>`;
           })
           .join("");
 
         return `
-<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} rounded-xl shadow-sm overflow-hidden group/details">
+<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} rounded-xl shadow-sm overflow-hidden group/details ${opacityClass}">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
-        <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
+        <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[11px] font-bold ${groupBadgeClass}">${groupBadgeText}</span>
                 <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
             <p class="text-sm text-slate-600">${({
-            "teaching": "สอนปกติ/ชดเชย",
-            "training": "จัดอบรม/ติว"
-          }[g.purpose_type] || "ไม่ทราบ")}: ${g.subject || "—"}</p>
+                "teaching": "สอนปกติ/ชดเชย",
+                "training": "จัดอบรม/ติว"
+            }[g.purpose_type] || "ไม่ทราบ")}: ${g.subject || "—"}</p>
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
             </div>
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
-            ${canCancelAnyGroup
-            ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
-            : ""
-          }
+            ${groupRebookBtn}
+            ${
+              canCancelAnyGroup
+                ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
+                : ""
+            }
             <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200"><span class="material-symbols-outlined text-[18px]">expand_more</span></div>
         </div>
     </summary>

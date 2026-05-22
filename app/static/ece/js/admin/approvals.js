@@ -3,6 +3,8 @@
  */
 "use strict";
 
+let isGroupAction = false; // ตัวแปรสำหรับตรวจสอบว่าเป็นการอนุมัติแบบกลุ่มหรือไม่
+
 function vApprovals() {
   const pending = bookings.filter((b) => b.status === "Pending");
   const groupedCardsHtml = buildAdminPendingBookingsHtml(pending);
@@ -150,6 +152,9 @@ function buildAdminPendingBookingsHtml(pendingList) {
         const canCancelAnyGroup = g.bookings.some(
           (b) => b.status === "Pending" || b.status === "Approved",
         );
+        const canApproveAnyGroup = g.bookings.some(
+          (b) => b.status === "Pending"
+        );
         const sortedBookings = [...g.bookings].sort(
           (x, y) => new Date(x.start_datetime) - new Date(y.start_datetime),
         );
@@ -214,7 +219,16 @@ function buildAdminPendingBookingsHtml(pendingList) {
             </div>
             ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
-        <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
+        <div class="flex items-center gap-2 flex-wrap flex-shrink-0 self-end md:self-center">
+            ${
+              canApproveAnyGroup
+                ? `<button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
+                class="px-4 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
+                style="background:#10b981">
+                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งกลุ่ม
+            </button>`
+                : ""
+            }
             ${
               canCancelAnyGroup
                 ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
@@ -239,6 +253,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
 }
 
 function openApprove(id) {
+  isGroupAction = false;
   curActionId = id;
   const b = bookings.find(
     (x) => x.booking_id === id || String(x.booking_id) === String(id),
@@ -247,6 +262,33 @@ function openApprove(id) {
   document.getElementById("approveDetail").innerHTML =
     `<strong>#${b.booking_id}</strong> — ${b.room?.room_name || b.room_name} (${b.room?.room_code || b.room_code})<br>
          ${b.booker?.displayname_th || "—"} · ${thaiDateShort(b.start_datetime)} ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)}`;
+  document.getElementById("approveNote").value = "";
+  document.getElementById("approveModal").classList.remove("hidden");
+}
+
+// ฟังก์ชันเปิดยืนยันการอนุมัติแบบกลุ่ม (แชร์ Modal ร่วมกับแบบคิวเดี่ยว)
+function openApproveGroup(groupId) {
+  isGroupAction = true;
+  curActionId = groupId;
+
+  const groupBookings = bookings.filter(
+    (b) => b.recurring_group_id && String(b.recurring_group_id) === String(groupId)
+  );
+
+  if (groupBookings.length > 0) {
+    const first = groupBookings[0];
+    const roomName = first.room?.room_name || first.room_name || "—";
+    const roomCode = first.room?.room_code || first.room_code || "—";
+    const count = groupBookings.length;
+
+    document.getElementById("approveDetail").innerHTML =
+      `<strong>อนุมัติทั้งกลุ่ม #${groupId} (ทั้งหมด ${count} รายการ)</strong><br>
+       ห้อง ${roomName} (${roomCode})<br>
+       ผู้จอง: ${first.booker?.displayname_th || "—"}`;
+  } else {
+    document.getElementById("approveDetail").innerHTML = `<strong>อนุมัติทั้งกลุ่ม #${groupId}</strong>`;
+  }
+
   document.getElementById("approveNote").value = "";
   document.getElementById("approveModal").classList.remove("hidden");
 }
@@ -268,11 +310,20 @@ async function doApprove() {
   const note = document.getElementById("approveNote").value.trim();
   closeModals();
   try {
-    await api.patch(`/api/admin/bookings/${curActionId}/approve/`, {
-      admin_notes: note,
-    });
+    if (isGroupAction) {
+      // เรียกส่ง PATCH ไปยังสล็อตการจองซ้ำแบบกลุ่ม
+      await api.patch(`/api/admin/bookings/recurring/${curActionId}/approve/`, {
+        admin_notes: note,
+      });
+      showToast("อนุมัติการจองทั้งกลุ่มเรียบร้อยแล้ว", "check_circle");
+    } else {
+      // เรียกส่ง PATCH ของคิวเดี่ยวปกติ
+      await api.patch(`/api/admin/bookings/${curActionId}/approve/`, {
+        admin_notes: note,
+      });
+      showToast("อนุมัติการจองเรียบร้อยแล้ว", "check_circle");
+    }
     await loadBookings();
-    showToast("อนุมัติการจองเรียบร้อยแล้ว", "check_circle");
     go(curView);
   } catch (err) {
     showApiError(err);
@@ -306,7 +357,6 @@ function openCancelGroupModal(groupId) {
   const displayEl = document.getElementById("cancelGroupIdDisplay");
   
   if (displayEl) {
-    // ค้นหารายการจองทั้งหมดที่อยู่ในกลุ่มนี้จากตัวแปร bookings
     const groupBookings = bookings.filter(
       (b) => b.recurring_group_id && String(b.recurring_group_id) === String(groupId)
     );
@@ -319,14 +369,19 @@ function openCancelGroupModal(groupId) {
         first.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" : 
         first.purpose_type === "training" ? "จัดอบรม/ติว" : "—"
       );
-      const count = groupBookings.length;
+      
+      // คำนวณจำนวนสล็อตจองที่ค้างอยู่ตามแต่ละสถานะ
+      const pendingCount = groupBookings.filter(b => b.status === "Pending").length;
+      const approvedCount = groupBookings.filter(b => b.status === "Approved").length;
 
-      // แสดงรายละเอียดสรุปในรูปแบบกล่องข้อความขนาดเล็ก
       displayEl.innerHTML = `
         <span class="block mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-left text-slate-600 font-normal leading-relaxed">
           <strong class="text-slate-700">ห้อง:</strong> ${roomName} (${roomCode})<br>
           <strong class="text-slate-700">วัตถุประสงค์:</strong> ${subject}<br>
-          <strong class="text-slate-700">จำนวนการจอง:</strong> ทั้งหมด ${count} รายการ
+          <strong class="text-slate-700">จำนวนที่รอยกเลิก:</strong> ${pendingCount} รายการ<br>
+          <span class="block text-[10px] text-amber-600 font-bold mt-1.5 leading-normal">
+            ⚠️ ระบบจะส่งคำขอยกเลิกเฉพาะรายการที่ยังไม่ได้รับการอนุมัติเท่านั้น สำหรับรายการที่ได้รับอนุมัติไปแล้ว (${approvedCount} รายการ) จะได้รับการละเว้นและไม่มีการยกเลิกใด ๆ
+          </span>
         </span>`;
     } else {
       displayEl.textContent = `รหัสกลุ่ม #${groupId}`;

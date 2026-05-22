@@ -325,7 +325,7 @@ function bookingCard(b, opacityClass = "") {
         </div>
         <h3 class="font-bold text-slate-800">${b.room?.room_name || "—"} <span class="font-normal text-slate-500 text-sm">(${b.room?.room_code || "—"})</span></h3>
         <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
-        <p class="text-sm text-slate-500">${purposeLabel(b)}</p>
+        <p class="text-sm text-slate-600">${purposeLabel(b)}</p>
         <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
@@ -340,8 +340,9 @@ function bookingCard(b, opacityClass = "") {
 
 // ── Grouped recurring bookings card ───────────────────────────────────────────
 function groupCard(g, opacityClass = "") {
-  const canCancelAnyGroup = g.bookings.some(
-    (b) => b.status === "Pending" || b.status === "Approved",
+  const canCancelAnyGroup = g.bookings.some((b) => b.status === "Pending");
+  const canApproveAnyGroup = g.bookings.some(
+    (b) => b.status === "Pending"
   );
   const sortedBookings = [...g.bookings].sort(
     (x, y) => new Date(x.start_datetime) - new Date(y.start_datetime),
@@ -437,7 +438,16 @@ function groupCard(g, opacityClass = "") {
             </div>
             ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
-        <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
+        <div class="flex items-center gap-2.5 flex-wrap flex-shrink-0 self-end md:self-center">
+            ${
+              canApproveAnyGroup
+                ? `<button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
+                class="px-4 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
+                style="background:#10b981">
+                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งกลุ่ม
+            </button>`
+                : ""
+            }
             ${
               canCancelAnyGroup
                 ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
@@ -479,6 +489,26 @@ function vDetailAdmin() {
   const ts      = timeFromISO(b.start_datetime);
   const te      = timeFromISO(b.end_datetime);
   const created = b.created_at ? thaiDateTime(b.created_at) : "—";
+
+  // ตรวจสอบเงื่อนไขกลุ่มข้อมูลเพื่อเรนเดอร์สิทธิ์ "อนุมัติทั้งกลุ่ม" หรือ "ยกเลิกทั้งกลุ่ม" ในหน้ารายละเอียดคิว
+  const isGroup = b.recurring_group_id && bookings.filter((x) => String(x.recurring_group_id) === String(b.recurring_group_id)).length > 1;
+  const groupBookings = isGroup ? bookings.filter((x) => String(x.recurring_group_id) === String(b.recurring_group_id)) : [];
+  const hasPendingInGroup = groupBookings.some((x) => x.status === "Pending");
+
+  const groupApproveBtn = (isGroup && hasPendingInGroup)
+    ? `<button onclick="event.stopPropagation(); openApproveGroup('${b.recurring_group_id}')"
+        class="w-full py-3 text-white rounded-xl font-bold text-sm hover:opacity-90 flex items-center justify-center gap-2 transition-all shadow-sm"
+        style="background:#10b981">
+        <span class="material-symbols-outlined text-[18px]">check_circle</span>อนุมัติการจองทั้งกลุ่ม
+       </button>`
+    : "";
+
+  const groupCancelBtn = (isGroup && groupBookings.some((x) => x.status === "Pending" || x.status === "Approved"))
+    ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${b.recurring_group_id}')"
+        class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all">
+        <span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกการจองทั้งกลุ่ม
+       </button>`
+    : "";
 
   return `
 <div class="p-6 sm:p-8">
@@ -528,9 +558,9 @@ function vDetailAdmin() {
                     <span class="material-symbols-outlined text-[18px]">cancel</span>ปฏิเสธการจอง
                 </button>
             </div>
-            ${(b.recurring_group_id && bookings.filter((x) => String(x.recurring_group_id) === String(b.recurring_group_id)).length > 1)
-              ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
-              : ""}` : ""}
+            ` : ""}
+            ${groupApproveBtn}
+            ${groupCancelBtn}
         </div>
     </div>
 </div>`;
