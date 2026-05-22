@@ -9,12 +9,14 @@ function vMyBookings() {
     Pending: myBookings.filter((b) => b.status === "Pending").length,
     Approved: myBookings.filter((b) => b.status === "Approved").length,
     Rejected: myBookings.filter((b) => b.status === "Rejected").length,
+    Cancelled: myBookings.filter((b) => b.status === "Cancelled").length,
   };
   const tabs = [
     ["all", "ทั้งหมด"],
     ["Pending", "รออนุมัติ"],
     ["Approved", "อนุมัติแล้ว"],
     ["Rejected", "ไม่อนุมัติ"],
+    ["Cancelled", "ยกเลิกแล้ว"]
   ];
   const filtered =
     mbTab === "all"
