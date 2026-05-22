@@ -335,7 +335,7 @@ async function doCancelBooking() {
     await api.patch(`/api/bookings/${cancelId}/cancel/`, {});
     await loadMyBookings();
     showToast("ยกเลิกการจองเรียบร้อยแล้ว", "cancel");
-    navigate(curView === "detail" ? "my-bookings" : curView);
+    renderApp();
   } catch (err) {
     showApiError(err);
   }
@@ -358,7 +358,7 @@ async function doCancelGroupBooking() {
     await api.patch(`/api/bookings/recurring/${cancelGroupId}/cancel/`, {});
     await loadMyBookings();
     showToast("ยกเลิกการจองแบบกลุ่มเรียบร้อยแล้ว", "cancel");
-    navigate(curView === "detail" ? "my-bookings" : curView);
+    renderApp();
   } catch (err) {
     showApiError(err);
   }
