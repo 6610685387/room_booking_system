@@ -203,11 +203,11 @@ function buildAdminPendingBookingsHtml(pendingList) {
           .join("");
 
         return `
-<details class="bg-white border border-slate-200 border-l-4 border-l-indigo-500 rounded-xl shadow-sm overflow-hidden group/details">
+<details class="bg-white border border-slate-200 border-l-4 border-l-amber-400 rounded-xl shadow-sm overflow-hidden group/details">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>${badgeTextGroup}</span>
+                <span class="badge-pending text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>${badgeTextGroup}</span>
                 <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>

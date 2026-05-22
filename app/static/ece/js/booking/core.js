@@ -13,6 +13,8 @@ let allBookings = []; // GET /api/bookings/ (รายการทั้งห�
 let calBookings = {}; // built from allBookings
 let allSchedules = {}; // สำหรับเก็บตารางจองรวมของทุกห้อง (รวมข้อมูลผู้ใช้อื่นด้วย)
 let activeBookingDraft = null; // ถังเก็บร่างฟอร์มเดิมชั่วคราวเพื่อส่งต่อไปยังห้องแนะนำสำรองเมื่อเกิดเหตุจองชน
+let savedBookingDraft = null;  // บันทึกข้อมูลฟอร์มเมื่อผู้ใช้สลับหน้า เพื่อกู้คืนเมื่อกลับมาหน้าจองห้องเดิม
+let skipNextDraftCapture = false;    // flag: prevent handleRoute from re-saving draft after clearDraftAndNavigate
 
 // Router
 let curView = "dashboard";
@@ -291,6 +293,15 @@ function startRealtimePolling() {
 // ═══════════════════════════════════════════════════════════════════
 // NAVIGATION / ROUTER (HASH-BASED ROUTING)
 // ═══════════════════════════════════════════════════════════════════
+
+// ล้าง draft แล้ว navigate — ใช้เมื่อ user ตั้งใจออกจากฟอร์ม (เช่น กด breadcrumb)
+function clearDraftAndNavigate(view, params = {}) {
+  savedBookingDraft = null;
+  activeBookingDraft = null;
+  skipNextDraftCapture = true;
+  navigate(view, params);
+}
+
 function navigate(view, params = {}) {
   const searchParams = new URLSearchParams();
   if (params.roomId) searchParams.set("roomId", params.roomId);
@@ -317,6 +328,14 @@ async function handleRoute() {
 
   if (["my-bookings", "detail", "calendar", "dashboard"].includes(view)) {
     if (curView !== view) {
+      // บันทึกข้อมูลฟอร์มก่อนออกจากหน้าจองห้อง เพื่อกู้คืนเมื่อกลับมา
+      if (curView === "room-booking" && typeof captureFormDraft === "function" && !skipNextDraftCapture) {
+        const captured = captureFormDraft();
+        if (captured) {
+          savedBookingDraft = { roomId: String(curRoomId), ...captured };
+        }
+      }
+      skipNextDraftCapture = false; // reset flag
       activeBookingDraft = null;
       // ถ้ากำลังเดินทาง calendar → dashboard คือ flow การจองจากปฏิทิน
       // ให้คง calBookDate ไว้ อย่าล้าง
@@ -326,6 +345,20 @@ async function handleRoute() {
         calBookKey = null;
         calBookLabel = null;
       }
+    }
+  }
+
+  // ถ้ากดกลับมาที่ nav dashboard แล้วมีฟอร์มค้างอยู่ → พากลับไปหน้าจองห้องเดิมทันที
+  // (ยกเว้นกรณีที่เพิ่งออกจาก room-booking มาเอง เช่น กดปุ่ม breadcrumb)
+  if (view === "dashboard" && savedBookingDraft && curView !== "room-booking") {
+    navigate("room-booking", { roomId: savedBookingDraft.roomId });
+    return;
+  }
+
+  // กู้คืนข้อมูลฟอร์มเมื่อกลับมาหน้าจองห้องเดิม
+  if (view === "room-booking" && roomId && savedBookingDraft) {
+    if (String(savedBookingDraft.roomId) === String(roomId) && !activeBookingDraft) {
+      activeBookingDraft = savedBookingDraft;
     }
   }
 

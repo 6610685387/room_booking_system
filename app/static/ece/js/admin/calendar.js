@@ -6,7 +6,7 @@
 // ประกาศตัวแปรเก็บสถานะมุมมองและตัวกรองภายในปฏิทิน Admin
 let calView = "month"; // 'month' หรือ 'week'
 let calRooms = new Set();
-const CAL_HRS = Array.from({ length: 12 }, (_, i) => i + 7); // สล็อตเวลารายชั่วโมง 7:00 ถึง 18:00 น.
+const CAL_HRS = Array.from({ length: 24 }, (_, i) => i); // สล็อตเวลารายชั่วโมง 0:00 ถึง 23:00 น.
 const SH = 52; // ความสูงสล็อตชั่วโมงในมุมมองรายสัปดาห์
 
 // ตรวจสอบตัวแปรชื่อวันภาษาไทยแบบสั้น-ยาวเพื่อป้องกัน Error
@@ -249,8 +249,9 @@ function calRenderWeek() {
 
   let bHtml = "";
   CAL_HRS.forEach((h) => {
+    const timeLabel = String(h).padStart(2, "0") + ":00";
     bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1 bg-slate-50/10" style="height:${SH}px">
-            <span class="text-[10px] text-slate-400 font-medium">${h}:00</span>
+            <span class="text-[10px] text-slate-400 font-medium">${timeLabel}</span>
         </div>`;
 
     days.forEach((d) => {

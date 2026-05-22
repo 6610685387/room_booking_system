@@ -83,7 +83,7 @@ function vRoomBooking() {
   return `
 <div class="p-6 sm:p-8">
     <div class="flex items-center gap-2 text-sm text-slate-400 mb-5">
-        <button onclick="navigate('dashboard')" class="hover:text-primary font-medium transition-colors">ภาพรวมห้องวันนี้</button>
+        <button onclick="clearDraftAndNavigate('dashboard')" class="hover:text-primary font-medium transition-colors">ภาพรวมห้องวันนี้</button>
         <span class="material-symbols-outlined text-[14px]">chevron_right</span>
         <span class="text-slate-700 font-bold">${room.room_name} (${room.room_code})</span>
     </div>
@@ -545,7 +545,10 @@ async function submitBooking(roomId) {
     calBookDate = null;
     calBookKey = null;
     calBookLabel = null;
-    await loadMyBookings();
+    savedBookingDraft = null;
+    activeBookingDraft = null;
+    skipNextDraftCapture = true; // do not re-save draft when leaving room-booking after submit
+    await Promise.all([loadMyBookings(), loadAllBookings(), loadAllSchedules()]);
 
     if (result.skipped_dates && result.skipped_dates.length > 0) {
       const skippedStr = result.skipped_dates.map((d) => thaiDateShort(d)).join(", ");
@@ -720,3 +723,36 @@ function autoSetEndTime() {
   }
 }
 window.autoSetEndTime = autoSetEndTime;
+
+/**
+ * captureFormDraft — อ่านค่าจากฟอร์มปัจจุบัน แล้วคืนเป็น object draft
+ * เรียกโดย handleRoute() ใน core.js ก่อนออกจากหน้า room-booking
+ * คืนค่า null ถ้าไม่มีฟอร์มในหน้าจอ (เช่น ยังไม่ render)
+ */
+function captureFormDraft() {
+  const dateStartEl = document.getElementById("date_start");
+  if (!dateStartEl) return null; // ฟอร์มยังไม่ถูก render
+
+  const purposeEl = document.querySelector("input[name=purp]:checked");
+  const days = [...document.querySelectorAll("input[name=rec_day]:checked")].map(
+    (c) => c.value,
+  );
+
+  return {
+    purpose_type: purposeEl ? purposeEl.value : "teaching",
+    subject_code: document.getElementById("subject_code")?.value || "",
+    subject_name: document.getElementById("subject_name")?.value || "",
+    program_type: document.getElementById("program_type")?.value || "",
+    training_topic: document.getElementById("training_topic")?.value || "",
+    date_start: document.getElementById("date_start")?.value || "",
+    date_end: document.getElementById("date_end")?.value || "",
+    days_of_week: days,
+    time_start: document.getElementById("time_start")?.value || "",
+    time_end: document.getElementById("time_end")?.value || "",
+    additional_requests:
+      document.getElementById("additional_requests")?.value || "",
+    skip_conflicts:
+      document.getElementById("skip_conflicts")?.checked || false,
+  };
+}
+window.captureFormDraft = captureFormDraft;

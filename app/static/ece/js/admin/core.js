@@ -115,7 +115,7 @@ function startRealtimePolling() {
   pollingInterval = setInterval(async () => {
     if (document.hidden) return;
     await refreshAdminDataSilent();
-  }, 30000);
+  }, 60000); // ทุก 60 วินาที
 }
 
 function isAnyModalOpen() {

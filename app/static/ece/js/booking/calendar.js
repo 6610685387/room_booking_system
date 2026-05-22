@@ -118,7 +118,7 @@ function calWkStart(d) {
   r.setDate(r.getDate() - r.getDay());
   return r;
 }
-const CAL_HRS = Array.from({ length: 12 }, (_, i) => i + 7);
+const CAL_HRS = Array.from({ length: 24 }, (_, i) => i);
 const SH = 52;
 
 function calRenderWeek() {
@@ -143,17 +143,22 @@ function calRenderWeek() {
   wh.style.gridTemplateColumns = "56px repeat(7,1fr)";
   let bHtml = "";
   CAL_HRS.forEach((h) => {
-    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1" style="height:${SH}px"><span class="text-[10px] text-slate-400 font-medium">${h}:00</span></div>`;
-    days.forEach((d) => {
+    // ปรับรูปแบบเลเบลบอกชั่วโมงให้เป็นเลข 2 หลัก (เช่น 00:00, 05:00)
+    const timeLabel = String(h).padStart(2, "0") + ":00";
+
+    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1 bg-slate-50/10" style="height:${SH}px">
+            <span class="text-[10px] text-slate-400 font-medium">${timeLabel}</span>
+        </div>`;
+      days.forEach((d) => {
       const key = calFKey(d.getFullYear(), d.getMonth(), d.getDate());
       const bks = calGetBk(key).filter((b) => b.h === h);
       const tod = isToday(d.getFullYear(), d.getMonth(), d.getDate());
       const td = `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${toBE(d.getFullYear())}`;
       const blocks = bks
         .map(
-          (
-            b,
-          ) => `<div class="${b.status === "Approved" ? "block-approved" : "block-pending"} absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[10px] font-bold overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" style="top:2px;height:${b.dur * SH - 6}px;z-index:5" onclick="calShowDay('${td}','${key}')">
+          (b) => `
+<div class="${b.status === "Approved" ? "block-approved" : "block-pending"} absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[10px] font-bold overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+     style="top:2px;height:${b.dur * SH - 6}px;z-index:5" onclick="calShowDay('${td}','${key}')">
     <div class="truncate">${b.room}</div>
     <div class="opacity-70 text-[9px] truncate">${b.time}</div>
 </div>`,

@@ -69,7 +69,7 @@ function vDashboard() {
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#7e0000,#b00000)">
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-white text-[20px]">bolt</span>
-        <h3 class="font-bold text-white text-base">จองรวดเร็ว — ระบบเลือกห้องให้อัตโนมัติ</h3>
+        <h3 class="font-bold text-white text-base">จองรวดเร็ว — ระบุเงื่อนไขและเลือกห้อง</h3>
       </div>
       <button onclick="closeQuickBook()" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition">
         <span class="material-symbols-outlined text-white text-[18px]">close</span>
@@ -128,11 +128,26 @@ function vDashboard() {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">วันที่เริ่ม <span class="text-red-500">*</span></label>
-          <input type="date" id="qb_date_start" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+          <input type="date" id="qb_date_start" onchange="qbSyncDates()" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">วันที่สิ้นสุด</label>
-          <input type="date" id="qb_date_end" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+          <input type="date" id="qb_date_end" onchange="qbSyncDates()" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+        </div>
+      </div>
+
+      <!-- วันในสัปดาห์ (Recurring) -->
+      <div id="qb_days_section">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">วันในสัปดาห์</label>
+          <button type="button" onclick="qbToggleAllDays()" id="qbBtnToggleAllDays" class="text-xs font-bold text-primary hover:underline">เลือกทุกวัน</button>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <label class="day-pill cursor-pointer" title="จ."><input type="checkbox" name="qb_rec_day" value="Mon" class="hidden"><div class="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 transition-all hover:border-primary hover:text-primary">จ.</div></label>
+          <label class="day-pill cursor-pointer" title="อ."><input type="checkbox" name="qb_rec_day" value="Tue" class="hidden"><div class="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 transition-all hover:border-primary hover:text-primary">อ.</div></label>
+          <label class="day-pill cursor-pointer" title="พ."><input type="checkbox" name="qb_rec_day" value="Wed" class="hidden"><div class="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 transition-all hover:border-primary hover:text-primary">พ.</div></label>
+          <label class="day-pill cursor-pointer" title="พฤ."><input type="checkbox" name="qb_rec_day" value="Thu" class="hidden"><div class="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 transition-all hover:border-primary hover:text-primary">พฤ.</div></label>
+          <label class="day-pill cursor-pointer" title="ศ."><input type="checkbox" name="qb_rec_day" value="Fri" class="hidden"><div class="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 transition-all hover:border-primary hover:text-primary">ศ.</div></label>
         </div>
       </div>
 
@@ -164,14 +179,14 @@ function vDashboard() {
         </div>
       </div>
 
-      <!-- Result area -->
+      <!-- Result area: แสดงรายการห้องที่เข้าเกณฑ์ -->
       <div id="qbResult" class="hidden"></div>
 
       <!-- Submit -->
       <button onclick="submitQuickBook()" id="qbSubmitBtn"
         class="w-full py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-90 active:scale-95 transition-all"
         style="background:linear-gradient(135deg,#7e0000,#b00000)">
-        <span class="material-symbols-outlined text-[18px]">bolt</span>ค้นหาห้องและจองเลย
+        <span class="material-symbols-outlined text-[18px]">search</span>ค้นหาห้องที่ว่าง
       </button>
     </div>
   </div>
@@ -407,6 +422,9 @@ window.clearDashboardSearch = clearDashboardSearch;
 //  QUICK BOOK — Modal open/close & UI helpers
 // ═══════════════════════════════════════════════════════
 
+// ตัวแปรเก็บ roomId ที่ผู้ใช้เลือกในหน้าผลลัพธ์
+let qbSelectedRoomId = null;
+
 function openQuickBook() {
   const modal = document.getElementById("qbModal");
   if (!modal) return;
@@ -433,7 +451,13 @@ function openQuickBook() {
   if (dateEl) dateEl.min = todayStr;
   if (dateEndEl) dateEndEl.min = todayStr;
 
-  // Reset result area
+  // Reset weekday pills
+  document.querySelectorAll("input[name=qb_rec_day]").forEach(cb => { cb.checked = false; });
+  const daysBtn = document.getElementById("qbBtnToggleAllDays");
+  if (daysBtn) daysBtn.textContent = "เลือกทุกวัน";
+
+  // Reset result area & selected room
+  qbSelectedRoomId = null;
   const res = document.getElementById("qbResult");
   if (res) { res.className = "hidden"; res.innerHTML = ""; }
 
@@ -441,8 +465,11 @@ function openQuickBook() {
   const btn = document.getElementById("qbSubmitBtn");
   if (btn) {
     btn.disabled = false;
-    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">bolt</span>ค้นหาห้องและจองเลย`;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">search</span>ค้นหาห้องที่ว่าง`;
   }
+
+  // Sync days section visibility
+  qbSyncDates();
 
   modal.classList.remove("hidden");
   modal.classList.add("flex");
@@ -451,6 +478,7 @@ function openQuickBook() {
 function closeQuickBook() {
   const modal = document.getElementById("qbModal");
   if (modal) { modal.classList.add("hidden"); modal.classList.remove("flex"); }
+  qbSelectedRoomId = null;
 }
 
 // ปิด modal เมื่อคลิก backdrop
@@ -463,7 +491,6 @@ document.addEventListener("click", (e) => {
 
 function qbHlPurpose(n) {
   const base = "flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer transition-all";
-  const active = `${base}" style="border-color:#7e0000;background:#fff1f2`;
   document.getElementById("qbpl1").setAttribute("style", n === 1 ? "border-color:#7e0000;background:#fff1f2" : "");
   document.getElementById("qbpl2").setAttribute("style", n === 2 ? "border-color:#7e0000;background:#fff1f2" : "");
   document.getElementById("qbpl1").className = `${base}`;
@@ -481,8 +508,49 @@ function qbAutoEndTime() {
   e.value = nh >= 24 ? "23:59" : `${String(nh).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** ซิงค์ date_start → date_end และแสดง/ซ่อนส่วน weekdays ตาม isSingleDay */
+function qbSyncDates() {
+  const startEl = document.getElementById("qb_date_start");
+  const endEl = document.getElementById("qb_date_end");
+  const daysSection = document.getElementById("qb_days_section");
+  if (!startEl || !endEl) return;
+
+  // ถ้า date_end ว่างให้ copy จาก date_start
+  if (startEl.value && !endEl.value) endEl.value = startEl.value;
+
+  const isSingleDay = !endEl.value || startEl.value === endEl.value;
+
+  // ถ้าเป็น single day → ซ่อนวันในสัปดาห์ & uncheck ทั้งหมด
+  if (daysSection) {
+    if (isSingleDay) {
+      daysSection.classList.add("hidden");
+      document.querySelectorAll("input[name=qb_rec_day]").forEach(cb => { cb.checked = false; });
+    } else {
+      daysSection.classList.remove("hidden");
+    }
+  }
+
+  // รีเซ็ต result เมื่อเปลี่ยนวัน
+  const res = document.getElementById("qbResult");
+  if (res) { res.className = "hidden"; res.innerHTML = ""; }
+  qbSelectedRoomId = null;
+  const btn = document.getElementById("qbSubmitBtn");
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">search</span>ค้นหาห้องที่ว่าง`;
+  }
+}
+
+function qbToggleAllDays() {
+  const checkboxes = document.querySelectorAll("input[name=qb_rec_day]");
+  const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+  checkboxes.forEach(cb => { cb.checked = anyUnchecked; });
+  const btn = document.getElementById("qbBtnToggleAllDays");
+  if (btn) btn.textContent = anyUnchecked ? "ล้างทั้งหมด" : "เลือกทุกวัน";
+}
+
 // ═══════════════════════════════════════════════════════
-//  QUICK BOOK — Room selection algorithm
+//  QUICK BOOK — Room finder (client-side, best-effort)
 // ═══════════════════════════════════════════════════════
 
 function qbTimeToMin(t) {
@@ -497,25 +565,25 @@ function qbDayName(dateStr) {
 }
 
 /**
- * หาห้องที่ดีที่สุดสำหรับ Quick Book
- * Priority: (1) ห้องโปรด (2) ความจุพอดีที่สุด (น้อยที่สุดที่ >= ที่ต้องการ)
- * กรอง: ห้องที่ไม่มี conflict ในตาราง allSchedules ณ วัน/เวลาที่ขอ
+ * หาห้องที่เข้าเกณฑ์ทั้งหมดสำหรับ Quick Book
+ * Returns { available: Room[], conflicted: Room[], reason?: string }
+ * เรียงลำดับ: ห้องโปรดก่อน → ความจุน้อยที่สุดที่ >= minCap
  */
-function qbFindBestRoom(dateStart, timeStart, timeEnd, minCap, roomType) {
+function qbFindAvailableRooms(dateStart, timeStart, timeEnd, minCap, roomType) {
   const dayName = qbDayName(dateStart);
   const reqS = qbTimeToMin(timeStart);
   const reqE = qbTimeToMin(timeEnd);
   const favIds = new Set(favRooms.map(r => String(r.room_id)));
 
   // 1. กรองตาม capacity & type
-  let candidates = rooms.filter(r =>
+  const candidates = rooms.filter(r =>
     r.capacity >= minCap &&
     (roomType === "all" || r.room_type === roomType)
   );
 
-  if (candidates.length === 0) return { room: null, reason: "no_capacity" };
+  if (candidates.length === 0) return { available: [], conflicted: [], reason: "no_capacity" };
 
-  // 2. กรอง conflict จาก allSchedules (best-effort client-side)
+  // 2. กรอง conflict จาก allSchedules (best-effort client-side, single-day check)
   const conflicted = [];
   const available = candidates.filter(r => {
     const sched = allSchedules[r.room_id];
@@ -529,15 +597,13 @@ function qbFindBestRoom(dateStart, timeStart, timeEnd, minCap, roomType) {
       const slE = qbTimeToMin(sl.end_time);
       if (reqS < slE && reqE > slS) {
         conflicted.push(r);
-        return false; // มี conflict
+        return false;
       }
     }
     return true;
   });
 
-  if (available.length === 0) return { room: null, reason: "no_available", conflicted };
-
-  // 3. เรียงลำดับ: ห้องโปรดก่อน → ความจุน้อยที่สุดที่ >= minCap
+  // 3. เรียงลำดับ: ห้องโปรดก่อน → ความจุน้อยที่สุด
   available.sort((a, b) => {
     const aFav = favIds.has(String(a.room_id)) ? 0 : 1;
     const bFav = favIds.has(String(b.room_id)) ? 0 : 1;
@@ -545,11 +611,46 @@ function qbFindBestRoom(dateStart, timeStart, timeEnd, minCap, roomType) {
     return a.capacity - b.capacity;
   });
 
-  return { room: available[0], allAvailable: available, conflicted };
+  return { available, conflicted };
 }
 
 // ═══════════════════════════════════════════════════════
-//  QUICK BOOK — Submit
+//  QUICK BOOK — Room card selection UI
+// ═══════════════════════════════════════════════════════
+
+/** เลือก/ยกเลิกเลือกห้องใน result list */
+function qbSelectRoom(roomId) {
+  qbSelectedRoomId = (qbSelectedRoomId === roomId) ? null : roomId;
+
+  // อัปเดต highlight ทุก card
+  document.querySelectorAll(".qb-room-card").forEach(card => {
+    const id = Number(card.dataset.roomId);
+    if (id === qbSelectedRoomId) {
+      card.classList.add("border-primary", "bg-red-50/60");
+      card.classList.remove("border-slate-200");
+      card.querySelector(".qb-select-badge").innerHTML =
+        `<span class="material-symbols-outlined text-[16px] text-white">check</span>`;
+      card.querySelector(".qb-select-badge").className =
+        "qb-select-badge w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 bg-primary";
+    } else {
+      card.classList.remove("border-primary", "bg-red-50/60");
+      card.classList.add("border-slate-200");
+      card.querySelector(".qb-select-badge").innerHTML =
+        `<span class="material-symbols-outlined text-[16px] text-slate-400">radio_button_unchecked</span>`;
+      card.querySelector(".qb-select-badge").className =
+        "qb-select-badge w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0";
+    }
+  });
+
+  // แสดง/ซ่อนปุ่มยืนยัน
+  const confirmBtn = document.getElementById("qbConfirmBtn");
+  if (confirmBtn) {
+    confirmBtn.classList.toggle("hidden", qbSelectedRoomId === null);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  QUICK BOOK — Search & Show rooms
 // ═══════════════════════════════════════════════════════
 
 async function submitQuickBook() {
@@ -565,6 +666,8 @@ async function submitQuickBook() {
   const timeEnd = document.getElementById("qb_time_end")?.value || "";
   const minCap = parseInt(document.getElementById("qb_capacity")?.value || "0", 10);
   const roomType = document.getElementById("qb_room_type")?.value || "all";
+  const isSingleDay = !dateEnd || dateStart === dateEnd;
+  const days = [...document.querySelectorAll("input[name=qb_rec_day]:checked")].map(c => c.value);
 
   // Validate
   const errs = [];
@@ -590,37 +693,30 @@ async function submitQuickBook() {
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const curTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
-  if (dateStart < todayStr) {
-    showToast("ไม่สามารถจองย้อนหลังได้", "error"); return;
-  }
-  if (dateEnd && dateEnd < dateStart) {
-    showToast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม", "error"); return;
-  }
-  if (qbTimeToMin(timeStart) >= qbTimeToMin(timeEnd)) {
-    showToast("เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด", "error"); return;
-  }
-  if (dateStart === todayStr && timeStart < curTime) {
-    showToast(`เวลาเริ่มต้องไม่ย้อนหลัง (ปัจจุบัน ${curTime})`, "error"); return;
-  }
+  if (dateStart < todayStr) { showToast("ไม่สามารถจองย้อนหลังได้", "error"); return; }
+  if (dateEnd && dateEnd < dateStart) { showToast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม", "error"); return; }
+  if (qbTimeToMin(timeStart) >= qbTimeToMin(timeEnd)) { showToast("เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด", "error"); return; }
+  if (dateStart === todayStr && timeStart < curTime) { showToast(`เวลาเริ่มต้องไม่ย้อนหลัง (ปัจจุบัน ${curTime})`, "error"); return; }
 
-  // แสดง loading
+  // แสดง loading & ค้นหาห้อง
   btn.disabled = true;
   btn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>กำลังค้นหาห้อง...`;
-  resEl.className = "hidden"; resEl.innerHTML = "";
+  resEl.className = "hidden";
+  resEl.innerHTML = "";
+  qbSelectedRoomId = null;
 
-  // หาห้องที่ดีที่สุด
-  const found = qbFindBestRoom(dateStart, timeStart, timeEnd, minCap, roomType);
+  const { available, conflicted, reason } = qbFindAvailableRooms(dateStart, timeStart, timeEnd, minCap, roomType);
 
-  if (!found.room) {
-    btn.disabled = false;
-    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">bolt</span>ค้นหาห้องและจองเลย`;
+  btn.disabled = false;
+  btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">search</span>ค้นหาห้องที่ว่าง`;
 
+  if (available.length === 0) {
     let msg = "";
-    if (found.reason === "no_capacity") {
+    if (reason === "no_capacity") {
       msg = `<p class="font-bold text-red-700 mb-1">ไม่มีห้องที่รองรับผู้ใช้ได้ถึง ${minCap} คน</p>
              <p class="text-sm text-slate-500">ลองลดจำนวนผู้ใช้หรือเปลี่ยนประเภทห้อง</p>`;
     } else {
-      const names = (found.conflicted || []).map(r => `<span class="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold">${r.room_code}</span>`).join(" ");
+      const names = conflicted.map(r => `<span class="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold">${r.room_code}</span>`).join(" ");
       msg = `<p class="font-bold text-red-700 mb-1">ไม่มีห้องว่างในช่วงเวลาที่เลือก</p>
              ${names ? `<p class="text-xs text-slate-500 mt-1">ห้องที่ถูกจองแล้ว: ${names}</p>` : ""}
              <p class="text-sm text-slate-500 mt-1">ลองเปลี่ยนวัน/เวลา หรือเลือกประเภทห้องอื่น</p>`;
@@ -630,33 +726,93 @@ async function submitQuickBook() {
     return;
   }
 
-  // แสดงห้องที่เลือก & กำลังส่งคำขอ
-  const room = found.room;
-  resEl.innerHTML = `
-<div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
-  <span class="material-symbols-outlined text-emerald-600 text-[24px]">meeting_room</span>
-  <div>
-    <p class="font-bold text-emerald-700 text-sm">พบห้องที่เหมาะสม!</p>
-    <p class="text-slate-700 font-bold">${room.room_name} <span class="text-slate-400 font-normal">(${room.room_code})</span></p>
-    <p class="text-xs text-slate-500">${room.capacity} ที่นั่ง · ${{ "Meeting Room": "ห้องประชุม", "Classroom": "ห้องเรียน" }[room.room_type] || room.room_type}</p>
+  // สร้าง card list ให้ผู้ใช้เลือก
+  const favIds = new Set(favRooms.map(r => String(r.room_id)));
+  const roomTypeLabel = { "Meeting Room": "ห้องประชุม", "Classroom": "ห้องเรียน" };
+
+  const cards = available.map(r => {
+    const isFav = favIds.has(String(r.room_id));
+    return `
+<div class="qb-room-card flex items-center gap-3 p-3.5 bg-white border-2 border-slate-200 rounded-xl cursor-pointer hover:border-primary transition-all"
+     data-room-id="${r.room_id}" onclick="qbSelectRoom(${r.room_id})">
+  <div class="qb-select-badge w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0">
+    <span class="material-symbols-outlined text-[16px] text-slate-400">radio_button_unchecked</span>
+  </div>
+  <div class="min-w-0 flex-1">
+    <div class="flex items-center gap-1.5 flex-wrap">
+      <span class="font-bold text-slate-800 text-sm">${r.room_name}</span>
+      <span class="text-xs text-slate-400 font-bold">(${r.room_code})</span>
+      ${isFav ? `<span class="material-symbols-outlined text-[14px] text-amber-500 [font-variation-settings:'FILL'_1]" title="ห้องโปรด">star</span>` : ""}
+    </div>
+    <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+      <span class="material-symbols-outlined text-[12px]">groups</span>${r.capacity} ที่นั่ง
+      <span class="ml-1 text-slate-400">·</span>
+      ${roomTypeLabel[r.room_type] || r.room_type}
+    </p>
   </div>
 </div>`;
+  }).join("");
+
+  const favNote = available.some(r => favIds.has(String(r.room_id)))
+    ? `<p class="text-xs text-amber-600 font-medium flex items-center gap-1 mb-2"><span class="material-symbols-outlined text-[13px] [font-variation-settings:'FILL'_1]">star</span>ห้องโปรดแสดงก่อน</p>` : "";
+
+  resEl.innerHTML = `
+<div class="space-y-3">
+  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+    <span class="material-symbols-outlined text-[15px] text-emerald-600">check_circle</span>
+    พบห้องที่เข้าเกณฑ์ ${available.length} ห้อง — เลือกห้องที่ต้องการ
+  </p>
+  ${favNote}
+  <div class="space-y-2 max-h-64 overflow-y-auto pr-1">${cards}</div>
+  <button id="qbConfirmBtn" onclick="qbConfirmBook()" class="hidden w-full py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-90 active:scale-95 transition-all" style="background:linear-gradient(135deg,#16a34a,#15803d)">
+    <span class="material-symbols-outlined text-[18px]">bolt</span>ยืนยันการจองห้องที่เลือก
+  </button>
+</div>`;
   resEl.className = "block";
+}
 
-  btn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>กำลังส่งคำขอจอง...`;
+// ═══════════════════════════════════════════════════════
+//  QUICK BOOK — Confirm & Submit booking
+// ═══════════════════════════════════════════════════════
 
-  // สร้าง payload และส่ง API
+async function qbConfirmBook() {
+  if (!qbSelectedRoomId) {
+    showToast("กรุณาเลือกห้องก่อนยืนยัน", "error");
+    return;
+  }
+
+  const confirmBtn = document.getElementById("qbConfirmBtn");
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>กำลังส่งคำขอจอง...`;
+  }
+
+  // อ่านค่าจากฟอร์ม
+  const purposeEl = document.querySelector("input[name=qb_purp]:checked");
+  const purpose = purposeEl ? purposeEl.value : "teaching";
+  const dateStart = document.getElementById("qb_date_start")?.value || "";
+  const dateEnd = document.getElementById("qb_date_end")?.value || "";
+  const timeStart = document.getElementById("qb_time_start")?.value || "";
+  const timeEnd = document.getElementById("qb_time_end")?.value || "";
+  const isSingleDay = !dateEnd || dateStart === dateEnd;
+  const days = [...document.querySelectorAll("input[name=qb_rec_day]:checked")].map(c => c.value);
   const payload = {
-    room_id: room.room_id,
+    room_id: qbSelectedRoomId,
     date_start: dateStart,
     date_end: dateEnd || dateStart,
-    days_of_week: null,
     time_start: timeStart,
     time_end: timeEnd,
     purpose_type: purpose,
     skip_conflicts: false,
     additional_requests: "",
   };
+
+  // Recurring: ถ้าเป็น single day ไม่ส่ง days_of_week; ถ้า multi-day ส่งวันที่เลือก
+  if (isSingleDay) {
+    payload.days_of_week = null;
+  } else {
+    payload.days_of_week = days.length > 0 ? days : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  }
 
   if (purpose === "teaching") {
     payload.teaching_info = {
@@ -672,40 +828,30 @@ async function submitQuickBook() {
 
   try {
     const result = await api.post("/api/bookings/", payload);
+    const room = rooms.find(r => r.room_id === qbSelectedRoomId);
     closeQuickBook();
     calBookDate = null; calBookKey = null; calBookLabel = null;
-    await loadMyBookings();
-    showToast(
-      `จองห้อง ${room.room_code} สำเร็จ! (${result.booking_ids?.length || 1} รายการ)`,
-      "check_circle"
-    );
+    await Promise.all([loadMyBookings(), loadAllBookings(), loadAllSchedules()]);
+
+    if (result.skipped_dates && result.skipped_dates.length > 0) {
+      const skippedStr = result.skipped_dates.map(d => thaiDateShort(d)).join(", ");
+      showToast(`จองสำเร็จ ข้ามรายการที่ชนอัตโนมัติ: ${skippedStr}`, "warning");
+    } else {
+      showToast(
+        `จองห้อง ${room?.room_code || ""} สำเร็จ! (${result.booking_ids?.length || 1} รายการ)`,
+        "check_circle"
+      );
+    }
     navigate("my-bookings");
   } catch (err) {
-    btn.disabled = false;
-    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">bolt</span>ค้นหาห้องและจองเลย`;
-
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">bolt</span>ยืนยันการจองห้องที่เลือก`;
+    }
     if (err.status === 409) {
-      // ห้องที่เลือกมี conflict จริง → ลองห้องถัดไป
-      const next = (found.allAvailable || []).slice(1);
-      if (next.length > 0) {
-        resEl.innerHTML = `
-<div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-  <p class="font-bold text-amber-700 text-sm mb-1">ห้อง ${room.room_code} มีคนจองในช่วงนี้แล้ว</p>
-  <p class="text-xs text-slate-500">มีห้องสำรองอีก ${next.length} ห้อง กรุณากดจองอีกครั้ง</p>
-</div>`;
-        // ปรับ available list ให้เหลือห้องถัดไป
-        found.allAvailable.splice(0, 1);
-      } else {
-        resEl.innerHTML = `
-<div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-  <p class="font-bold text-red-700 text-sm">ไม่มีห้องว่างในช่วงเวลาที่เลือก</p>
-  <p class="text-xs text-slate-500 mt-1">กรุณาเปลี่ยนวัน/เวลา หรือจำนวนผู้ใช้</p>
-</div>`;
-      }
-      resEl.className = "block";
+      showToast("ห้องที่เลือกมีเวลาจองชน กรุณาเลือกห้องอื่น หรือเปิดสวิตช์ข้ามวันที่ชน", "error");
     } else {
-      resEl.innerHTML = `<div class="p-4 bg-red-50 border border-red-200 rounded-xl"><p class="font-bold text-red-700 text-sm">${err.message || "เกิดข้อผิดพลาด"}</p></div>`;
-      resEl.className = "block";
+      showToast(err.data?.error || err.message || "เกิดข้อผิดพลาดในการจอง", "error");
     }
   }
 }
@@ -714,4 +860,8 @@ window.openQuickBook = openQuickBook;
 window.closeQuickBook = closeQuickBook;
 window.qbHlPurpose = qbHlPurpose;
 window.qbAutoEndTime = qbAutoEndTime;
+window.qbSyncDates = qbSyncDates;
+window.qbToggleAllDays = qbToggleAllDays;
+window.qbSelectRoom = qbSelectRoom;
 window.submitQuickBook = submitQuickBook;
+window.qbConfirmBook = qbConfirmBook;

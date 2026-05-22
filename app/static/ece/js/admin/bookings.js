@@ -376,8 +376,8 @@ function groupCard(g, opacityClass = "") {
   const allStatuses = g.bookings.map((b) => b.status);
   const uniqueStatuses = [...new Set(allStatuses)];
 
-  let groupBorderClass = "border-l-indigo-500";
-  let groupBadgeClass = "text-indigo-800 bg-indigo-100 border border-indigo-300";
+  let groupBorderClass = "border-l-amber-400";
+  let groupBadgeClass = "text-amber-700 bg-amber-50 border border-amber-200";
   let groupBadgeText = "รายการจองแบบกลุ่ม";
 
   if (uniqueStatuses.length === 1) {
