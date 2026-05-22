@@ -9,11 +9,37 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema
 from rooms.models import Room, BlackoutPeriod
-from rooms.serializers import RoomSerializer, BlackoutPeriodSerializer
+from rooms.serializers import RoomSerializer, BlackoutPeriodSerializer, BlackoutPeriodReadSerializer
 from bookings.models import Booking
 from bookings.services.admin_booking_service import bulk_approve_bookings, bulk_reject_bookings
 
 # --- Blackout ---
+@extend_schema(tags=["blackout"], summary="ดึงข้อมูล Blackout ที่ยังไม่หมดเวลาทั้งหมด")
+class BlackoutPeriodUpcomingListView(generics.ListAPIView):
+    serializer_class = BlackoutPeriodReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        now = timezone.now()
+        return BlackoutPeriod.objects.filter(
+            end_datetime__gt=now
+        ).order_by('start_datetime')
+
+
+@extend_schema(tags=["blackout"], summary="ดึงข้อมูล Blackout ที่ยังไม่หมดเวลา (ระบุห้อง)")
+class RoomBlackoutPeriodUpcomingListView(generics.ListAPIView):
+    serializer_class = BlackoutPeriodReadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        room_id = self.kwargs.get('room_id')
+        now = timezone.now()
+        return BlackoutPeriod.objects.filter(
+            room_id=room_id,
+            end_datetime__gt=now
+        ).order_by('start_datetime')
+
+@extend_schema(tags=["blackout"])
 class BlackoutPeriodCreateView(generics.CreateAPIView):
     queryset = BlackoutPeriod.objects.all()
     serializer_class = BlackoutPeriodSerializer
@@ -28,6 +54,7 @@ class BlackoutPeriodCreateView(generics.CreateAPIView):
             room.is_active = False
             room.save(update_fields=['is_active'])
 
+@extend_schema(tags=["blackout"])
 class BlackoutPeriodDeleteView(generics.DestroyAPIView):
     queryset = BlackoutPeriod.objects.all()
     serializer_class = BlackoutPeriodSerializer

@@ -8,6 +8,8 @@ urlpatterns = [
     # --- blackout ---
     path('blackout/', views.BlackoutPeriodCreateView.as_view(), name='blackout-create'),
     path('blackout/<int:blackout_id>/', views.BlackoutPeriodDeleteView.as_view(), name='blackout-delete'),
+    path('blackout/upcoming/', views.BlackoutPeriodUpcomingListView.as_view(), name='blackout-upcoming-list'),
+    path('blackout/upcoming/room/<int:room_id>/', views.RoomBlackoutPeriodUpcomingListView.as_view(), name='room-blackout-upcoming-list'),
     # --- room ---
     path('req/room/', views.room_list_create_api, name='room_list_create'),
     path('req/room/<int:room_id>/', views.room_detail_api, name='room_detail'),

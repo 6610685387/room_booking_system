@@ -69,7 +69,19 @@ function doLogout() {
 // ═══════════════════════════════════════════════════════════════════
 async function loadRooms() {
   try {
-    rooms = (await api.get("/api/admin/req/room/")) || [];
+    const [fetchedRooms, fetchedBlackouts] = await Promise.all([
+      api.get("/api/admin/req/room/"),
+      api.get("/api/admin/blackout/upcoming/") // เช็ค path ให้ตรงกับ endpoint ของคุณ
+    ]);
+
+    const baseRooms = fetchedRooms || [];
+    const blackouts = fetchedBlackouts || [];
+
+    rooms = baseRooms.map(room => ({
+      ...room,
+      blackouts: blackouts.filter(b => b.room === room.room_id)
+    }));
+    document.getElementById('app').innerHTML = vRooms();
   } catch (err) {
     showApiError(err);
   }

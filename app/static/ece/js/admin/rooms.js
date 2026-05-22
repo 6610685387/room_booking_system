@@ -5,24 +5,26 @@
 
 let editRoomId = null;
 let pendingDeleteRoomId = null;
+let targetBlackoutId = null;
 
 function vRooms() {
   const cards = rooms
     .map(
       (r) => `
-<div class="room-card bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+<div class="room-card bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
     <div class="h-32 relative bg-slate-100">
         ${r.room_image ? `<img src="${r.room_image}" class="absolute inset-0 w-full h-full object-cover">` : ""}
         <div class="absolute inset-0 flex items-end p-3" style="background:linear-gradient(to top,rgba(0,0,0,.5),transparent)">
             <span class="text-white font-bold text-sm">${r.room_code}</span>
         </div>
         <div class="absolute top-2 right-2">
-            <span class="${r.is_active !== false ? "badge-approved" : "badge-rejected"} px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <span class="${r.is_active !== false ? "badge-approved" : "badge-rejected"} px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/90">
                 ${r.is_active !== false ? "เปิดใช้งาน" : "ปิดชั่วคราว"}
             </span>
         </div>
     </div>
-    <div class="p-4">
+    
+    <div class="p-4 flex-grow">
         <h3 class="font-bold text-slate-800">${r.room_name}</h3>
         <div class="flex gap-3 text-xs text-slate-500 mt-1">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">groups</span>${r.capacity} ที่นั่ง</span>
@@ -40,6 +42,29 @@ function vRooms() {
             </button>
         </div>
     </div>
+
+    ${r.blackouts && r.blackouts.length > 0 ? `
+    <div class="border-t border-slate-200 bg-slate-50 p-3">
+        <div class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px] text-amber-500">warning</span>
+            ช่วงเวลาที่ปิดให้บริการ:
+        </div>
+        <div class="space-y-1.5 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+            ${r.blackouts.map(b => `
+            <div class="flex items-center justify-between bg-white border border-slate-200 p-2 rounded-lg shadow-sm">
+                <div class="text-[11px] text-slate-600 leading-tight">
+                    <div class="font-semibold text-slate-700">${b.reason || "ไม่ระบุเหตุผล"}</div>
+                    <div>${formatDateTime(b.start_datetime)} - </div>
+                    <div>${formatDateTime(b.end_datetime)}</div>
+                </div>
+                <button onclick="deleteBlackout(${b.blackout_id})" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+                    <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+            </div>
+            `).join("")}
+        </div>
+    </div>
+    ` : ""}
 </div>`,
     )
     .join("");
@@ -57,8 +82,16 @@ function vRooms() {
             <span class="material-symbols-outlined text-[17px]">add</span>เพิ่มห้องใหม่
         </button>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">${cards || '<p class="text-slate-400 col-span-3 text-center py-16">ไม่มีห้อง</p>'}</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">${cards || '<p class="text-slate-400 col-span-3 text-center py-16">ไม่มีห้อง</p>'}</div>
 </div>`;
+}
+
+function formatDateTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString('th-TH', { 
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
 }
 
 async function toggleRoomActive(roomId, currentlyActive) {
@@ -169,6 +202,29 @@ function toggleBlackoutFields() {
             if (boEnd) boEnd.value = "";
             if (boReason) boReason.value = "";
         }
+    }
+}
+
+function deleteBlackout(id) {
+    targetBlackoutId = id;
+    document.getElementById("deleteConfirmModal").classList.remove("hidden");
+}
+
+function closeDeleteModal() {
+    targetBlackoutId = null;
+    document.getElementById("deleteConfirmModal").classList.add("hidden");
+}
+
+async function confirmDeleteBlackout() {
+    if (!targetBlackoutId) return;
+    
+    try {
+        await api.delete(`/api/admin/blackout/${targetBlackoutId}/`);
+        await loadRooms(); 
+    } catch (err) {
+        showApiError(err);
+    } finally {
+        closeDeleteModal();
     }
 }
 
