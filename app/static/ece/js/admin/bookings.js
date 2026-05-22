@@ -1,3 +1,6 @@
+/**
+ * bookings.js — All Bookings rendering & Detailed Views
+ */
 "use strict";
 
 let allBookingsFilter = "all";
@@ -144,6 +147,7 @@ function buildRoomFilterHtml() {
 }
 
 function vAllBookings() {
+  // รองรับการทำงานกรอง Status ส่งผ่านระบบ Session
   const redirectStatus = sessionStorage.getItem("bookingFilterStatus");
   if (redirectStatus) {
     allBookingsFilter = redirectStatus;
@@ -362,6 +366,8 @@ function bookingCard(b, opacityClass = "") {
 </div>`;
 }
 
+// ค้นหาฟังก์ชัน groupCard ในไฟล์ bookings.js และทำการแทนที่ด้วยโค้ดชุดนี้ครับ:
+
 function groupCard(g, opacityClass = "") {
   const canCancelAnyGroup = g.bookings.some((b) => b.status === "Pending");
   const canApproveAnyGroup = g.bookings.some((b) => b.status === "Pending");
@@ -439,8 +445,31 @@ function groupCard(g, opacityClass = "") {
     })
     .join("");
 
+  // ระบบตรวจสอบข้ามหน้าจอว่าเป็นการกดลิงก์มาจาก แดชบอร์ด หรือไม่
+  const expandTarget = sessionStorage.getItem("expandGroup");
+  const isOpen = expandTarget && String(expandTarget) === String(g.groupId) ? "open" : "";
+  
+  if (isOpen) {
+    // ล้างค่าเซสชันเพื่อป้องกันปัญหากางค้างเมื่อกดย้ายหน้าไปมาในภายหลัง
+    sessionStorage.removeItem("expandGroup"); 
+
+    // สั่งงานเลื่อนจอ (Smooth Scroll) และกะพริบขอบเส้นสีครามเพื่อระบุตำแหน่งที่เปลี่ยนมา
+    setTimeout(() => {
+      const el = document.getElementById(`group-card-${g.groupId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-4", "ring-indigo-500/80", "ring-offset-2", "transition-all", "duration-300");
+        
+        // ล้างขอบไฮไลท์ออกหลังผ่านไป 2 วินาที
+        setTimeout(() => {
+          el.classList.remove("ring-4", "ring-indigo-500/80", "ring-offset-2");
+        }, 2000);
+      }
+    }, 180);
+  }
+
   return `
-<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} ${opacityClass} rounded-xl shadow-sm overflow-hidden group/details">
+<details id="group-card-${g.groupId}" ${isOpen} class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} ${opacityClass} rounded-xl shadow-sm overflow-hidden group/details">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
@@ -457,21 +486,23 @@ function groupCard(g, opacityClass = "") {
             ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
         <div class="flex items-center gap-2.5 flex-wrap flex-shrink-0 self-end md:self-center">
-            ${canApproveAnyGroup
-      ? `<button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
+            ${
+              canApproveAnyGroup
+                ? `<button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
                 class="px-4 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
                 style="background:#10b981">
-                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งหมด
+                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งกลุ่ม
             </button>`
-      : ""
-    }
-            ${canCancelAnyGroup
-      ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
+                : ""
+            }
+            ${
+              canCancelAnyGroup
+                ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
                 class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
-                <span class="material-symbols-outlined text-[15px]">event_busy</span>ปฏิเสธทั้งหมด
+                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
             </button>`
-      : ""
-    }
+                : ""
+            }
             <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200">
                 <span class="material-symbols-outlined text-[18px]">expand_more</span>
             </div>
@@ -717,3 +748,4 @@ function redrawAllBookingsList() {
 
   container.innerHTML = cardsHtml;
 }
+_

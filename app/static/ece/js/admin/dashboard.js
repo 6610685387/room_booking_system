@@ -153,14 +153,24 @@ function vDashboard() {
             const bookerName = sorted[0].booker?.displayname_th || "—";
             
             return `
-<tr class="cursor-pointer bg-indigo-50/20 hover:bg-indigo-50/50 transition-colors border-b border-indigo-100/50 last:border-0" onclick="go('approvals')">
+<tr class="cursor-pointer bg-indigo-50/20 hover:bg-indigo-50/50 transition-colors border-b border-indigo-100/50 last:border-0" 
+    onclick="sessionStorage.setItem('expandGroup', '${g.groupId}'); sessionStorage.setItem('bookingFilterStatus', 'Pending'); go('all-bookings')">
     <td class="py-4 px-5 align-middle text-left">
         <div class="font-bold text-indigo-900 text-xs">${bookerName}</div>
         <div class="text-[9px] font-bold text-indigo-500 uppercase tracking-wider mt-0.5">จองกลุ่มซ้ำ</div>
     </td>
     <td class="py-4 px-5 align-middle text-left">
-        <div class="text-xs text-indigo-950 font-black">${g.room_name} (${g.room_code})</div>
-        <div class="text-[11px] text-indigo-700 font-semibold mt-0.5">${{
+        <!-- เพิ่มรายละเอียดวันและช่วงเวลาสำหรับการกดเปิดปิดดูด้านในตารางเพื่อความสะดวกในการตรวจสอบ -->
+        <details class="group/dash-det select-none outline-none" onclick="event.stopPropagation()">
+            <summary class="list-none cursor-pointer flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px] text-indigo-500 group-open/dash-det:rotate-180 transition-transform">expand_more</span>
+                <span class="text-xs text-indigo-950 font-black">${g.room_name} (${g.room_code})</span>
+            </summary>
+            <div class="mt-1.5 pl-4 border-l-2 border-indigo-100 space-y-1">
+                ${sorted.map(b => `<p class="text-[10px] text-slate-500">• ${thaiDateShort(b.start_datetime)} เวลา ${timeFromISO(b.start_datetime)}–${timeFromISO(b.end_datetime)} น.</p>`).join("")}
+            </div>
+        </details>
+        <div class="text-[11px] text-indigo-700 font-semibold mt-0.5 pl-4">${{
               teaching: "สอนปกติ/ชดเชย",
               training: "จัดอบรม/ติว",
             }[g.purpose_type] || "ไม่ทราบ"
@@ -171,8 +181,8 @@ function vDashboard() {
         <div class="flex gap-1.5 flex-wrap items-center">
             <button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
                 class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white hover:opacity-90 active:scale-95 transition-all shadow-xs" style="background:#10b981">อนุมัติกลุ่ม</button>
-            <button onclick="event.stopPropagation(); go('approvals')"
-                class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 transition-all">จัดการกลุ่ม</button>
+            <button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
+                class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 active:scale-95 transition-all">ปฏิเสธทั้งกลุ่ม</button>
         </div>
     </td>
 </tr>`;
@@ -248,7 +258,8 @@ function vDashboard() {
         const count = g.bookings.length;
         const created = first.created_at ? thaiDateShort(first.created_at) : "";
         return `
-<div class="flex items-start gap-3 p-3 bg-indigo-50/45 rounded-xl border border-indigo-100 cursor-pointer hover:border-indigo-200 hover:shadow-sm transition-all" onclick="viewDetailAdmin(${first.booking_id})">
+<div class="flex items-start gap-3 p-3 bg-indigo-50/45 rounded-xl border border-indigo-100 cursor-pointer hover:border-indigo-200 hover:shadow-sm transition-all" 
+     onclick="sessionStorage.setItem('expandGroup', '${g.groupId}'); sessionStorage.setItem('bookingFilterStatus', 'Pending'); go('all-bookings')">
     <div class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 bg-indigo-500"></div>
     <div class="flex-1 min-w-0">
         <p class="text-xs font-bold text-slate-700 truncate">${first.booker?.displayname_th || "—"} — ส่งคำขอจองแบบกลุ่ม</p>
