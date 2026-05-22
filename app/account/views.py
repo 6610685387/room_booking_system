@@ -1,6 +1,7 @@
 import requests
 from django.conf import settings
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
 from django.contrib.auth import login, logout, authenticate
 from .models import User
 
@@ -69,6 +70,13 @@ def _redirect_by_role(user):
     if user.role == User.Role.ADMIN:
         return redirect("/dashboard/admin/#dashboard")
     return redirect("/dashboard/lecturer/#dashboard")
+
+
+def _get_redirect_url(user):
+    """คืน URL string สำหรับใช้กับ JSON response (ไม่ใช่ HttpResponse)"""
+    if user.role == User.Role.ADMIN:
+        return "/dashboard/admin/#dashboard"
+    return "/dashboard/lecturer/#dashboard"
 
 
 def _upsert_and_login(request, username, profile_defaults, fallback_role):
@@ -196,10 +204,6 @@ def _perform_login(request, username, password):
         (None, error_str)     ถ้าล้มเหลว
     """
 
-    # ─── Pre-check : บล็อกนักศึกษาก่อนยิง TU API เลย ──────────────
-    if username.isdigit() and len(username) == 10:
-        return None, NO_PERMISSION_MSG
-
     # ─── Step 1 : TU Auth API ──────────────────────────────────────
     auth_data = None
     conn_error = None
@@ -324,25 +328,33 @@ def login_view(request):
     if request.method == "GET":
         return render(request, "account/login.html")
 
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
     username = request.POST.get("username", "").strip()
     password = request.POST.get("password", "").strip()
 
     if not username or not password:
-        return render(
-            request,
-            "account/login.html",
-            {"error": "กรุณากรอก Username และ Password"},
-        )
+        error = "กรุณากรอก Username และ Password"
+        if is_ajax:
+            return JsonResponse({"error": error}, status=400)
+        return render(request, "account/login.html", {"error": error})
 
     # Superuser bypass — local Django account (createsuperuser)
     local_user = authenticate(request, username=username, password=password)
     if local_user is not None and local_user.is_superuser:
         login(request, local_user, backend="django.contrib.auth.backends.ModelBackend")
+        if is_ajax:
+            return JsonResponse({"redirect": "/dashboard/admin/#dashboard"})
         return redirect("/dashboard/admin/#dashboard")
 
     user, error = _perform_login(request, username, password)
     if error:
+        if is_ajax:
+            return JsonResponse({"error": error}, status=401)
         return render(request, "account/login.html", {"error": error})
+
+    if is_ajax:
+        return JsonResponse({"redirect": _get_redirect_url(user)})
     return _redirect_by_role(user)
 
 
