@@ -4,13 +4,13 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from .models import User
 
+# ── TU REST API URLs ──────────────────────────────────────────────────
 TU_AUTH_URL = "https://restapi.tu.ac.th/api/v1/auth/Ad/verify"
-TU_STD_URL = "https://restapi.tu.ac.th/api/v2/profile/std/info/"
+TU_INSTRUCTOR_URL = "https://restapi.tu.ac.th/api/v2/profile/Instructors/info/"
+TU_EMPLOYEE_URL = "https://restapi.tu.ac.th/api/v2/profile/emp/info/"
 
-ALLOWED_DEPT_KEYWORDS = [
-    "วิศวกรรมไฟฟ้าและคอมพิวเตอร์",
-    "Electrical and Computer Engineering",
-]
+
+# ── Helpers ───────────────────────────────────────────────────────────
 
 
 def _app_key():
@@ -28,6 +28,43 @@ def _tu_headers():
     }
 
 
+# ── ECE department / faculty keywords ────────────────────────────────
+ECE_KEYWORDS = [
+    "วิศวกรรมไฟฟ้าและคอมพิวเตอร์",
+    "electrical and computer engineering",
+    "ece",
+]
+NO_PERMISSION_MSG = (
+    "ไม่มีสิทธิ์เข้าใช้งาน "
+    "ระบบนี้ใช้สำหรับอาจารย์และผู้ดูแลระบบ"
+    "ภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์ คณะวิศวกรรมศาสตร์เท่านั้น"
+)
+
+
+def _is_ece_member(fields: dict) -> bool:
+    """
+    ตรวจสอบว่าข้อมูลจาก TU API ระบุว่าอยู่ใน ECE หรือไม่
+
+    รับ dict ที่อาจมี key ใดก็ได้จาก:
+      Instructor API : Faculty_Name_Th, Faculty_Name_En
+      Employee API   : department, organization
+      Auth API       : department, organization
+
+    เช็ค substring case-insensitive — ผ่านถ้าพบ keyword ใด keyword หนึ่ง
+    """
+    combined = " ".join(
+        str(fields.get(k, ""))
+        for k in (
+            "Faculty_Name_Th",
+            "Faculty_Name_En",
+            "department",
+            "organization",
+        )
+    ).lower()
+
+    return any(kw in combined for kw in ECE_KEYWORDS)
+
+
 def _redirect_by_role(user):
     if user.role == User.Role.ADMIN:
         return redirect("/dashboard/admin/#dashboard")
@@ -36,18 +73,17 @@ def _redirect_by_role(user):
 
 def _upsert_and_login(request, username, profile_defaults, fallback_role):
     """
-    อัปเดตเฉพาะ profile fields (ชื่อ, email, department ฯลฯ)
-    role จะถูกแตะก็ต่อเมื่อยังไม่มี user นั้นในฐานข้อมูล (ใช้ fallback_role)
+    สร้าง หรืออัปเดต user แล้ว login session
+    - มีอยู่แล้ว  → อัปเดตเฉพาะ profile fields (ไม่แตะ role)
+    - ยังไม่มี    → สร้างใหม่ด้วย fallback_role
     """
     existing = User.objects.filter(username=username).first()
     if existing:
-        # อัปเดตเฉพาะ profile — ไม่แตะ role เด็ดขาด
         for field, value in profile_defaults.items():
             setattr(existing, field, value)
         existing.save(update_fields=list(profile_defaults.keys()))
         user = existing
     else:
-        # สร้างใหม่ — ใช้ fallback_role
         user = User.objects.create(
             username=username, role=fallback_role, **profile_defaults
         )
@@ -55,7 +91,224 @@ def _upsert_and_login(request, username, profile_defaults, fallback_role):
     return user
 
 
-# ── Views ──────────────────────────────────────────────────────────
+def _check_tu_instructor(email: str) -> dict | None:
+    """
+    GET /api/v2/profile/Instructors/info/?Email=<email>
+    คืน dict ข้อมูลอาจารย์คนแรกจาก data[], หรือ None ถ้าไม่พบ / error
+    """
+    if not email:
+        return None
+    try:
+        resp = requests.get(
+            TU_INSTRUCTOR_URL,
+            params={"Email": email},
+            headers=_tu_headers(),
+            timeout=10,
+        )
+        data = resp.json()
+        if data.get("status") and isinstance(data.get("data"), list) and data["data"]:
+            return data["data"][0]
+    except Exception:
+        pass
+    return None
+
+
+def _check_tu_employee(username: str) -> dict | None:
+    """
+    GET /api/v2/profile/emp/info/?username=<username>
+    คืน dict ข้อมูลบุคลากร หรือ None ถ้าไม่พบ / error
+    """
+    if not username:
+        return None
+    try:
+        resp = requests.get(
+            TU_EMPLOYEE_URL,
+            params={"username": username},
+            headers=_tu_headers(),
+            timeout=10,
+        )
+        data = resp.json()
+        if data.get("status"):
+            d = data.get("data")
+            if isinstance(d, list):
+                return d[0] if d else None
+            if isinstance(d, dict):
+                return d
+    except Exception:
+        pass
+    return None
+
+
+def _build_profile_from_instructor(instructor: dict, auth_data: dict) -> dict:
+    """สร้าง profile dict จาก TU Instructor API response"""
+    fname_th = instructor.get("First_Name_Th", "")
+    lname_th = instructor.get("Last_Name_Th", "")
+    fname_en = instructor.get("First_Name_En", "")
+    lname_en = instructor.get("Last_Name_En", "")
+    return {
+        "displayname_th": f"{fname_th} {lname_th}".strip()
+        or auth_data.get("displayname_th", ""),
+        "displayname_en": f"{fname_en} {lname_en}".strip()
+        or auth_data.get("displayname_en", ""),
+        "email": instructor.get("Email", auth_data.get("email", "")),
+        "department": instructor.get(
+            "Faculty_Name_Th", auth_data.get("department", "")
+        ),
+        "faculty": instructor.get("Faculty_Name_En", ""),
+    }
+
+
+def _build_profile_from_employee(emp: dict, auth_data: dict) -> dict:
+    """สร้าง profile dict จาก TU Employee API response"""
+    return {
+        "displayname_th": emp.get(
+            "displayname_th", auth_data.get("displayname_th", "")
+        ),
+        "displayname_en": emp.get(
+            "displayname_en", auth_data.get("displayname_en", "")
+        ),
+        "email": emp.get("email", auth_data.get("email", "")),
+        "department": emp.get("department", auth_data.get("department", "")),
+        "faculty": emp.get("organization", auth_data.get("organization", "")),
+    }
+
+
+def _build_profile_from_auth(auth_data: dict) -> dict:
+    """สร้าง profile dict จาก TU Auth API response เท่านั้น (fallback)"""
+    return {
+        "displayname_th": auth_data.get("displayname_th", ""),
+        "displayname_en": auth_data.get("displayname_en", ""),
+        "email": auth_data.get("email", ""),
+        "department": auth_data.get("department", ""),
+        "faculty": auth_data.get("organization", auth_data.get("faculty", "")),
+    }
+
+
+# ── Core login logic ──────────────────────────────────────────────────
+
+
+def _perform_login(request, username, password):
+    """
+    ดำเนิน login flow เต็ม (ใช้ร่วมกันระหว่าง session view และ JWT API view)
+
+    Return:
+        (user, None)          ถ้าสำเร็จ  — user ถูก login เข้า session แล้ว
+        (None, error_str)     ถ้าล้มเหลว
+    """
+
+    # ─── Pre-check : บล็อกนักศึกษาก่อนยิง TU API เลย ──────────────
+    if username.isdigit() and len(username) == 10:
+        return None, NO_PERMISSION_MSG
+
+    # ─── Step 1 : TU Auth API ──────────────────────────────────────
+    auth_data = None
+    conn_error = None
+
+    try:
+        resp = requests.post(
+            TU_AUTH_URL,
+            json={"UserName": username, "PassWord": password},
+            headers=_tu_headers(),
+            timeout=10,
+        )
+        auth_data = resp.json()
+    except requests.exceptions.Timeout:
+        conn_error = "TU API ตอบสนองช้า กรุณาลองใหม่"
+    except Exception as e:
+        conn_error = f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"
+
+    import logging as _log
+
+    _log.getLogger(__name__).warning("[LOGIN DEBUG] TU AUTH: %s", auth_data)
+
+    # TU API ไม่ตอบสนอง → ข้ามไป DB Fallback (Step 4) ทันที
+    if auth_data is None:
+        return _db_fallback(request, username) or (
+            None,
+            conn_error or "ไม่สามารถเชื่อมต่อ TU API ได้",
+        )
+
+    # ─── [FIX] credentials ผิดตาม TU Auth → ลอง Django DB ก่อน ───
+    # กรณีที่ user มีอยู่ใน DB พร้อม password ถูกต้อง แต่ TU account มีปัญหา
+    if not auth_data.get("status"):
+        django_user = authenticate(request, username=username, password=password)
+        if django_user and not django_user.is_superuser:
+            if getattr(django_user, "role", None) in (
+                User.Role.LECTURER,
+                User.Role.ADMIN,
+            ):
+                login(
+                    request,
+                    django_user,
+                    backend="django.contrib.auth.backends.ModelBackend",
+                )
+                return django_user, None
+        return None, auth_data.get("message", "Username หรือ Password ไม่ถูกต้อง")
+
+    account_type = auth_data.get("type", "")
+    email = auth_data.get("email", "")
+
+    # นักศึกษา / บุคคลภายนอก → บล็อกทันที
+    if account_type == "student" or (username.isdigit() and len(username) == 10):
+        return None, NO_PERMISSION_MSG
+
+    if account_type != "employee":
+        return None, "ประเภทบัญชีนี้ไม่รองรับ"
+
+    # ─── Step 2 : TU Instructor API (ค้นด้วย email) ───────────────
+    instructor = _check_tu_instructor(email)
+    _log.getLogger(__name__).warning("[LOGIN DEBUG] TU INSTRUCTOR: %s", instructor)
+    if instructor:
+        if not _is_ece_member(instructor):
+            _log.getLogger(__name__).warning(
+                "[LOGIN DEBUG] ECE CHECK FAILED: %s", instructor
+            )
+            return None, NO_PERMISSION_MSG
+        existing = User.objects.filter(username=username).first()
+        assigned_role = existing.role if existing else User.Role.LECTURER
+        profile = _build_profile_from_instructor(instructor, auth_data)
+        user = _upsert_and_login(request, username, profile, assigned_role)
+        return user, None
+
+    # ─── Step 3 : TU Employee API + admin list ────────────────────
+    admin_list = _admin_usernames()
+    if username in admin_list:
+        emp = _check_tu_employee(username)
+        if emp:
+            if not _is_ece_member(emp):
+                return None, NO_PERMISSION_MSG
+            existing = User.objects.filter(username=username).first()
+            assigned_role = existing.role if existing else User.Role.ADMIN
+            profile = _build_profile_from_employee(emp, auth_data)
+            user = _upsert_and_login(request, username, profile, assigned_role)
+            return user, None
+
+    # ─── Step 4 : Django DB Fallback ─────────────────────────────
+    result = _db_fallback(request, username)
+    if result:
+        return result  # (user, None)
+
+    return None, NO_PERMISSION_MSG
+
+
+def _db_fallback(request, username):
+    """
+    เช็ค Django DB ว่ามี user ที่มี role=lecturer/admin มั้ย
+    ถ้ามี → login แล้วคืน (user, None)
+    ถ้าไม่มี → คืน None
+
+    หมายเหตุ: ใช้สำหรับกรณี TU API ล่มเท่านั้น (ไม่ตรวจ password)
+              การตรวจ password เมื่อ TU Auth คืน status=false ทำใน _perform_login
+              ผ่าน authenticate() แทน
+    """
+    existing = User.objects.filter(username=username).first()
+    if existing and existing.role in (User.Role.LECTURER, User.Role.ADMIN):
+        login(request, existing, backend="django.contrib.auth.backends.ModelBackend")
+        return existing, None
+    return None
+
+
+# ── Session-based Views ───────────────────────────────────────────────
 
 
 def index(request):
@@ -76,159 +329,29 @@ def login_view(request):
 
     if not username or not password:
         return render(
-            request, "account/login.html", {"error": "กรุณากรอก Username และ Password"}
+            request,
+            "account/login.html",
+            {"error": "กรุณากรอก Username และ Password"},
         )
 
-    # เลือก Superuser bypass ก่อนเสมอ
-    # ตรวจสอบ local Django auth ก่อน เพื่อรองรับ superuser ที่สร้างด้วย
-    # createsuperuser (มี password เก็บใน DB ไม่ต้องผ่าน TU API)
+    # Superuser bypass — local Django account (createsuperuser)
     local_user = authenticate(request, username=username, password=password)
     if local_user is not None and local_user.is_superuser:
         login(request, local_user, backend="django.contrib.auth.backends.ModelBackend")
         return redirect("/dashboard/admin/#dashboard")
 
-    # นักศึกษา = ตัวเลขล้วน 10 หลัก (fallback role เป็น Student สำหรับ user ใหม่เท่านั้น)
-    if username.isdigit() and len(username) == 10:
-        return _handle_student_login(request, username, password)
-    return _handle_employee_login(request, username, password)
-
-
-def _handle_employee_login(request, username, password):
-    """อาจารย์ / เจ้าหน้าที่ — POST /api/v1/auth/Ad/verify"""
-    try:
-        resp = requests.post(
-            TU_AUTH_URL,
-            json={"UserName": username, "PassWord": password},
-            headers=_tu_headers(),
-            timeout=10,
-        )
-        data = resp.json()
-    except requests.exceptions.Timeout:
-        return render(
-            request, "account/login.html", {"error": "TU API ตอบสนองช้า กรุณาลองใหม่"}
-        )
-    except Exception as e:
-        return render(
-            request,
-            "account/login.html",
-            {"error": f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"},
-        )
-
-    if not data.get("status"):
-        return render(
-            request,
-            "account/login.html",
-            {"error": data.get("message", "Username หรือ Password ไม่ถูกต้อง")},
-        )
-
-    account_type = data.get("type", "")
-
-    # กรณี student login ด้วย username (ไม่ใช่ student ID)
-    if account_type == "student":
-        return _handle_student_profile(request, username, data)
-
-    if account_type != "employee":
-        return render(
-            request, "account/login.html", {"error": "ประเภทบัญชีนี้ไม่รองรับ"}
-        )
-
-    department = data.get("department", "")
-    faculty = data.get("faculty", "")
-
-    # ตรวจสอบว่าอยู่ภาควิชา ECE
-    in_ece = any(
-        kw.lower() in (department + faculty).lower() for kw in ALLOWED_DEPT_KEYWORDS
-    )
-    if not in_ece and username not in _admin_usernames():
-        return render(
-            request,
-            "account/login.html",
-            {"error": "บัญชีของท่านไม่อยู่ในภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์"},
-        )
-
-    # Role: Admin กำหนดผ่าน ECE_ADMIN_USERNAMES ใน .env
-    # ผู้ใช้ใหม่ที่ยังไม่ได้กำหนด role จะได้ Lecturer เป็นค่าเริ่มต้น
-    existing = User.objects.filter(username=username).first()
-    if existing:
-        role = existing.role  # คงค่า role ที่ Admin กำหนดไว้แล้ว
-    else:
-        role = "Admin" if username in _admin_usernames() else "Lecturer"
-
-    user = _upsert_and_login(
-        request,
-        username,
-        {
-            "displayname_th": data.get("displayname_th", ""),
-            "displayname_en": data.get("displayname_en", ""),
-            "email": data.get("email", ""),
-            "department": department,
-            "faculty": faculty,
-        },
-        role,
-    )
-
+    user, error = _perform_login(request, username, password)
+    if error:
+        return render(request, "account/login.html", {"error": error})
     return _redirect_by_role(user)
 
 
-def _handle_student_login(request, student_id, password):
-    """นักศึกษา — verify แล้วดึง profile เพิ่มเติม"""
-    try:
-        resp = requests.post(
-            TU_AUTH_URL,
-            json={"UserName": student_id, "PassWord": password},
-            headers=_tu_headers(),
-            timeout=10,
-        )
-        auth_data = resp.json()
-    except requests.exceptions.Timeout:
-        return render(
-            request, "account/login.html", {"error": "TU API ตอบสนองช้า กรุณาลองใหม่"}
-        )
-    except Exception as e:
-        return render(
-            request,
-            "account/login.html",
-            {"error": f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"},
-        )
-
-    if not auth_data.get("status"):
-        return render(
-            request,
-            "account/login.html",
-            {"error": auth_data.get("message", "รหัสนักศึกษาหรือ Password ไม่ถูกต้อง")},
-        )
-
-    # ดึง student profile
-    try:
-        p_resp = requests.get(
-            TU_STD_URL,
-            params={"id": student_id},
-            headers=_tu_headers(),
-            timeout=10,
-        )
-        p_data = p_resp.json()
-        p = p_data.get("data", {}) if p_data.get("status") else {}
-    except Exception:
-        p = {}
-
-    profile = {
-        "displayname_th": p.get("displayname_th")
-        or auth_data.get("displayname_th", ""),
-        "displayname_en": p.get("displayname_en")
-        or auth_data.get("displayname_en", ""),
-        "email": p.get("email") or auth_data.get("email", ""),
-        "department": p.get("department") or auth_data.get("department", ""),
-        "faculty": p.get("faculty") or auth_data.get("faculty", ""),
-    }
-    return _handle_student_profile(request, student_id, profile)
+def logout_view(request):
+    logout(request)
+    return redirect("/")
 
 
-def _handle_student_profile(request, username, profile):
-    user = _upsert_and_login(request, username, profile, "Student")
-    return _redirect_by_role(user)
-
-
-# ── Success pages ───────────────────────────────────────────────────
+# ── Success pages ─────────────────────────────────────────────────────
 
 
 def login_success_lecturer(request):
@@ -243,17 +366,9 @@ def login_success_student(request):
     return render(request, "account/success_student.html")
 
 
-# ── Logout ──────────────────────────────────────────────────────────
-
-
-def logout_view(request):
-    logout(request)
-    return redirect("/")
-
-
-# ══════════════════════════════════════════════════════════════════
-#  JWT  Auth  API  Views
-# ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
+#  JWT Auth API Views
+# ══════════════════════════════════════════════════════════════════════
 
 import requests as _req
 from django.conf import settings as _settings
@@ -272,130 +387,38 @@ from .serializers import (
 
 
 def _get_tokens(user):
-    """สร้าง JWT access + refresh token สำหรับ user"""
+    """สร้าง JWT access + refresh token"""
     refresh = RefreshToken.for_user(user)
     return str(refresh.access_token), str(refresh)
-
-
-def _build_user_or_error(request_obj, username, password):
-    """
-    เรียก TU API เพื่อ verify แล้ว upsert user ในฐานข้อมูล
-    Return (user, None) หรือ (None, error_message)
-    """
-    TU_AUTH_URL = "https://restapi.tu.ac.th/api/v1/auth/Ad/verify"
-    TU_STD_URL = "https://restapi.tu.ac.th/api/v2/profile/std/info/"
-    headers = {
-        "Content-Type": "application/json",
-        "Application-Key": getattr(_settings, "TU_APP_KEY", "") or "",
-    }
-
-    # ── verify ─────────────────────────────────────────────────────
-    try:
-        resp = _req.post(
-            TU_AUTH_URL,
-            json={"UserName": username, "PassWord": password},
-            headers=headers,
-            timeout=10,
-        )
-        auth_data = resp.json()
-    except _req.exceptions.Timeout:
-        return None, "TU API ตอบสนองช้า กรุณาลองใหม่"
-    except Exception as e:
-        return None, f"ไม่สามารถเชื่อมต่อ TU API ได้: {e}"
-
-    if not auth_data.get("status"):
-        return None, auth_data.get("message", "Username หรือ Password ไม่ถูกต้อง")
-
-    account_type = auth_data.get("type", "")
-
-    # ── นักศึกษา ────────────────────────────────────────────────────
-    if username.isdigit() and len(username) == 10 or account_type == "student":
-        # ดึง student profile เพิ่มเติม
-        try:
-            p_resp = _req.get(
-                TU_STD_URL, params={"id": username}, headers=headers, timeout=10
-            )
-            p_data = p_resp.json()
-            p = p_data.get("data", {}) if p_data.get("status") else {}
-        except Exception:
-            p = {}
-
-        profile = {
-            "displayname_th": p.get("displayname_th")
-            or auth_data.get("displayname_th", ""),
-            "displayname_en": p.get("displayname_en")
-            or auth_data.get("displayname_en", ""),
-            "email": p.get("email") or auth_data.get("email", ""),
-            "department": p.get("department") or auth_data.get("department", ""),
-            "faculty": p.get("faculty") or auth_data.get("faculty", ""),
-        }
-        user = _upsert_user(username, profile, "student")
-        return user, None
-
-    # ── อาจารย์ / เจ้าหน้าที่ ──────────────────────────────────────
-    if account_type != "employee":
-        return None, "ประเภทบัญชีนี้ไม่รองรับ"
-
-    department = auth_data.get("department", "")
-    faculty = auth_data.get("faculty", "")
-
-    ALLOWED = ["วิศวกรรมไฟฟ้าและคอมพิวเตอร์", "Electrical and Computer Engineering"]
-    admin_usernames = getattr(_settings, "ECE_ADMIN_USERNAMES", []) or []
-    in_ece = any(kw.lower() in (department + faculty).lower() for kw in ALLOWED)
-
-    if not in_ece and username not in admin_usernames:
-        return None, "บัญชีของท่านไม่อยู่ในภาควิชาวิศวกรรมไฟฟ้าและคอมพิวเตอร์"
-
-    existing = User.objects.filter(username=username).first()
-    if existing:
-        role = existing.role
-    else:
-        role = "admin" if username in admin_usernames else "lecturer"
-
-    profile = {
-        "displayname_th": auth_data.get("displayname_th", ""),
-        "displayname_en": auth_data.get("displayname_en", ""),
-        "email": auth_data.get("email", ""),
-        "department": department,
-        "faculty": faculty,
-    }
-    user = _upsert_user(username, profile, role)
-    return user, None
-
-
-def _upsert_user(username, profile_defaults, fallback_role):
-    """Create หรือ update user (ไม่แตะ role ถ้า user มีอยู่แล้ว)"""
-    existing = User.objects.filter(username=username).first()
-    if existing:
-        for field, value in profile_defaults.items():
-            setattr(existing, field, value)
-        existing.save(update_fields=list(profile_defaults.keys()))
-        return existing
-    return User.objects.create(
-        username=username, role=fallback_role, **profile_defaults
-    )
-
-
-# ── Views ──────────────────────────────────────────────────────────
 
 
 class LoginAPIView(APIView):
     """
     POST /api/auth/login/
 
-    รับ username + password แล้ว verify ผ่าน TU REST API
-    หากสำเร็จจะคืน JWT access token, refresh token และข้อมูล user
+    ─── Login Flow ───────────────────────────────────────────────────
+    1. TU Auth API      → verify credentials
+    2. TU Instructor API (Email) → พบ → Lecturer → หน้าจองห้อง
+    3. TU Employee API (username) + ECE_ADMIN_USERNAMES → Admin → dashboard
+    4. Django DB Fallback → role=lecturer/admin → ผ่าน
+    5. นักศึกษา / บุคคลภายนอก → 403 ไม่มีสิทธิ์
+    ──────────────────────────────────────────────────────────────────
     """
 
     permission_classes = [AllowAny]
 
     @extend_schema(
-        summary="Login ด้วย TU Account",
+        summary="Login ด้วย TU Account (อาจารย์ / Admin ภาควิชาเท่านั้น)",
         description=(
             "ส่ง username และ password ไป verify กับ TU REST API\n\n"
-            "- **นักศึกษา**: username เป็นรหัสนักศึกษา 10 หลัก\n"
-            "- **อาจารย์/เจ้าหน้าที่**: username เป็น TU username\n\n"
-            "เมื่อสำเร็จจะได้รับ `access` token (อายุ 8 ชั่วโมง) และ `refresh` token (อายุ 7 วัน)\n"
+            "**ลำดับการตรวจสอบ:**\n"
+            "1. TU Auth API → ยืนยัน credentials\n"
+            "2. TU Instructor API (Email) → อาจารย์ → role=**lecturer**\n"
+            "3. TU Employee API (username) + ECE_ADMIN_USERNAMES → role=**admin**\n"
+            "4. Django DB Fallback → ใช้เมื่อ TU API ล่ม\n\n"
+            "นักศึกษาและบุคคลภายนอก **ไม่มีสิทธิ์** เข้าใช้งาน\n\n"
+            "เมื่อสำเร็จจะได้รับ `access` token (อายุ 8 ชั่วโมง) "
+            "และ `refresh` token (อายุ 7 วัน)\n"
             "นำ `access` token ไปใส่ใน Header: `Authorization: Bearer <access>`"
         ),
         request=LoginRequestSerializer,
@@ -405,6 +428,7 @@ class LoginAPIView(APIView):
             401: OpenApiResponse(
                 description="Username/Password ผิด หรือ TU API ปฏิเสธ"
             ),
+            403: OpenApiResponse(description="ไม่มีสิทธิ์ (นักศึกษา / บุคคลภายนอก)"),
         },
         tags=["Auth"],
     )
@@ -422,30 +446,51 @@ class LoginAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user, error = _build_user_or_error(request, username, password)
+        # Superuser bypass
+        local_user = authenticate(request, username=username, password=password)
+        if local_user is not None and local_user.is_superuser:
+            access, refresh = _get_tokens(local_user)
+            return Response(
+                {
+                    "access": access,
+                    "refresh": refresh,
+                    "user": {
+                        "user_id": local_user.user_id,
+                        "username": local_user.username,
+                        "displayname_th": local_user.displayname_th,
+                        "role": local_user.role,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        user, error = _perform_login(request, username, password)
         if error:
-            return Response({"detail": error}, status=status.HTTP_401_UNAUTHORIZED)
+            http_status = (
+                status.HTTP_403_FORBIDDEN
+                if "ไม่มีสิทธิ์" in error
+                else status.HTTP_401_UNAUTHORIZED
+            )
+            return Response({"detail": error}, status=http_status)
 
         access, refresh = _get_tokens(user)
-        response_data = {
-            "access": access,
-            "refresh": refresh,
-            "user": {
-                "user_id": user.user_id,
-                "username": user.username,
-                "displayname_th": user.displayname_th,
-                "role": user.role,
+        return Response(
+            {
+                "access": access,
+                "refresh": refresh,
+                "user": {
+                    "user_id": user.user_id,
+                    "username": user.username,
+                    "displayname_th": user.displayname_th,
+                    "role": user.role,
+                },
             },
-        }
-        return Response(response_data, status=status.HTTP_200_OK)
+            status=status.HTTP_200_OK,
+        )
 
 
 class TokenRefreshAPIView(APIView):
-    """
-    POST /api/auth/token/refresh/
-
-    รับ refresh token แล้วคืน access token ใหม่
-    """
+    """POST /api/auth/token/refresh/ — รับ refresh token แล้วคืน access token ใหม่"""
 
     permission_classes = [AllowAny]
 
@@ -483,11 +528,7 @@ class TokenRefreshAPIView(APIView):
 
 
 class MeAPIView(APIView):
-    """
-    GET /api/auth/me/
-
-    ดึงข้อมูลผู้ใช้ที่ login อยู่ (ต้องส่ง Authorization: Bearer <access>)
-    """
+    """GET /api/auth/me/ — ดึงข้อมูลผู้ใช้ที่ login อยู่"""
 
     permission_classes = [IsAuthenticated]
 
