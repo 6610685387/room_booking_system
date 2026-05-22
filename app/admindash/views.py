@@ -120,7 +120,7 @@ class BlackoutPeriodDeleteView(generics.DestroyAPIView):
 @parser_classes([MultiPartParser, FormParser])
 def room_list_create_api(request):
     if request.method == "GET":
-        rooms = Room.objects.filter(is_deleted=False)
+        rooms = Room.objects.filter(is_deleted=False).order_by('room_code')
         now = timezone.now()
 
         for room in rooms:
