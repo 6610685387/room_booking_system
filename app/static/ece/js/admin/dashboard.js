@@ -24,7 +24,7 @@ function vDashboard() {
       val: approved,
       color: "#10b981",
       bg: "#d1fae5",
-      action: null,
+      action: "go('all-bookings?status=Approved')",
     },
     {
       icon: "cancel",
@@ -32,7 +32,7 @@ function vDashboard() {
       val: rejected,
       color: "#ef4444",
       bg: "#fee2e2",
-      action: null,
+      action: "go('all-bookings?status=Rejected')",
     },
     {
       icon: "meeting_room",
@@ -69,22 +69,21 @@ function vDashboard() {
     pendingList.length === 0
       ? `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-sm">ไม่มีรายการรออนุมัติ</td></tr>`
       : pendingList
-          .map((b) => {
-            const start = thaiDateShort(b.start_datetime);
-            const ts = timeFromISO(b.start_datetime),
-              te = timeFromISO(b.end_datetime);
-            return `
+        .map((b) => {
+          const start = thaiDateShort(b.start_datetime);
+          const ts = timeFromISO(b.start_datetime),
+            te = timeFromISO(b.end_datetime);
+          return `
 <tr class="cursor-pointer hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0" onclick="viewDetailAdmin(${b.booking_id})">
 
     <td class="py-4 px-5 align-middle text-left"><div class="font-medium text-slate-800 text-xs">${b.booker?.displayname_th || "—"}</div></td>
     <td class="py-4 px-5 align-middle text-left">
         <div class="text-xs text-slate-700 font-bold">${b.room?.room_name} (${b.room?.room_code})</div>
-        <div class="text-[11px] text-slate-400 mt-0.5">${
-          {
-            teaching: "สอนปกติ/ชดเชย",
-            training: "จัดอบรม/ติว",
-          }[b.purpose_type] || "ไม่ทราบ"
-        } ${b.subject ? `· ${b.subject}` : ""}</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">${{
+              teaching: "สอนปกติ/ชดเชย",
+              training: "จัดอบรม/ติว",
+            }[b.purpose_type] || "ไม่ทราบ"
+            } ${b.subject ? `· ${b.subject}` : ""}</div>
     </td>
     <td class="py-4 px-5 align-middle text-left text-xs text-slate-600">${start} · ${ts}–${te}</td>
     <td class="py-4 px-5 align-middle text-left">
@@ -96,8 +95,8 @@ function vDashboard() {
         </div>
     </td>
 </tr>`;
-          })
-          .join("");
+        })
+        .join("");
 
   const recentAll = [...bookings].reverse().slice(0, 4);
   const activityHtml = recentAll

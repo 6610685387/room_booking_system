@@ -11,7 +11,7 @@ function vRooms() {
   const cards = rooms
     .map(
       (r) => `
-<div class="room-card bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+<div onclick="openEditRoom(${r.room_id})" class="room-card bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:-translate-y-1 hover:shadow-md hover:border-red-800 transition-all">
     <div class="h-32 relative bg-slate-100">
         ${r.room_image ? `<img src="${r.room_image}" class="absolute inset-0 w-full h-full object-cover">` : ""}
         <div class="absolute inset-0 flex items-end p-3" style="background:linear-gradient(to top,rgba(0,0,0,.5),transparent)">
@@ -31,11 +31,11 @@ function vRooms() {
             <span>${{ "Meeting Room": "ห้องประชุม", "Classroom": "ห้องเรียน" }[r.room_type] || "ไม่ทราบ"}</span>
         </div>
         <div class="flex gap-2 mt-3">
-            <button onclick="openEditRoom(${r.room_id})"
+            <button onclick="event.stopPropagation(); openEditRoom(${r.room_id})"
                 class="flex-1 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 flex items-center justify-center gap-1">
                 <span class="material-symbols-outlined text-[14px]">edit</span>แก้ไข
             </button>
-            <button onclick="toggleRoomActive(${r.room_id}, ${r.is_active !== false})"
+            <button onclick="event.stopPropagation(); toggleRoomActive(${r.room_id}, ${r.is_active !== false})"
                 class="flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1 ${r.is_active !== false ? "text-red-600 border border-red-100 bg-red-50 hover:bg-red-100" : "text-emerald-600 border border-emerald-100 bg-emerald-50 hover:bg-emerald-100"}">
                 <span class="material-symbols-outlined text-[14px]">${r.is_active !== false ? "block" : "check_circle"}</span>
                 ${r.is_active !== false ? "ปิดชั่วคราว" : "เปิดใช้งาน"}
@@ -87,11 +87,11 @@ function vRooms() {
 }
 
 function formatDateTime(isoString) {
-    const date = new Date(isoString);
-    return date.toLocaleString('th-TH', { 
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
+  const date = new Date(isoString);
+  return date.toLocaleString('th-TH', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
 }
 
 async function toggleRoomActive(roomId, currentlyActive) {
@@ -137,7 +137,7 @@ function openEditRoom(roomId) {
   );
   if (!r) return;
   editRoomId = roomId;
-  
+
   // 1. จัดการข้อมูลพื้นฐานของห้อง (เช็คก่อนเซ็ตค่า)
   const elTitle = document.getElementById("roomModalTitle");
   if (elTitle) elTitle.textContent = "แก้ไขห้อง";
@@ -153,7 +153,7 @@ function openEditRoom(roomId) {
 
   const elSeats = document.getElementById("rmSeats");
   if (elSeats) elSeats.value = r.capacity || "";
-  
+
   // 2. รีเซ็ต Blackout checkbox (แต่ละการแก้ไขเริ่มต้นใหม่)
   const elBlackout = document.getElementById("isBlackout");
   if (elBlackout) elBlackout.checked = false;
@@ -186,46 +186,46 @@ function openEditRoom(roomId) {
 }
 
 function toggleBlackoutFields() {
-    const elActive = document.getElementById("isBlackout");
-    const blackoutDiv = document.getElementById("blackoutFields");
-    
-    if (elActive && blackoutDiv) {
-        if (elActive.checked) {
-            blackoutDiv.classList.remove("hidden");
-        } else {
-            blackoutDiv.classList.add("hidden");
-            
-            const boStart = document.getElementById("modalBoStart");
-            const boEnd = document.getElementById("modalBoEnd");
-            const boReason = document.getElementById("modalBoReason");
-            if (boStart) boStart.value = "";
-            if (boEnd) boEnd.value = "";
-            if (boReason) boReason.value = "";
-        }
+  const elActive = document.getElementById("isBlackout");
+  const blackoutDiv = document.getElementById("blackoutFields");
+
+  if (elActive && blackoutDiv) {
+    if (elActive.checked) {
+      blackoutDiv.classList.remove("hidden");
+    } else {
+      blackoutDiv.classList.add("hidden");
+
+      const boStart = document.getElementById("modalBoStart");
+      const boEnd = document.getElementById("modalBoEnd");
+      const boReason = document.getElementById("modalBoReason");
+      if (boStart) boStart.value = "";
+      if (boEnd) boEnd.value = "";
+      if (boReason) boReason.value = "";
     }
+  }
 }
 
 function deleteBlackout(id) {
-    targetBlackoutId = id;
-    document.getElementById("deleteConfirmModal").classList.remove("hidden");
+  targetBlackoutId = id;
+  document.getElementById("deleteConfirmModal").classList.remove("hidden");
 }
 
 function closeDeleteModal() {
-    targetBlackoutId = null;
-    document.getElementById("deleteConfirmModal").classList.add("hidden");
+  targetBlackoutId = null;
+  document.getElementById("deleteConfirmModal").classList.add("hidden");
 }
 
 async function confirmDeleteBlackout() {
-    if (!targetBlackoutId) return;
-    
-    try {
-        await api.delete(`/api/admin/blackout/${targetBlackoutId}/`);
-        await loadRooms(); 
-    } catch (err) {
-        showApiError(err);
-    } finally {
-        closeDeleteModal();
-    }
+  if (!targetBlackoutId) return;
+
+  try {
+    await api.delete(`/api/admin/blackout/${targetBlackoutId}/`);
+    await loadRooms();
+  } catch (err) {
+    showApiError(err);
+  } finally {
+    closeDeleteModal();
+  }
 }
 
 function saveRoom() {
@@ -239,24 +239,24 @@ function saveRoom() {
 
   const isBlackout = document.getElementById("isBlackout")?.checked ?? false;
 
-    if (isBlackout) {
-        const startVal = document.getElementById("modalBoStart").value;
-        const endVal = document.getElementById("modalBoEnd").value;
-        const reasonVal = document.getElementById("modalBoReason").value;
+  if (isBlackout) {
+    const startVal = document.getElementById("modalBoStart").value;
+    const endVal = document.getElementById("modalBoEnd").value;
+    const reasonVal = document.getElementById("modalBoReason").value;
 
-        if (!startVal || !endVal || !reasonVal) {
-            showToast("กรุณากรอกเวลาเริ่ม เวลาสิ้นสุด และเหตุผลให้ครบถ้วน", "error");
-            return; 
-        }
-
-        const startDate = new Date(startVal);
-        const endDate = new Date(endVal);
-        
-        if (endDate <= startDate) {
-            showToast("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น", "error");
-            return; 
-        }
+    if (!startVal || !endVal || !reasonVal) {
+      showToast("กรุณากรอกเวลาเริ่ม เวลาสิ้นสุด และเหตุผลให้ครบถ้วน", "error");
+      return;
     }
+
+    const startDate = new Date(startVal);
+    const endDate = new Date(endVal);
+
+    if (endDate <= startDate) {
+      showToast("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น", "error");
+      return;
+    }
+  }
 
   const isEdit = !!editRoomId;
   document.getElementById("saveConfirmTitle").textContent = isEdit
@@ -361,7 +361,7 @@ async function executeSaveRoom() {
     if (isBlackout) {
       const boData = new FormData();
       // ปรับ id ให้ตรงกับที่ backend ส่งกลับมา (เช่น resData.id หรือ resData.room_id)
-      boData.append("room", editRoomId || resData.id || resData.room_id); 
+      boData.append("room", editRoomId || resData.id || resData.room_id);
       boData.append("start_datetime", document.getElementById("modalBoStart").value);
       boData.append("end_datetime", document.getElementById("modalBoEnd").value);
       boData.append("reason", document.getElementById("modalBoReason").value);
