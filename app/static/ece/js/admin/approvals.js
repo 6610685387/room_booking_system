@@ -188,6 +188,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
             </div>
+            ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-500 italic mt-1">"คำขอพิเศษ: ${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
             ${
