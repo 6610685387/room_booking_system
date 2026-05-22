@@ -100,8 +100,7 @@ async function toggleRoomActive(roomId, currentlyActive) {
     await api.patch(`/api/admin/req/room/${roomId}/`, {
       is_active: !currentlyActive,
     });
-    await loadRooms();
-    await renderCurrentView();
+    await refreshAfterAction();
     showToast(
       !currentlyActive ? "เปิดใช้งานห้องแล้ว" : "ปิดห้องชั่วคราวแล้ว",
       "check_circle",
@@ -223,7 +222,8 @@ async function confirmDeleteBlackout() {
 
   try {
     await api.delete(`/api/admin/blackout/${targetBlackoutId}/`);
-    await loadRooms();
+    await refreshAfterAction();
+    showToast("ลบ Blackout เรียบร้อยแล้ว", "delete");
   } catch (err) {
     showApiError(err);
   } finally {
@@ -389,8 +389,7 @@ async function executeSaveRoom() {
     );
 
     closeModals();
-    await loadRooms();
-    await renderCurrentView();
+    await refreshAfterAction();
   } catch (err) {
     alert("ไม่สามารถบันทึกข้อมูลได้เนื่องจาก:\n" + err.message);
     document.getElementById("roomModal").classList.remove("hidden");
@@ -415,9 +414,8 @@ async function executeDeleteRoom() {
   try {
     await api.delete(`/api/admin/req/room/${pendingDeleteRoomId}/`);
     closeModals();
-    await loadRooms();
+    await refreshAfterAction();
     showToast("ลบห้องเรียบร้อยแล้ว", "delete");
-    await renderCurrentView();
   } catch (err) {
     showApiError(err);
     document.getElementById("roomModal").classList.remove("hidden");

@@ -21,37 +21,50 @@ function vReports() {
     bookings.filter((b) => b.status === "Pending").length;
   const pct = total ? Math.round((approved / total) * 100) : 0;
 
+  // ── helper: แปลง % → สีแบบ gradient (เขียว → เหลือง → แดงเข้ม)
+  function pctColor(p) {
+    if (p >= 75) return "#7e0000";       // แดงเข้ม — ใช้งานสูงมาก
+    if (p >= 50) return "#dc2626";       // แดง
+    if (p >= 30) return "#f59e0b";       // เหลืองส้ม
+    if (p >= 15) return "#10b981";       // เขียว
+    return "#94a3b8";                    // เทา — ใช้งานน้อย
+  }
+
   let roomRows = "";
   if (statsSrc.by_room && Array.isArray(statsSrc.by_room)) {
+    // ใช้ approved จาก API เป็นตัวหาร (สัดส่วนจากที่อนุมัติทั้งหมด)
+    const approvedTotal = statsSrc.by_status?.Approved ?? approved;
     roomRows = statsSrc.by_room
       .map((r) => {
         const count = r.booking_count || 0;
-        const pct2 = total ? Math.round((count / total) * 105) : 0;
-        const renderPct = pct2 > 100 ? 100 : pct2;
+        const pct2 = approvedTotal ? Math.round((count / approvedTotal) * 100) : 0;
+        const clamp = Math.min(pct2, 100);
         return `
         <div class="flex items-center gap-3">
             <div class="text-xs font-bold text-slate-600 w-24 flex-shrink-0 truncate" title="${r.room_name}">${r.room_code}</div>
             <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${renderPct > 60 ? "#7e0000" : renderPct > 40 ? "#f59e0b" : "#10b981"}" data-w="${renderPct}"></div>
+                <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${pctColor(clamp)}" data-w="${clamp}"></div>
             </div>
-            <div class="text-xs font-bold text-slate-700 w-28 text-right flex-shrink-0">${count} ครั้ง (${renderPct}%)</div>
+            <div class="text-xs font-bold text-slate-700 w-28 text-right flex-shrink-0">${count} ครั้ง (${clamp}%)</div>
         </div>`;
       })
       .join("");
   } else {
+    // fallback: คำนวณจาก bookings ในหน่วยความจำ โดยหารด้วย approved
     roomRows = rooms
       .map((r) => {
         const cnt = bookings.filter(
           (b) => b.room?.room_id === r.room_id && b.status === "Approved",
         ).length;
         const pct2 = approved ? Math.round((cnt / approved) * 100) : 0;
+        const clamp = Math.min(pct2, 100);
         return `
         <div class="flex items-center gap-3">
             <div class="text-xs font-bold text-slate-600 w-24 flex-shrink-0 truncate">${r.room_code}</div>
             <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${pct2 > 60 ? "#7e0000" : pct2 > 40 ? "#f59e0b" : "#10b981"}" data-w="${pct2}"></div>
+                <div class="util-bar h-full rounded-full transition-all duration-500" style="width:0%;background:${pctColor(clamp)}" data-w="${clamp}"></div>
             </div>
-            <div class="text-xs font-bold text-slate-700 w-24 text-right flex-shrink-0">${cnt} ครั้ง (${pct2}%)</div>
+            <div class="text-xs font-bold text-slate-700 w-24 text-right flex-shrink-0">${cnt} ครั้ง (${clamp}%)</div>
         </div>`;
       })
       .join("");
@@ -115,10 +128,27 @@ function vReports() {
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h3 class="font-bold text-slate-700 mb-4">สัดส่วนการใช้งานรายห้อง จากห้องที่ได้รับอนุมัติทั้งหมด</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 class="font-bold text-slate-700">สัดส่วนการใช้งานรายห้อง จากห้องที่ได้รับอนุมัติทั้งหมด</h3>
+            <div class="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:#94a3b8"></span>&lt;15%</span>
+                <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:#10b981"></span>15–29%</span>
+                <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:#f59e0b"></span>30–49%</span>
+                <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:#dc2626"></span>50–74%</span>
+                <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:#7e0000"></span>≥75%</span>
+            </div>
+        </div>
         <div class="space-y-3">${roomRows}</div>
     </div>
 </div>`;
+}
+
+function animateUtilBars() {
+  requestAnimationFrame(() => {
+    document.querySelectorAll(".util-bar[data-w]").forEach((el) => {
+      el.style.width = el.dataset.w + "%";
+    });
+  });
 }
 
 function buildMonthOptions() {
@@ -137,6 +167,7 @@ function buildMonthOptions() {
   }
   sel.innerHTML = html;
   rptMonth = sel.value;
+  animateUtilBars();
 }
 
 function rptUpdateMonth() {

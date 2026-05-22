@@ -325,8 +325,7 @@ async function doApprove() {
       });
       showToast("อนุมัติการจองเรียบร้อยแล้ว", "check_circle");
     }
-    await loadBookings();
-    go(curView);
+    await refreshAfterAction();
   } catch (err) {
     showApiError(err);
   }
@@ -343,9 +342,8 @@ async function doReject() {
     await api.patch(`/api/admin/bookings/${curActionId}/reject/`, {
       reject_reason: reason,
     });
-    await loadBookings();
     showToast("ปฏิเสธการจองเรียบร้อยแล้ว", "cancel");
-    go(curView);
+    await refreshAfterAction();
   } catch (err) {
     showApiError(err);
   }
@@ -401,9 +399,8 @@ async function doCancelGroupBooking() {
   closeCancelGroupModal();
   try {
     await api.patch(`/api/bookings/recurring/${cancelGroupId}/cancel/`, {});
-    await loadBookings();
     showToast("ยกเลิกการจองแบบกลุ่มเรียบร้อยแล้ว", "cancel");
-    go(curView);
+    await refreshAfterAction();
   } catch (err) {
     showApiError(err);
   }

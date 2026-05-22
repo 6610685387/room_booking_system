@@ -136,6 +136,44 @@ function isAnyModalOpen() {
   });
 }
 
+/**
+ * เรียกใช้หลังจากทำ Action (approve / reject / cancel / save / delete)
+ * โหลดข้อมูลใหม่และ re-render หน้าปัจจุบันโดยไม่กระทบ scroll position หรือ focus ของผู้ใช้
+ */
+async function refreshAfterAction() {
+  try {
+    const [roomsData, bookingsData] = await Promise.all([
+      api.get("/api/admin/req/room/"),
+      api.get("/api/admin/bookings/"),
+    ]);
+    rooms = roomsData || [];
+    bookings = bookingsData || [];
+    updatePendingBadge();
+
+    if (curView === "reports") {
+      await loadReportsSummary();
+    }
+
+    const app = document.getElementById("app");
+    if (!app) return;
+
+    // บันทึก scroll position ปัจจุบันก่อน render
+    const scrollTop = app.scrollTop;
+
+    if (curView === "calendar") {
+      calRender();
+    } else {
+      app.innerHTML = `<div class="view-enter">${render()}</div>`;
+      if (curView === "reports") buildMonthOptions();
+    }
+
+    // คืน scroll position หลัง render
+    app.scrollTop = scrollTop;
+  } catch (err) {
+    console.error("refreshAfterAction failed:", err);
+  }
+}
+
 async function refreshAdminDataSilent() {
   try {
     const [roomsData, bookingsData] = await Promise.all([
