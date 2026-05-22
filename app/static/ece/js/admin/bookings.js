@@ -1,12 +1,9 @@
-/**
- * bookings.js — All Bookings rendering & Detailed Views
- */
 "use strict";
 
 let allBookingsFilter = "all";
-let allBookingsRooms  = [];   // [] = ทั้งหมด, [...room_id] = เฉพาะห้องที่เลือก
+let allBookingsRooms  = [];
+let isRoomFilterInitialized = false;
 
-// ── Thai labels & styles (ปรับสถานะ Cancelled ให้แสดงผลเป็นโทนสีเทาสุภาพ) ────────────────────────
 const STATUS_TH = {
   Pending:   "รออนุมัติ",
   Approved:  "อนุมัติแล้ว",
@@ -28,10 +25,8 @@ const STATUS_BORDER = {
   Cancelled: "border-l-slate-300",
 };
 
-// ลำดับความสำคัญในการจัดเรียง: Pending ขึ้นก่อน ตามด้วย Approved, Rejected และ Cancelled ไว้ล่างสุด
 const STATUS_PRIORITY = { Pending: 0, Approved: 1, Rejected: 2, Cancelled: 3 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function purposeLabel(b) {
   const prefix = { teaching: "สอนปกติ/ชดเชย", training: "จัดอบรม/ติว" }[b.purpose_type] || "ไม่ทราบ";
   return b.subject ? `${prefix}: ${b.subject}` : prefix;
@@ -39,14 +34,25 @@ function purposeLabel(b) {
 
 function setAllBookingsFilter(f) {
   allBookingsFilter = f;
-  renderCurrentView();
+  updateAllBookingsTabs();
+  redrawAllBookingsList();
 }
 window.setAllBookingsFilter = setAllBookingsFilter;
 
-// toggle ห้องใน filter (all = ล้างทั้งหมด)
 function toggleBookingRoom(roomId) {
+  const seen = new Set();
+  const uniqueRoomIds = [];
+  bookings.forEach((b) => {
+    const rid = String(b.room?.room_id);
+    if (rid && rid !== "undefined" && !seen.has(rid)) {
+      seen.add(rid);
+      uniqueRoomIds.push(rid);
+    }
+  });
+
   if (roomId === "all") {
-    allBookingsRooms = [];
+    const isCurrentlyAll = allBookingsRooms.length === uniqueRoomIds.length;
+    allBookingsRooms = isCurrentlyAll ? [] : [...uniqueRoomIds];
   } else {
     const id = String(roomId);
     if (allBookingsRooms.includes(id)) {
@@ -55,11 +61,12 @@ function toggleBookingRoom(roomId) {
       allBookingsRooms = [...allBookingsRooms, id];
     }
   }
-  renderCurrentView();
+
+  redrawAllBookingsList();
+  updateRoomFilterDropdown();
 }
 window.toggleBookingRoom = toggleBookingRoom;
 
-// ปิด dropdown เมื่อคลิกนอก
 function closeRoomDropdown() {
   document.getElementById("roomFilterDropdown")?.classList.add("hidden");
 }
@@ -71,7 +78,14 @@ function toggleRoomDropdown(e) {
 }
 window.toggleRoomDropdown = toggleRoomDropdown;
 
-// ── Room filter dropdown ──────────────────────────────────────────────────────
+function updateRoomFilterDropdown() {
+  const container = document.getElementById("roomFilterContainer");
+  if (!container) return;
+  container.innerHTML = buildRoomFilterHtml();
+  document.getElementById("roomFilterDropdown")?.classList.remove("hidden");
+}
+window.updateRoomFilterDropdown = updateRoomFilterDropdown;
+
 function buildRoomFilterHtml() {
   const uniqueRooms = [];
   const seen = new Set();
@@ -84,16 +98,19 @@ function buildRoomFilterHtml() {
   });
   uniqueRooms.sort((a, b) => a.name.localeCompare(b.name, "th"));
 
-  const allChecked = allBookingsRooms.length === 0;
-  const activeLabel = allChecked
+  const allChecked = uniqueRooms.length > 0 && allBookingsRooms.length === uniqueRooms.length;
+
+  const activeLabel = allBookingsRooms.length === uniqueRooms.length
     ? "ห้องทั้งหมด"
-    : allBookingsRooms.length === 1
-      ? uniqueRooms.find((r) => allBookingsRooms.includes(r.id))?.name || "เลือกห้อง"
-      : `${allBookingsRooms.length} ห้อง`;
+    : allBookingsRooms.length === 0
+      ? "ไม่ได้เลือกห้อง"
+      : allBookingsRooms.length === 1
+        ? uniqueRooms.find((r) => allBookingsRooms.includes(r.id))?.name || "เลือกห้อง"
+        : `${allBookingsRooms.length} ห้อง`;
 
   const rowAll = `
     <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer" onclick="event.stopPropagation(); toggleBookingRoom('all')">
-      <span class="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0" style="${allChecked ? 'background:#7e0000;border-color:#7e0000' : 'border-color:#cbd5e1'}"">
+      <span class="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0" style="${allChecked ? 'background:#7e0000;border-color:#7e0000' : 'border-color:#cbd5e1'}">
         ${allChecked ? `<span class="material-symbols-outlined text-white text-[11px]">check</span>` : ""}
       </span>
       <span class="text-sm font-bold text-slate-700">ทั้งหมด</span>
@@ -103,7 +120,7 @@ function buildRoomFilterHtml() {
     const checked = allBookingsRooms.includes(r.id);
     return `
     <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer" onclick="event.stopPropagation(); toggleBookingRoom('${r.id}')">
-      <span class="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0" style="${checked ? 'background:#7e0000;border-color:#7e0000' : 'border-color:#cbd5e1'}"">
+      <span class="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0" style="${checked ? 'background:#7e0000;border-color:#7e0000' : 'border-color:#cbd5e1'}">
         ${checked ? `<span class="material-symbols-outlined text-white text-[11px]">check</span>` : ""}
       </span>
       <span class="text-sm text-slate-700">${r.name} <span class="text-slate-400">(${r.code})</span></span>
@@ -126,7 +143,6 @@ function buildRoomFilterHtml() {
 </div>`;
 }
 
-// ── Main view ─────────────────────────────────────────────────────────────────
 function vAllBookings() {
   const tabs = [
     { key: "all",       label: "ทั้งหมด" },
@@ -154,17 +170,18 @@ function vAllBookings() {
     </button>`;
   }).join("");
 
-  // กรองตาม status
+  const allRoomIds = [...new Set(bookings.map(b => String(b.room?.room_id)).filter(Boolean))];
+  if (!isRoomFilterInitialized && bookings.length > 0) {
+    allBookingsRooms = [...allRoomIds];
+    isRoomFilterInitialized = true;
+  }
+
   let filtered = allBookingsFilter === "all"
     ? [...bookings]
     : bookings.filter((b) => b.status === allBookingsFilter);
 
-  // กรองตามห้อง
-  if (allBookingsRooms.length > 0) {
-    filtered = filtered.filter((b) => allBookingsRooms.includes(String(b.room?.room_id)));
-  }
+  filtered = filtered.filter((b) => allBookingsRooms.includes(String(b.room?.room_id)));
 
-  // 1. จัดทำกลุ่มการจองย่อย (Grouping Logic)
   const groupedList = [];
   const seenGroups = {};
 
@@ -189,7 +206,6 @@ function vAllBookings() {
     }
   });
 
-  // 2. แปลงการจองกลุ่มที่มีเพียง 1 รายการ ให้แสดงผลเป็นการ์ดเดี่ยว (Single) เพื่อลดความซ้ำซ้อน
   const finalGroupedList = groupedList.map((item) => {
     if (item.type === "group" && item.bookings.length === 1) {
       return { type: "single", booking: item.bookings[0] };
@@ -209,7 +225,6 @@ function vAllBookings() {
     }
   };
 
-  // ฟังก์ชันช่วยเหลือในการประมวลผลดึงระดับความสำคัญและเวลาใช้งานเร็วสุด เพื่อจัดเรียงลำดับ
   const getGroupPriorityAndDate = (item) => {
     if (item.type === "single") {
       const b = item.booking;
@@ -229,7 +244,6 @@ function vAllBookings() {
     }
   };
 
-  // 3. จัดเรียง: Upcoming ขึ้นก่อน -> Pending ขึ้นบนสุด (Priority 0) -> ถัดมาเรียงตามเวลาที่ใกล้จะมาถึงก่อน (Ascending) -> Past ไว้ล่างสุด
   finalGroupedList.sort((a, b) => {
     const aPast = isPast(a);
     const bPast = isPast(b);
@@ -245,7 +259,6 @@ function vAllBookings() {
     return infoA.date - infoB.date;
   });
 
-  // 4. เรนเดอร์การ์ดรายการตามประเภทกลุ่มและเดี่ยว
   const cardsHtml = finalGroupedList.length
     ? finalGroupedList.map((item) => {
         const itemPast = isPast(item);
@@ -270,17 +283,18 @@ function vAllBookings() {
     </header>
 
     <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
-        <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl flex-wrap">
+        <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl flex-wrap" id="allBookingsTabs">
             ${tabsHtml}
         </div>
-        ${buildRoomFilterHtml()}
+        <div id="roomFilterContainer">
+            ${buildRoomFilterHtml()}
+        </div>
     </div>
 
-    <div class="space-y-3">${cardsHtml}</div>
+    <div class="space-y-3" id="allBookingsList">${cardsHtml}</div>
 </div>`;
 }
 
-// ── Single booking card ───────────────────────────────────────────────────────
 function bookingCard(b, opacityClass = "") {
   const start = thaiDateShort(b.start_datetime);
   const ts    = timeFromISO(b.start_datetime);
@@ -338,23 +352,17 @@ function bookingCard(b, opacityClass = "") {
 </div>`;
 }
 
-// ── Grouped recurring bookings card ───────────────────────────────────────────
 function groupCard(g, opacityClass = "") {
   const canCancelAnyGroup = g.bookings.some((b) => b.status === "Pending");
-  const canApproveAnyGroup = g.bookings.some(
-    (b) => b.status === "Pending"
-  );
+  const canApproveAnyGroup = g.bookings.some((b) => b.status === "Pending");
   const sortedBookings = [...g.bookings].sort(
     (x, y) => new Date(x.start_datetime) - new Date(y.start_datetime),
   );
   const minDateStr = thaiDateShort(sortedBookings[0].start_datetime);
-  const maxDateStr = thaiDateShort(
-    sortedBookings[sortedBookings.length - 1].start_datetime,
-  );
+  const maxDateStr = thaiDateShort(sortedBookings[sortedBookings.length - 1].start_datetime);
   const ts = timeFromISO(g.bookings[0].start_datetime),
     te = timeFromISO(g.bookings[0].end_datetime);
 
-  // คำนวณความสอดคล้องสถานะภายในกลุ่มสำหรับการจัดกรอบสีขอบ (Approved ทั้งหมด, Pending ทั้งหมด, Cancelled ทั้งหมด)
   const allStatuses = g.bookings.map((b) => b.status);
   const uniqueStatuses = [...new Set(allStatuses)];
 
@@ -468,7 +476,6 @@ function groupCard(g, opacityClass = "") {
 </details>`;
 }
 
-// ── Detail view (required by core.js render()) ────────────────────────────────
 function vDetailAdmin() {
   const b = bookings.find(
     (x) => x.booking_id === Number(curDetailId) || String(x.booking_id) === String(curDetailId),
@@ -490,7 +497,6 @@ function vDetailAdmin() {
   const te      = timeFromISO(b.end_datetime);
   const created = b.created_at ? thaiDateTime(b.created_at) : "—";
 
-  // ตรวจสอบเงื่อนไขกลุ่มข้อมูลเพื่อเรนเดอร์สิทธิ์ "อนุมัติทั้งกลุ่ม" หรือ "ยกเลิกทั้งกลุ่ม" ในหน้ารายละเอียดคิว
   const isGroup = b.recurring_group_id && bookings.filter((x) => String(x.recurring_group_id) === String(b.recurring_group_id)).length > 1;
   const groupBookings = isGroup ? bookings.filter((x) => String(x.recurring_group_id) === String(b.recurring_group_id)) : [];
   const hasPendingInGroup = groupBookings.some((x) => x.status === "Pending");
@@ -503,11 +509,11 @@ function vDetailAdmin() {
        </button>`
     : "";
 
-  const groupCancelBtn = (isGroup && groupBookings.some((x) => x.status === "Pending" || x.status === "Approved"))
+  const groupCancelBtn = (isGroup && b.status !== "Approved" && groupBookings.some((x) => x.status === "Pending"))
     ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${b.recurring_group_id}')"
         class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all">
         <span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกการจองทั้งกลุ่ม
-       </button>`
+      </button>`
     : "";
 
   return `
@@ -564,4 +570,143 @@ function vDetailAdmin() {
         </div>
     </div>
 </div>`;
+}
+
+function updateAllBookingsTabs() {
+  const tabsContainer = document.getElementById("allBookingsTabs");
+  if (!tabsContainer) return;
+
+  const tabs = [
+    { key: "all",       label: "ทั้งหมด" },
+    { key: "Pending",   label: "รออนุมัติ" },
+    { key: "Approved",  label: "อนุมัติแล้ว" },
+    { key: "Rejected",  label: "ไม่อนุมัติ" },
+    { key: "Cancelled", label: "ยกเลิกแล้ว" },
+  ];
+
+  const counts = { all: bookings.length };
+  tabs.slice(1).forEach((t) => {
+    counts[t.key] = bookings.filter((b) => b.status === t.key).length;
+  });
+
+  const tabsHtml = tabs.map((t) => {
+    const active = allBookingsFilter === t.key;
+    return `<button onclick="setAllBookingsFilter('${t.key}')"
+      class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 ${
+        active
+          ? "bg-white text-slate-800 shadow-sm border border-slate-200"
+          : "text-slate-500 hover:text-slate-700 hover:bg-white/60"
+      }">
+      ${t.label}
+      <span class="text-[11px] px-1.5 py-0.5 rounded-full ${active ? "bg-slate-100 text-slate-600" : "bg-slate-200/60 text-slate-400"}">${counts[t.key]}</span>
+    </button>`;
+  }).join("");
+
+  tabsContainer.innerHTML = tabsHtml;
+}
+
+function redrawAllBookingsList() {
+  const container = document.getElementById("allBookingsList");
+  if (!container) return;
+
+  let filtered = allBookingsFilter === "all"
+    ? [...bookings]
+    : bookings.filter((b) => b.status === allBookingsFilter);
+
+  filtered = filtered.filter((b) => allBookingsRooms.includes(String(b.room?.room_id)));
+
+  const groupedList = [];
+  const seenGroups = {};
+
+  filtered.forEach((b) => {
+    const gid = b.recurring_group_id;
+    if (!gid) {
+      groupedList.push({ type: "single", booking: b });
+    } else {
+      if (!seenGroups[gid]) {
+        seenGroups[gid] = {
+          type: "group",
+          groupId: gid,
+          room_name: b.room?.room_name || b.room_name || "—",
+          room_code: b.room?.room_code || b.room_code || "—",
+          purpose_type: b.purpose_type,
+          subject: b.subject,
+          bookings: [],
+        };
+        groupedList.push(seenGroups[gid]);
+      }
+      seenGroups[gid].bookings.push(b);
+    }
+  });
+
+  const finalGroupedList = groupedList.map((item) => {
+    if (item.type === "group" && item.bookings.length === 1) {
+      return { type: "single", booking: item.bookings[0] };
+    }
+    return item;
+  });
+
+  const now = new Date();
+  const isPast = (item) => {
+    if (item.type === "single") {
+      return new Date(item.booking.end_datetime) < now;
+    } else {
+      const sorted = [...item.bookings].sort(
+        (x, y) => new Date(x.end_datetime) - new Date(y.end_datetime),
+      );
+      return new Date(sorted[sorted.length - 1].end_datetime) < now;
+    }
+  };
+
+  const getGroupPriorityAndDate = (item) => {
+    if (item.type === "single") {
+      const b = item.booking;
+      return {
+        priority: STATUS_PRIORITY[b.status] ?? 9,
+        date: new Date(b.start_datetime)
+      };
+    } else {
+      const priorities = item.bookings.map((b) => STATUS_PRIORITY[b.status] ?? 9);
+      const minPriority = Math.min(...priorities);
+      const dates = item.bookings.map((b) => new Date(b.start_datetime));
+      const minDate = new Date(Math.min(...dates));
+      return {
+        priority: minPriority,
+        date: minDate
+      };
+    }
+  };
+
+  finalGroupedList.sort((a, b) => {
+    const aPast = isPast(a);
+    const bPast = isPast(b);
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+
+    const infoA = getGroupPriorityAndDate(a);
+    const infoB = getGroupPriorityAndDate(b);
+
+    if (infoA.priority !== infoB.priority) {
+      return infoA.priority - infoB.priority;
+    }
+    return infoA.date - infoB.date;
+  });
+
+  const cardsHtml = finalGroupedList.length
+    ? finalGroupedList.map((item) => {
+        const itemPast = isPast(item);
+        const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
+
+        if (item.type === "single") {
+          return bookingCard(item.booking, opacityClass);
+        } else {
+          return groupCard(item, opacityClass);
+        }
+      }).join("")
+    : `<div class="text-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl">
+         <span class="material-symbols-outlined text-5xl block mb-2">search_off</span>
+         <p class="font-medium">ไม่มีรายการ</p>
+       </div>`;
+
+  container.innerHTML = cardsHtml;
 }
