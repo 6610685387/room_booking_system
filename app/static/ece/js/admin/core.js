@@ -145,11 +145,20 @@ function isAnyModalOpen() {
  */
 async function refreshAfterAction() {
   try {
-    const [roomsData, bookingsData] = await Promise.all([
+    const [roomsData, bookingsData, blackoutsData] = await Promise.all([
       api.get("/api/admin/req/room/"),
       api.get("/api/admin/bookings/"),
+      api.get("/api/admin/blackout/upcoming/"),
     ]);
-    rooms = roomsData || [];
+
+    const rawRooms = roomsData || [];
+    const blackoutsList = blackoutsData || [];
+    
+    rooms = rawRooms.map(room => {
+        const matchedBlackouts = blackoutsList.filter(b => b.room === room.room_id || b.room === room.id);
+        return { ...room, blackouts: matchedBlackouts };
+    });
+
     bookings = bookingsData || [];
     updatePendingBadge();
 
@@ -160,7 +169,6 @@ async function refreshAfterAction() {
     const app = document.getElementById("app");
     if (!app) return;
 
-    // บันทึก scroll position ปัจจุบันก่อน render
     const scrollTop = app.scrollTop;
 
     if (curView === "calendar") {
@@ -170,7 +178,6 @@ async function refreshAfterAction() {
       if (curView === "reports") buildMonthOptions();
     }
 
-    // คืน scroll position หลัง render
     app.scrollTop = scrollTop;
   } catch (err) {
     console.error("refreshAfterAction failed:", err);

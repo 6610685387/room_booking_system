@@ -16,6 +16,7 @@ class Room(models.Model):
     room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES)
     capacity = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
