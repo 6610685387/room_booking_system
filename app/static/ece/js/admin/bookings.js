@@ -4,27 +4,27 @@
 "use strict";
 
 let allBookingsFilter = "all";
-let allBookingsRooms  = [];   // [] = ทั้งหมด, [...room_id] = เฉพาะห้องที่เลือก
+let allBookingsRooms = [];   // [] = ทั้งหมด, [...room_id] = เฉพาะห้องที่เลือก
 
 // ── Thai labels & styles (ปรับสถานะ Cancelled ให้แสดงผลเป็นโทนสีเทาสุภาพ) ────────────────────────
 const STATUS_TH = {
-  Pending:   "รออนุมัติ",
-  Approved:  "อนุมัติแล้ว",
-  Rejected:  "ไม่อนุมัติ",
+  Pending: "รออนุมัติ",
+  Approved: "อนุมัติแล้ว",
+  Rejected: "ไม่อนุมัติ",
   Cancelled: "ยกเลิกแล้ว",
 };
 
 const STATUS_BADGE = {
-  Pending:   "badge-pending",
-  Approved:  "badge-approved",
-  Rejected:  "badge-rejected",
+  Pending: "badge-pending",
+  Approved: "badge-approved",
+  Rejected: "badge-rejected",
   Cancelled: "bg-slate-100 text-slate-500 border border-slate-200",
 };
 
 const STATUS_BORDER = {
-  Pending:   "border-l-amber-400",
-  Approved:  "border-l-emerald-500",
-  Rejected:  "border-l-red-400",
+  Pending: "border-l-amber-400",
+  Approved: "border-l-emerald-500",
+  Rejected: "border-l-red-400",
   Cancelled: "border-l-slate-300",
 };
 
@@ -128,11 +128,17 @@ function buildRoomFilterHtml() {
 
 // ── Main view ─────────────────────────────────────────────────────────────────
 function vAllBookings() {
+  const redirectStatus = sessionStorage.getItem("bookingFilterStatus");
+  if (redirectStatus) {
+    allBookingsFilter = redirectStatus;
+    sessionStorage.removeItem("bookingFilterStatus");
+  }
+
   const tabs = [
-    { key: "all",       label: "ทั้งหมด" },
-    { key: "Pending",   label: "รออนุมัติ" },
-    { key: "Approved",  label: "อนุมัติแล้ว" },
-    { key: "Rejected",  label: "ไม่อนุมัติ" },
+    { key: "all", label: "ทั้งหมด" },
+    { key: "Pending", label: "รออนุมัติ" },
+    { key: "Approved", label: "อนุมัติแล้ว" },
+    { key: "Rejected", label: "ไม่อนุมัติ" },
     { key: "Cancelled", label: "ยกเลิกแล้ว" },
   ];
 
@@ -144,10 +150,9 @@ function vAllBookings() {
   const tabsHtml = tabs.map((t) => {
     const active = allBookingsFilter === t.key;
     return `<button onclick="setAllBookingsFilter('${t.key}')"
-      class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 ${
-        active
-          ? "bg-white text-slate-800 shadow-sm border border-slate-200"
-          : "text-slate-500 hover:text-slate-700 hover:bg-white/60"
+      class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 ${active
+        ? "bg-white text-slate-800 shadow-sm border border-slate-200"
+        : "text-slate-500 hover:text-slate-700 hover:bg-white/60"
       }">
       ${t.label}
       <span class="text-[11px] px-1.5 py-0.5 rounded-full ${active ? "bg-slate-100 text-slate-600" : "bg-slate-200/60 text-slate-400"}">${counts[t.key]}</span>
@@ -248,15 +253,15 @@ function vAllBookings() {
   // 4. เรนเดอร์การ์ดรายการตามประเภทกลุ่มและเดี่ยว
   const cardsHtml = finalGroupedList.length
     ? finalGroupedList.map((item) => {
-        const itemPast = isPast(item);
-        const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
+      const itemPast = isPast(item);
+      const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
 
-        if (item.type === "single") {
-          return bookingCard(item.booking, opacityClass);
-        } else {
-          return groupCard(item, opacityClass);
-        }
-      }).join("")
+      if (item.type === "single") {
+        return bookingCard(item.booking, opacityClass);
+      } else {
+        return groupCard(item, opacityClass);
+      }
+    }).join("")
     : `<div class="text-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl">
          <span class="material-symbols-outlined text-5xl block mb-2">search_off</span>
          <p class="font-medium">ไม่มีรายการ</p>
@@ -283,12 +288,12 @@ function vAllBookings() {
 // ── Single booking card ───────────────────────────────────────────────────────
 function bookingCard(b, opacityClass = "") {
   const start = thaiDateShort(b.start_datetime);
-  const ts    = timeFromISO(b.start_datetime);
-  const te    = timeFromISO(b.end_datetime);
+  const ts = timeFromISO(b.start_datetime);
+  const te = timeFromISO(b.end_datetime);
 
-  const badgeClass  = STATUS_BADGE[b.status]  || "badge-pending";
+  const badgeClass = STATUS_BADGE[b.status] || "badge-pending";
   const borderClass = STATUS_BORDER[b.status] || "border-l-slate-300";
-  const labelTh     = STATUS_TH[b.status]     || b.status;
+  const labelTh = STATUS_TH[b.status] || b.status;
 
   const badgeIcon = { Pending: "pending", Approved: "check_circle", Rejected: "cancel", Cancelled: "block" }[b.status] || "help";
 
@@ -438,14 +443,13 @@ function groupCard(g, opacityClass = "") {
             ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
-            ${
-              canCancelAnyGroup
-                ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
+            ${canCancelAnyGroup
+      ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
                 class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
                 <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
             </button>`
-                : ""
-            }
+      : ""
+    }
             <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200">
                 <span class="material-symbols-outlined text-[18px]">expand_more</span>
             </div>
@@ -468,16 +472,16 @@ function vDetailAdmin() {
   }
 
   const sCfg = {
-    Pending:   { bar: "bg-amber-100 border-amber-200 text-amber-700",   label: "รออนุมัติ",   ping: true  },
-    Approved:  { bar: "bg-green-100 border-green-200 text-green-700",   label: "อนุมัติแล้ว", ping: false },
-    Rejected:  { bar: "bg-red-100 border-red-200 text-red-700",         label: "ไม่อนุมัติ",  ping: false },
-    Cancelled: { bar: "bg-slate-100 border-slate-200 text-slate-600",   label: "ยกเลิกแล้ว", ping: false },
+    Pending: { bar: "bg-amber-100 border-amber-200 text-amber-700", label: "รออนุมัติ", ping: true },
+    Approved: { bar: "bg-green-100 border-green-200 text-green-700", label: "อนุมัติแล้ว", ping: false },
+    Rejected: { bar: "bg-red-100 border-red-200 text-red-700", label: "ไม่อนุมัติ", ping: false },
+    Cancelled: { bar: "bg-slate-100 border-slate-200 text-slate-600", label: "ยกเลิกแล้ว", ping: false },
   }[b.status] || { bar: "bg-slate-100 border-slate-200 text-slate-600", label: b.status, ping: false };
 
-  const start   = thaiDateShort(b.start_datetime);
-  const end     = thaiDateShort(b.end_datetime);
-  const ts      = timeFromISO(b.start_datetime);
-  const te      = timeFromISO(b.end_datetime);
+  const start = thaiDateShort(b.start_datetime);
+  const end = thaiDateShort(b.end_datetime);
+  const ts = timeFromISO(b.start_datetime);
+  const te = timeFromISO(b.end_datetime);
   const created = b.created_at ? thaiDateTime(b.created_at) : "—";
 
   return `
@@ -529,8 +533,8 @@ function vDetailAdmin() {
                 </button>
             </div>
             ${(b.recurring_group_id && bookings.filter((x) => String(x.recurring_group_id) === String(b.recurring_group_id)).length > 1)
-              ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
-              : ""}` : ""}
+        ? `<button onclick="openCancelGroupModal('${b.recurring_group_id}')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-2 transition-all"><span class="material-symbols-outlined text-[18px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
+        : ""}` : ""}
         </div>
     </div>
 </div>`;

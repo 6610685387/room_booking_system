@@ -170,19 +170,21 @@ async function refreshAdminDataSilent() {
 // ROUTER (HASH-BASED ROUTING WITH HIDDEN PARAMETERS)
 // ═══════════════════════════════════════════════════════════════════
 function go(v) {
-  // หากตรวจพบการส่งตัวแปร (เช่น detail?id=1)
   if (v.includes("?")) {
     const parts = v.split("?");
-    const view = parts[0]; // "detail"
+    const view = parts[0];
     const params = new URLSearchParams(parts[1]);
     const id = params.get("id");
+    const status = params.get("status");
 
     if (id) {
-      // บันทึก ID ลงในหน่วยความจำแท็บชั่วคราว เพื่อความปลอดภัยและความสะอาดของ URL
       sessionStorage.setItem("curDetailId", id);
     }
 
-    // ตั้งค่า Hash ในเบราว์เซอร์ให้แสดงผลแค่ "#detail" เสมอ
+    if (status) {
+      sessionStorage.setItem("bookingFilterStatus", status);
+    }
+
     window.location.hash = view;
   } else {
     window.location.hash = v;

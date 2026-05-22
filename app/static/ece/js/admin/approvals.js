@@ -121,12 +121,11 @@ function buildAdminPendingBookingsHtml(pendingList) {
         </div>
         <h3 class="font-bold text-slate-800">${b.room?.room_name || b.room_name || "—"} (${b.room?.room_code || b.room_code || "—"})</h3>
         <p class="text-sm text-slate-600">ผู้จอง: ${b.booker?.displayname_th || "—"}</p>
-        <p class="text-sm text-slate-600">${
-          {
+        <p class="text-sm text-slate-600">${{
             teaching: "สอนปกติ/ชดเชย: ",
             training: "จัดอบรม/ติว: ",
           }[b.purpose_type] || "ไม่ทราบ: "
-        } ${b.subject ? `${b.subject}` : ""}</p>
+          } ${b.subject ? `${b.subject}` : ""}</p>
         <div class="flex gap-3 text-xs text-slate-500 flex-wrap">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
@@ -202,12 +201,11 @@ function buildAdminPendingBookingsHtml(pendingList) {
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
             <p class="text-sm text-slate-600">ผู้จอง: ${sortedBookings[0].booker?.displayname_th || "—"}</p>
-            <p class="text-sm text-slate-600">${
-              {
-                teaching: "สอนปกติ/ชดเชย",
-                training: "จัดอบรม/ติว",
-              }[g.purpose_type] || "ไม่ทราบ"
-            }: ${g.subject || "—"}</p>
+            <p class="text-sm text-slate-600">${{
+            teaching: "สอนปกติ/ชดเชย",
+            training: "จัดอบรม/ติว",
+          }[g.purpose_type] || "ไม่ทราบ"
+          }: ${g.subject || "—"}</p>
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
@@ -215,14 +213,13 @@ function buildAdminPendingBookingsHtml(pendingList) {
             ${sortedBookings[0].additional_requests ? `<p class="text-xs text-slate-400 italic">"${sortedBookings[0].additional_requests}"</p>` : ""}
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
-            ${
-              canCancelAnyGroup
-                ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
+            ${canCancelAnyGroup
+            ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
                 class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
                 <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
             </button>`
-                : ""
-            }
+            : ""
+          }
             <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200">
                 <span class="material-symbols-outlined text-[18px]">expand_more</span>
             </div>
@@ -304,7 +301,7 @@ async function doReject() {
 function openCancelGroupModal(groupId) {
   cancelGroupId = groupId;
   const displayEl = document.getElementById("cancelGroupIdDisplay");
-  
+
   if (displayEl) {
     // ค้นหารายการจองทั้งหมดที่อยู่ในกลุ่มนี้จากตัวแปร bookings
     const groupBookings = bookings.filter(
@@ -316,8 +313,8 @@ function openCancelGroupModal(groupId) {
       const roomName = first.room?.room_name || first.room_name || "—";
       const roomCode = first.room?.room_code || first.room_code || "—";
       const subject = first.subject || (
-        first.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" : 
-        first.purpose_type === "training" ? "จัดอบรม/ติว" : "—"
+        first.purpose_type === "teaching" ? "สอนปกติ/ชดเชย" :
+          first.purpose_type === "training" ? "จัดอบรม/ติว" : "—"
       );
       const count = groupBookings.length;
 
@@ -332,7 +329,7 @@ function openCancelGroupModal(groupId) {
       displayEl.textContent = `รหัสกลุ่ม #${groupId}`;
     }
   }
-  
+
   document.getElementById("cancelGroupModal")?.classList.remove("hidden");
 }
 
