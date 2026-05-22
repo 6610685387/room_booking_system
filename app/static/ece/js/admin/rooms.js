@@ -58,7 +58,7 @@ function vRooms() {
                     <div>${formatDateTime(b.start_datetime)} - </div>
                     <div>${formatDateTime(b.end_datetime)}</div>
                 </div>
-                <button onclick="deleteBlackout(${b.blackout_id})" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+                <button onclick="event.stopPropagation(); deleteBlackout(${b.blackout_id})" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
                     <span class="material-symbols-outlined text-[16px]">delete</span>
                 </button>
             </div>
@@ -120,6 +120,19 @@ function openAddRoom() {
 
   const imgEl = document.getElementById("rmImage");
   if (imgEl) imgEl.value = "";
+
+  const removeFlag = document.getElementById("removeExistingImage");
+  if (removeFlag) removeFlag.value = "false";
+
+  const textSpan = document.getElementById("rmImageText");
+  if (textSpan) {
+    textSpan.textContent = "ยังไม่ได้เลือกไฟล์";
+    textSpan.classList.remove("text-emerald-600", "text-slate-800");
+    textSpan.classList.add("text-slate-500");
+  }
+
+  const removeBtn = document.getElementById("removeImageBtn");
+  if (removeBtn) removeBtn.classList.add("hidden");
 
   const btnDelete = document.getElementById("btnDeleteRoom");
   if (btnDelete) btnDelete.classList.add("hidden");
