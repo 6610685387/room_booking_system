@@ -146,7 +146,7 @@ function calRenderWeek() {
     // ปรับรูปแบบเลเบลบอกชั่วโมงให้เป็นเลข 2 หลัก (เช่น 00:00, 05:00)
     const timeLabel = String(h).padStart(2, "0") + ":00";
 
-    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1 bg-slate-50/10" style="height:${SH}px">
+    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1 bg-slate-50/10 select-none" style="height:${SH}px">
             <span class="text-[10px] text-slate-400 font-medium">${timeLabel}</span>
         </div>`;
       days.forEach((d) => {
@@ -164,11 +164,85 @@ function calRenderWeek() {
 </div>`,
         )
         .join("");
-      bHtml += `<div class="border-r border-b border-slate-100 relative ${tod ? "bg-red-50/20" : ""}" style="height:${SH}px">${blocks}</div>`;
+      const dateVal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      bHtml += `<div class="cal-slot border-r border-b border-slate-100 relative ${tod ? "bg-red-50/20" : ""} select-none" 
+                     data-time="${String(h).padStart(2, "0")}:00" data-date="${dateVal}"
+                     style="height:${SH}px">${blocks}</div>`;
     });
   });
   wb.innerHTML = bHtml;
   wb.style.gridTemplateColumns = "56px repeat(7,1fr)";
+
+  // ผูก Event สำหรับ Drag-to-select
+  wb.onmousedown = (e) => {
+    const slot = e.target.closest(".cal-slot");
+    if (!slot) return;
+    calIsDragging = true;
+    calDragStart = slot;
+    calDragEnd = slot;
+    calUpdateDragHighlight();
+  };
+  wb.onmouseover = (e) => {
+    if (!calIsDragging) return;
+    const slot = e.target.closest(".cal-slot");
+    if (slot) {
+      calDragEnd = slot;
+      calUpdateDragHighlight();
+    }
+  };
+}
+
+let calIsDragging = false;
+let calDragStart = null;
+let calDragEnd = null;
+
+// onmouseup ต้องเป็น global เพื่อดักเคสปล่อยนอกพื้นที่
+window.addEventListener("mouseup", () => {
+  if (calIsDragging) {
+    calIsDragging = false;
+    calFinalizeDrag();
+  }
+});
+
+function calUpdateDragHighlight() {
+  document.querySelectorAll(".cal-slot").forEach(s => s.classList.remove("drag-highlight"));
+  if (!calDragStart || !calDragEnd) return;
+
+  const d1 = calDragStart.dataset.date;
+  const d2 = calDragEnd.dataset.date;
+  if (d1 !== d2) return; // ลากข้ามวันยังไม่รองรับใน UI นี้
+
+  const t1 = parseInt(calDragStart.dataset.time);
+  const t2 = parseInt(calDragEnd.dataset.time);
+  const minT = Math.min(t1, t2);
+  const maxT = Math.max(t1, t2);
+
+  document.querySelectorAll(`.cal-slot[data-date="${d1}"]`).forEach(s => {
+    const t = parseInt(s.dataset.time);
+    if (t >= minT && t <= maxT) s.classList.add("drag-highlight");
+  });
+}
+
+function calFinalizeDrag() {
+  if (!calDragStart || !calDragEnd) return;
+  const d1 = calDragStart.dataset.date;
+  const d2 = calDragEnd.dataset.date;
+  if (d1 !== d2) {
+    document.querySelectorAll(".cal-slot").forEach(s => s.classList.remove("drag-highlight"));
+    return;
+  }
+
+  const t1 = parseInt(calDragStart.dataset.time);
+  const t2 = parseInt(calDragEnd.dataset.time);
+  const minT = Math.min(t1, t2);
+  const maxT = Math.max(t1, t2);
+
+  calBookDate = d1;
+  calBookTimeStart = `${String(minT).padStart(2, "0")}:00`;
+  calBookTimeEnd   = `${String(maxT + 1).padStart(2, "0")}:00`;
+  if (calBookTimeEnd === "24:00") calBookTimeEnd = "23:59";
+
+  navigate("dashboard");
 }
 
 function calSwitchView(v) {

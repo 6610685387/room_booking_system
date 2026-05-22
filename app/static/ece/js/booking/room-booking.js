@@ -24,8 +24,8 @@ function vRoomBooking() {
   const _defaultTimeEnd = draft.time_end
     ? ""
     : `${String(_nowForTime.getHours() + 1 < 24 ? _nowForTime.getHours() + 1 : 23).padStart(2, "0")}:${_nowForTime.getHours() + 1 < 24 ? "00" : "59"}`;
-  const preTimeStart = draft.time_start || _defaultTimeStart;
-  const preTimeEnd = draft.time_end || _defaultTimeEnd;
+  const preTimeStart = draft.time_start || calBookTimeStart || _defaultTimeStart;
+  const preTimeEnd = draft.time_end || calBookTimeEnd || _defaultTimeEnd;
   const prePurpose = draft.purpose_type || "teaching";
   const preSubjCode = draft.subject_code || "";
   const preSubjName = draft.subject_name || "";
