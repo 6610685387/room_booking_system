@@ -356,6 +356,11 @@ async function loadRoomScheduleForView() {
     .map((h) => {
       const cols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         .map((day) => {
+          const colDate = new Date(sunday);
+          const dayIdx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(day);
+          colDate.setDate(sunday.getDate() + dayIdx);
+          const dateVal = `${colDate.getFullYear()}-${String(colDate.getMonth() + 1).padStart(2, "0")}-${String(colDate.getDate()).padStart(2, "0")}`;
+
           const sl = slotMap[day]?.[h];
           if (sl) {
             const isPending = sl.status === "Pending";
@@ -367,7 +372,7 @@ async function loadRoomScheduleForView() {
 
             return `<td class="p-1 border border-slate-100 ${cellClass}" title="${sl.label}${statusText}"><span class="text-[10px] ${textClass} font-bold truncate block">${sl.label}</span></td>`;
           }
-          return `<td class="p-2 border border-slate-100 hover:bg-slate-50 transition-colors"></td>`;
+          return `<td class="cal-slot p-2 border border-slate-100 hover:bg-slate-50 transition-colors select-none" data-date="${dateVal}" data-time="${String(h).padStart(2, "0")}:00"></td>`;
         })
         .join("");
 
@@ -389,8 +394,99 @@ async function loadRoomScheduleForView() {
 <div class="flex gap-4 mt-3 text-xs font-bold">
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded"></span>ถูกจองแล้ว</span>
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded"></span>รออนุมัติ</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-slate-300 bg-white" style="background:#ffffff"></span>ว่าง</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-slate-300 bg-white" style="background:#ffffff"></span>ว่าง (ลากเมาส์เพื่อระบุเวลาจอง)</span>
 </div>${blackoutNote}`;
+
+  // ── Drag-to-select Logic for Room Schedule ────────────────────────────────
+  const table = wrap.querySelector("table");
+  if (!table) return;
+
+  let isDragging = false;
+  let dragStart = null;
+  let dragEnd = null;
+
+  table.onmousedown = (e) => {
+    const slot = e.target.closest(".cal-slot");
+    if (!slot) return;
+    isDragging = true;
+    dragStart = slot;
+    dragEnd = slot;
+    updateHighlight();
+
+    const onMouseUp = () => {
+      if (isDragging) {
+        isDragging = false;
+        finalizeDrag();
+      }
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  table.onmouseover = (e) => {
+    if (!isDragging) return;
+    const slot = e.target.closest(".cal-slot");
+    if (slot) {
+      dragEnd = slot;
+      updateHighlight();
+    }
+  };
+
+  function updateHighlight() {
+    table.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+    if (!dragStart || !dragEnd) return;
+
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    if (d1 !== d2) return; // ไม่รองรับการลากข้ามวันในตารางนี้
+
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
+
+    table.querySelectorAll(`.cal-slot[data-date="${d1}"]`).forEach((s) => {
+      const t = parseInt(s.dataset.time);
+      if (t >= minT && t <= maxT) s.classList.add("drag-highlight");
+    });
+  }
+
+  function finalizeDrag() {
+    if (!dragStart || !dragEnd) return;
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    if (d1 !== d2) {
+      table.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+      return;
+    }
+
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
+
+    // อัปเดตฟอร์มโดยตรง
+    const startEl = document.getElementById("date_start");
+    const endEl = document.getElementById("date_end");
+    const tsEl = document.getElementById("time_start");
+    const teEl = document.getElementById("time_end");
+
+    if (startEl) startEl.value = d1;
+    if (endEl) endEl.value = d1;
+    if (tsEl) tsEl.value = `${String(minT).padStart(2, "0")}:00`;
+    
+    let endH = maxT + 1;
+    if (teEl) {
+      if (endH >= 24) teEl.value = "23:59";
+      else teEl.value = `${String(endH).padStart(2, "0")}:00`;
+    }
+
+    // Trigger sync/validation
+    if (startEl) startEl.dispatchEvent(new Event("change"));
+    
+    // ล้าง highlight
+    table.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+  }
 }
 
 async function submitBooking(roomId) {
