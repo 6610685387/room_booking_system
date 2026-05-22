@@ -81,11 +81,11 @@ function calRender() {
       calView === "month"
         ? `${MONTHS_TH[calDate.getMonth()]} ${toBE(calDate.getFullYear())}`
         : (() => {
-            const ws = calWkStart(calDate);
-            const we = new Date(ws);
-            we.setDate(we.getDate() + 6);
-            return `${ws.getDate()} – ${we.getDate()} ${MONTHS_TH[ws.getMonth()]} ${toBE(ws.getFullYear())}`;
-          })();
+          const ws = calWkStart(calDate);
+          const we = new Date(ws);
+          we.setDate(we.getDate() + 6);
+          return `${ws.getDate()} – ${we.getDate()} ${MONTHS_TH[ws.getMonth()]} ${toBE(ws.getFullYear())}`;
+        })();
   }
   if (calView === "month") calRenderMonth();
   else calRenderWeek();
@@ -157,21 +157,20 @@ function calRenderWeek() {
   });
   wh.innerHTML = hHtml;
   wh.style.gridTemplateColumns = "56px repeat(7,1fr)";
-  
+
   let bHtml = "";
   CAL_HRS.forEach((h) => {
     const timeLabel = String(h).padStart(2, "0") + ":00";
 
-    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1 bg-slate-50/10" style="height:${SH}px">
-        <span class="text-[10px] text-slate-400 font-medium">${timeLabel}</span>
-    </div>`;
-
+    bHtml += `<div class="border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-1 bg-slate-50/10 select-none" style="height:${SH}px">
+            <span class="text-[10px] text-slate-400 font-medium">${timeLabel}</span>
+        </div>`;
     days.forEach((d) => {
       const key = calFKey(d.getFullYear(), d.getMonth(), d.getDate());
       const bks = calGetBk(key).filter((b) => b.h === h);
       const tod = isToday(d.getFullYear(), d.getMonth(), d.getDate());
       const td = `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${toBE(d.getFullYear())}`;
-      
+
       // ฟื้นฟูโครงสร้างส่วนบล็อกเวลาจองแบบสัปดาห์ที่เคยตกหล่นไป
       const blocks = bks
         .map((b) => `
@@ -183,12 +182,88 @@ function calRenderWeek() {
 </div>`
         )
         .join("");
-        
-      bHtml += `<div class="border-r border-b border-slate-100 relative ${tod ? "bg-red-50/20" : ""}" style="height:${SH}px">${blocks}</div>`;
+      const dateVal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      bHtml += `<div class="cal-slot border-r border-b border-slate-100 relative ${tod ? "bg-red-50/20" : ""} select-none" 
+                     data-time="${String(h).padStart(2, "0")}:00" data-date="${dateVal}"
+                     style="height:${SH}px">${blocks}</div>`;
     });
   });
   wb.innerHTML = bHtml;
   wb.style.gridTemplateColumns = "56px repeat(7,1fr)";
+
+  // ผูก Event สำหรับ Drag-to-select
+  let isDragging = false;
+  let dragStart = null;
+  let dragEnd = null;
+
+  wb.onmousedown = (e) => {
+    const slot = e.target.closest(".cal-slot");
+    if (!slot) return;
+    isDragging = true;
+    dragStart = slot;
+    dragEnd = slot;
+    updateHighlight();
+  };
+
+  wb.onmouseover = (e) => {
+    if (!isDragging) return;
+    const slot = e.target.closest(".cal-slot");
+    if (slot) {
+      dragEnd = slot;
+      updateHighlight();
+    }
+  };
+
+  const onMouseUp = () => {
+    if (isDragging) {
+      isDragging = false;
+      finalizeDrag();
+    }
+  };
+  window.addEventListener("mouseup", onMouseUp, { once: true });
+
+  function updateHighlight() {
+    wb.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+    if (!dragStart || !dragEnd) return;
+
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    if (d1 !== d2) return;
+
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
+
+    wb.querySelectorAll(`.cal-slot[data-date="${d1}"]`).forEach((s) => {
+      const t = parseInt(s.dataset.time);
+      if (t >= minT && t <= maxT) s.classList.add("drag-highlight");
+    });
+  }
+
+  function finalizeDrag() {
+    if (!dragStart || !dragEnd) return;
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    if (d1 !== d2) {
+      wb.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+      return;
+    }
+
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
+
+    calBookDate = d1;
+    calBookTimeStart = `${String(minT).padStart(2, "0")}:00`;
+    calBookTimeEnd = `${String(maxT + 1).padStart(2, "0")}:00`;
+    if (calBookTimeEnd === "24:00") calBookTimeEnd = "23:59";
+
+    // ล้าง highlight และนำทาง
+    wb.querySelectorAll(".cal-slot").forEach((s) => s.classList.remove("drag-highlight"));
+    navigate("dashboard");
+  }
 }
 
 function calSwitchView(v) {
@@ -227,13 +302,13 @@ function calTogAll(cb) {
 function calUpdFlt() {
   const cbs = document.querySelectorAll(".cal-rcb");
   calRooms = new Set([...cbs].filter((c) => c.checked).map((c) => c.value));
-  
+
   const all = document.getElementById("calFAll");
   if (all) {
     all.checked = calRooms.size === cbs.length;
     all.indeterminate = calRooms.size > 0 && calRooms.size < cbs.length;
   }
-  
+
   const lbl = document.getElementById("calFLbl");
   if (lbl) {
     lbl.textContent =
@@ -246,8 +321,8 @@ function calUpdFlt() {
   calRender();
 }
 
-let calDayModalKey = null, 
-    calDayModalLabel = null;
+let calDayModalKey = null,
+  calDayModalLabel = null;
 
 function calShowDay(dateStr, key) {
   const items = calGetBk(key);
@@ -259,22 +334,22 @@ function calShowDay(dateStr, key) {
            <p class="text-sm font-medium">ยังไม่มีการจองในวันนี้</p>
          </div>`
       : items
-          .map((b) => {
-            const canViewDetail = b.can_view;
+        .map((b) => {
+          const canViewDetail = b.can_view;
 
-            const cancelBtn = (b.can_cancel && canViewDetail)
-                ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก</button>`
-                : "";
+          const cancelBtn = (b.can_cancel && canViewDetail)
+            ? `<button onclick="closeDayModal(); event.stopPropagation(); openCancelModal(${b.id})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 shadow-sm"><span class="material-symbols-outlined text-[14px]">cancel</span> ยกเลิก</button>`
+            : "";
 
-            const baseCardClass = `p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-red-100 bg-red-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3`;
-            const actionAttr = canViewDetail 
-                ? `class="${baseCardClass} cursor-pointer hover:opacity-95 transition-opacity" onclick="closeDayModal(); navigate('detail',{detailId:${b.id}})"` 
-                : `class="${baseCardClass} opacity-80"`; 
+          const baseCardClass = `p-4 rounded-2xl border-2 ${b.status === "Approved" ? "border-red-100 bg-red-50/30" : "border-amber-100 bg-amber-50/30"} flex justify-between items-center gap-3`;
+          const actionAttr = canViewDetail
+            ? `class="${baseCardClass} cursor-pointer hover:opacity-95 transition-opacity" onclick="closeDayModal(); navigate('detail',{detailId:${b.id}})"`
+            : `class="${baseCardClass} opacity-80"`;
 
-            const displayRoom = canViewDetail ? b.roomFull : "ช่วงเวลานี้มีการจองแล้ว";
-            const displaySubj = canViewDetail ? b.subj : "ไม่ระบุชื่อผู้จองและรายละเอียด";
+          const displayRoom = canViewDetail ? b.roomFull : "ช่วงเวลานี้มีการจองแล้ว";
+          const displaySubj = canViewDetail ? b.subj : "ไม่ระบุชื่อผู้จองและรายละเอียด";
 
-            return `
+          return `
         <div ${actionAttr}>
             <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 mb-1.5">
@@ -290,7 +365,7 @@ function calShowDay(dateStr, key) {
             ${cancelBtn}
         </div>`;
         })
-      .join("");
+        .join("");
 
   calDayModalKey = key;
   calDayModalLabel = dateStr;

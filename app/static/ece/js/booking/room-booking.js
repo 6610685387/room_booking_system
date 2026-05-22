@@ -24,8 +24,8 @@ function vRoomBooking() {
   const _defaultTimeEnd = draft.time_end
     ? ""
     : `${String(_nowForTime.getHours() + 1 < 24 ? _nowForTime.getHours() + 1 : 23).padStart(2, "0")}:${_nowForTime.getHours() + 1 < 24 ? "00" : "59"}`;
-  const preTimeStart = draft.time_start || _defaultTimeStart;
-  const preTimeEnd = draft.time_end || _defaultTimeEnd;
+  const preTimeStart = draft.time_start || calBookTimeStart || _defaultTimeStart;
+  const preTimeEnd = draft.time_end || calBookTimeEnd || _defaultTimeEnd;
   const prePurpose = draft.purpose_type || "teaching";
   const preSubjCode = draft.subject_code || "";
   const preSubjName = draft.subject_name || "";
@@ -348,7 +348,8 @@ async function loadRoomScheduleForView() {
       colDate.setDate(sunday.getDate() + i);
       const dateNum = colDate.getDate();
       const monthShort = MONTHS_TH_SHORT[colDate.getMonth()];
-      return `<th class="p-2 border border-slate-200 text-slate-600 font-bold text-center text-xs whitespace-nowrap">${label} ${dateNum} ${monthShort}</th>`;
+      const dateVal = `${colDate.getFullYear()}-${String(colDate.getMonth() + 1).padStart(2, "0")}-${String(colDate.getDate()).padStart(2, "0")}`;
+      return `<th class="p-2 border border-slate-200 text-slate-600 font-bold text-center text-xs whitespace-nowrap" data-date="${dateVal}">${label} ${dateNum} ${monthShort}</th>`;
     })
     .join("");
 
@@ -356,6 +357,11 @@ async function loadRoomScheduleForView() {
     .map((h) => {
       const cols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         .map((day) => {
+          const colDate = new Date(sunday);
+          const dayIdx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(day);
+          colDate.setDate(sunday.getDate() + dayIdx);
+          const dateVal = `${colDate.getFullYear()}-${String(colDate.getMonth() + 1).padStart(2, "0")}-${String(colDate.getDate()).padStart(2, "0")}`;
+
           const sl = slotMap[day]?.[h];
           if (sl) {
             const isPending = sl.status === "Pending";
@@ -367,7 +373,7 @@ async function loadRoomScheduleForView() {
 
             return `<td class="p-1 border border-slate-100 ${cellClass}" title="${sl.label}${statusText}"><span class="text-[10px] ${textClass} font-bold truncate block">${sl.label}</span></td>`;
           }
-          return `<td class="p-2 border border-slate-100 hover:bg-slate-50 transition-colors"></td>`;
+          return `<td class="cal-slot p-2 border border-slate-100 hover:bg-slate-50 transition-colors select-none" data-date="${dateVal}" data-time="${String(h).padStart(2, "0")}:00"></td>`;
         })
         .join("");
 
@@ -389,8 +395,134 @@ async function loadRoomScheduleForView() {
 <div class="flex gap-4 mt-3 text-xs font-bold">
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded"></span>ถูกจองแล้ว</span>
     <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded"></span>รออนุมัติ</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-slate-300 bg-white" style="background:#ffffff"></span>ว่าง</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-slate-300 bg-white" style="background:#ffffff"></span>ว่าง (ลากเมาส์เพื่อระบุเวลาจอง)</span>
 </div>${blackoutNote}`;
+
+  // ── Drag-to-select Logic for Room Schedule ────────────────────────────────
+  const table = wrap.querySelector("table");
+  if (!table) return;
+
+  let isDragging = false;
+  let isSelecting = true;
+  let dragStart = null;
+  let dragEnd = null;
+
+  table.onmousedown = (e) => {
+    const slot = e.target.closest(".cal-slot");
+    if (!slot) return;
+    isDragging = true;
+    isSelecting = !slot.classList.contains("drag-highlight");
+    dragStart = slot;
+    dragEnd = slot;
+    updateHighlightBox();
+
+    const onMouseUp = () => {
+      if (isDragging) {
+        isDragging = false;
+        finalizeDrag();
+      }
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  table.onmouseover = (e) => {
+    if (!isDragging) return;
+    const slot = e.target.closest(".cal-slot");
+    if (slot) {
+      dragEnd = slot;
+      updateHighlightBox();
+    }
+  };
+
+  function updateHighlightBox() {
+    if (!dragStart || !dragEnd) return;
+    const d1 = dragStart.dataset.date;
+    const d2 = dragEnd.dataset.date;
+    const t1 = parseInt(dragStart.dataset.time);
+    const t2 = parseInt(dragEnd.dataset.time);
+
+    const minT = Math.min(t1, t2);
+    const maxT = Math.max(t1, t2);
+
+    const allTh = Array.from(table.querySelectorAll("th[data-date]")).map(th => th.dataset.date);
+    const idx1 = allTh.indexOf(d1);
+    const idx2 = allTh.indexOf(d2);
+    if (idx1 === -1 || idx2 === -1) return;
+
+    const minDIdx = Math.min(idx1, idx2);
+    const maxDIdx = Math.max(idx1, idx2);
+    const targetDates = allTh.slice(minDIdx, maxDIdx + 1);
+
+    table.querySelectorAll(".cal-slot.drag-temp").forEach(s => {
+        s.classList.remove("drag-temp");
+        s.style.backgroundColor = "";
+    });
+
+    table.querySelectorAll(".cal-slot").forEach(s => {
+      const t = parseInt(s.dataset.time);
+      const d = s.dataset.date;
+      if (t >= minT && t <= maxT && targetDates.includes(d)) {
+        s.classList.add("drag-temp");
+        if (isSelecting) {
+            s.style.backgroundColor = "rgba(239, 68, 68, 0.15)";
+        } else {
+            s.style.backgroundColor = "rgba(100, 116, 139, 0.1)";
+        }
+      }
+    });
+  }
+
+  function finalizeDrag() {
+    table.querySelectorAll(".cal-slot.drag-temp").forEach(s => {
+      s.classList.remove("drag-temp");
+      s.style.backgroundColor = "";
+      if (isSelecting) {
+          s.classList.add("drag-highlight");
+      } else {
+          s.classList.remove("drag-highlight");
+      }
+    });
+
+    const highlighted = Array.from(table.querySelectorAll(".cal-slot.drag-highlight"));
+    if (highlighted.length === 0) return;
+
+    const selectedDates = [...new Set(highlighted.map(s => s.dataset.date))].sort();
+    const selectedTimes = highlighted.map(s => parseInt(s.dataset.time));
+    const minT = Math.min(...selectedTimes);
+    const maxT = Math.max(...selectedTimes);
+
+    const startDate = selectedDates[0];
+    const endDate = selectedDates[selectedDates.length - 1];
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const selectedDaysOfWeek = selectedDates.map(d => {
+      const [y, m, day] = d.split("-").map(Number);
+      return dayNames[new Date(y, m - 1, day).getDay()];
+    });
+
+    const startEl = document.getElementById("date_start");
+    const endEl = document.getElementById("date_end");
+    const tsEl = document.getElementById("time_start");
+    const teEl = document.getElementById("time_end");
+
+    if (startEl) startEl.value = startDate;
+    if (endEl) endEl.value = endDate;
+    if (tsEl) tsEl.value = `${String(minT).padStart(2, "0")}:00`;
+
+    let endH = maxT + 1;
+    if (teEl) {
+      if (endH >= 24) teEl.value = "23:59";
+      else teEl.value = `${String(endH).padStart(2, "0")}:00`;
+    }
+
+    document.querySelectorAll("input[name='rec_day']").forEach(cb => {
+      cb.checked = selectedDaysOfWeek.includes(cb.value);
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    if (startEl) startEl.dispatchEvent(new Event("change"));
+  }
 }
 
 async function submitBooking(roomId) {

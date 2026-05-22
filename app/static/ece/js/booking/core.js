@@ -38,6 +38,8 @@ let calRooms = new Set();
 let calBookDate = null;
 let calBookKey = null;
 let calBookLabel = null;
+let calBookTimeStart = null;
+let calBookTimeEnd = null;
 
 // Room schedule cache { roomId: { weekStart: data } }
 let scheduleCache = {};
@@ -344,6 +346,8 @@ async function handleRoute() {
         calBookDate = null;
         calBookKey = null;
         calBookLabel = null;
+        calBookTimeStart = null;
+        calBookTimeEnd = null;
       }
     }
   }
