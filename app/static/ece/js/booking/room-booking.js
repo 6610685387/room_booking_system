@@ -20,10 +20,10 @@ function vRoomBooking() {
   _nowForTime.setHours(_nowForTime.getHours() + (new Date().getMinutes() > 0 ? 1 : 0));
   const _defaultTimeStart = draft.time_start
     ? ""
-    : `${String(_nowForTime.getHours()).padStart(2,"0")}:00`;
+    : `${String(_nowForTime.getHours()).padStart(2, "0")}:00`;
   const _defaultTimeEnd = draft.time_end
     ? ""
-    : `${String(_nowForTime.getHours() + 1 < 24 ? _nowForTime.getHours() + 1 : 23).padStart(2,"0")}:${_nowForTime.getHours() + 1 < 24 ? "00" : "59"}`;
+    : `${String(_nowForTime.getHours() + 1 < 24 ? _nowForTime.getHours() + 1 : 23).padStart(2, "0")}:${_nowForTime.getHours() + 1 < 24 ? "00" : "59"}`;
   const preTimeStart = draft.time_start || _defaultTimeStart;
   const preTimeEnd = draft.time_end || _defaultTimeEnd;
   const prePurpose = draft.purpose_type || "teaching";
@@ -370,7 +370,7 @@ async function loadRoomScheduleForView() {
           return `<td class="p-2 border border-slate-100 hover:bg-slate-50 transition-colors"></td>`;
         })
         .join("");
-      
+
       // ปรับรูปแบบเลเบลเวลาด้านหน้าแถวให้อยู่ในรูปแบบ HH:00 ที่สมมาตร (เช่น 00:00, 08:00)
       const timeLabel = String(h).padStart(2, "0") + ":00";
       return `<tr><td class="p-2 border border-slate-200 bg-slate-50 text-slate-400 text-center font-medium text-xs">${timeLabel}</td>${cols}</tr>`;
@@ -546,10 +546,19 @@ async function submitBooking(roomId) {
     calBookKey = null;
     calBookLabel = null;
     await loadMyBookings();
-    showToast(
-      `ส่งคำขอจอง ${result.booking_ids?.length || 1} รายการเรียบร้อย`,
-      "check_circle",
-    );
+
+    if (result.skipped_dates && result.skipped_dates.length > 0) {
+      const skippedStr = result.skipped_dates.map((d) => thaiDateShort(d)).join(", ");
+      showToast(
+        `จองสำเร็จ ข้ามรายการที่ชนอัตโนมัติ: ${skippedStr}`,
+        "warning",
+      );
+    } else {
+      showToast(
+        `ส่งคำขอจอง ${result.booking_ids?.length || 1} รายการเรียบร้อย`,
+        "check_circle",
+      );
+    }
     navigate("my-bookings");
   } catch (err) {
     // Safety net: อาจเกิด race condition หลังผ่าน pre-check
