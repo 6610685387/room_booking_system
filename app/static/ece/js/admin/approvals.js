@@ -101,6 +101,8 @@ function buildAdminPendingBookingsHtml(pendingList) {
     .map((item) => {
       const itemPast = isPast(item);
       const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
+      const badgeTextSingle = itemPast ? "หมดเวลา (รอประมวลผล)" : "รออนุมัติ";
+      const badgeTextGroup = itemPast ? "รายการที่หมดเวลาแบบกลุ่ม" : "รายการรออนุมัติแบบกลุ่ม";
 
       if (item.type === "single") {
         const b = item.booking;
@@ -114,7 +116,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
     <div class="flex-1 space-y-1.5 min-w-0 ${opacityClass}">
         <div class="flex items-center gap-2 flex-wrap">
             <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
+                <span class="material-symbols-outlined text-[11px]">pending</span>${badgeTextSingle}
             </span>
         </div>
         <h3 class="font-bold text-slate-800">${b.room?.room_name || b.room_name || "—"} (${b.room?.room_code || b.room_code || "—"})</h3>
@@ -195,7 +197,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>รายการรออนุมัติแบบกลุ่ม</span>
+                <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>${badgeTextGroup}</span>
                 <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>

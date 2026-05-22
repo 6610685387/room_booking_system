@@ -70,7 +70,7 @@ function badge(status) {
   const text = {
     Approved: "อนุมัติแล้ว",
     Pending: "รออนุมัติ",
-    Rejected: "ปฏิเสธ",
+    Rejected: "ไม่อนุมัติ",
     Cancelled: "ยกเลิกแล้ว"
   };
   const cls = config[status] || "text-slate-500 bg-slate-50 border-slate-200";
@@ -184,7 +184,7 @@ function buildMyBookingsHtml(filteredList) {
         <p class="text-sm text-slate-600">${({
             "teaching": "สอนปกติ/ชดเชย",
             "training": "จัดอบรม/ติว"
-        }[b.purpose_type] || "ไม่ทราบ")}: ${b.subject || "—"}</p>
+          }[b.purpose_type] || "ไม่ทราบ")}: ${b.subject || "—"}</p>
         <div class="flex flex-wrap gap-3 text-xs text-slate-500">
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}${end !== start ? " – " + end : ""}</span>
             <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
@@ -195,11 +195,10 @@ function buildMyBookingsHtml(filteredList) {
     </div>
     <div class="flex gap-2 flex-shrink-0 md:self-center">
         ${rebookBtn}
-        ${
-          b.can_cancel
+        ${b.can_cancel
             ? `<button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})" class="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-100 flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก</button>`
             : `<button onclick="event.stopPropagation();" class="px-4 py-2 bg-slate-50 text-slate-300 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-100 flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px]">cancel</span>ยกเลิก</button>`
-        }
+          }
     </div>
 </div>`;
       } else {
@@ -267,11 +266,10 @@ function buildMyBookingsHtml(filteredList) {
     </div>
     <div class="flex-shrink-0 self-end sm:self-center flex gap-1.5 items-center">
         ${subRebookBtn}
-        ${
-          b.can_cancel
-            ? `<button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] hover:bg-red-100 border border-red-100 transition-all">ยกเลิกคิวนี้</button>`
-            : `<span class="text-[10px] text-slate-300 font-semibold px-2">ยกเลิกไม่ได้</span>`
-        }
+        ${b.can_cancel
+                ? `<button onclick="event.stopPropagation(); openCancelModal(${b.booking_id})" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] hover:bg-red-100 border border-red-100 transition-all">ยกเลิกคิวนี้</button>`
+                : `<span class="text-[10px] text-slate-300 font-semibold px-2">ยกเลิกไม่ได้</span>`
+              }
     </div>
 </div>`;
           })
@@ -287,20 +285,19 @@ function buildMyBookingsHtml(filteredList) {
             </div>
             <h3 class="text-base font-bold text-slate-800 truncate">${g.room_name} (${g.room_code})</h3>
             <p class="text-sm text-slate-600">${({
-                "teaching": "สอนปกติ/ชดเชย",
-                "training": "จัดอบรม/ติว"
-            }[g.purpose_type] || "ไม่ทราบ")}: ${g.subject || "—"}</p>
+            "teaching": "สอนปกติ/ชดเชย",
+            "training": "จัดอบรม/ติว"
+          }[g.purpose_type] || "ไม่ทราบ")}: ${g.subject || "—"}</p>
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${minDateStr} – ${maxDateStr}</span>
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${ts} – ${te} น.</span>
             </div>
         </div>
         <div class="flex items-center gap-3 flex-shrink-0 self-end md:self-center">
-            ${
-              canCancelAnyGroup
-                ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
-                : ""
-            }
+            ${canCancelAnyGroup
+            ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"><span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม</button>`
+            : ""
+          }
             <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-500 group-open/details:rotate-180 transition-transform duration-200"><span class="material-symbols-outlined text-[18px]">expand_more</span></div>
         </div>
     </summary>
