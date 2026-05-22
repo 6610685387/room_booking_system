@@ -468,7 +468,7 @@ function groupCard(g, opacityClass = "") {
             ${canCancelAnyGroup
       ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
                 class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
-                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งหมด
+                <span class="material-symbols-outlined text-[15px]">event_busy</span>ปฏิเสธทั้งหมด
             </button>`
       : ""
     }
