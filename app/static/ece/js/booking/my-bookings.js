@@ -219,8 +219,8 @@ function buildMyBookingsHtml(filteredList) {
         const allStatuses = g.bookings.map((b) => b.status);
         const uniqueStatuses = [...new Set(allStatuses)];
 
-        let groupBorderClass = "border-l-indigo-500";
-        let groupBadgeClass = "text-indigo-600 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-full uppercase tracking-wider";
+        let groupBorderClass = "border-l-amber-400";
+        let groupBadgeClass = "text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider";
         let groupBadgeText = "รายการจองแบบต่อเนื่อง";
 
         if (uniqueStatuses.length === 1) {
@@ -268,7 +268,7 @@ function buildMyBookingsHtml(filteredList) {
             return `
 <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-white border border-slate-150 gap-3 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer" onclick="event.stopPropagation(); navigate('detail',{detailId:${b.booking_id}})">
     <div class="min-w-0 flex-1 space-y-1">
-        <div class="flex items-center gap-2 flex-wrap"><span class="text-xs font-bold text-slate-400">#${b.booking_id}</span>${badge(b.status)}</div>
+        <div class="flex items-center gap-2 flex-wrap">${badge(b.status)}</div>
         <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500"><span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_month</span>${start}</span><span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${tsSlot} – ${teSlot} น.</span></div>
         ${b.reject_reason ? `<div class="text-[11px] text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 mt-1"><strong>เหตุผลที่ปฏิเสธ:</strong> ${b.reject_reason}</div>` : ""}
         ${adminNotesText ? `<div class="text-[11px] text-emerald-600 bg-emerald-50 border border-emerald-100 rounded px-2 py-1 mt-1"><strong>หมายเหตุอนุมัติ:</strong> ${adminNotesText}</div>` : ""}
