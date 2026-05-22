@@ -228,14 +228,14 @@ function buildAdminPendingBookingsHtml(pendingList) {
             ? `<button onclick="event.stopPropagation(); openApproveGroup('${g.groupId}')"
                 class="px-4 py-2 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
                 style="background:#10b981">
-                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งกลุ่ม
+                <span class="material-symbols-outlined text-[15px]">check_circle</span>อนุมัติทั้งหมด
             </button>`
             : ""
           }
             ${canCancelAnyGroup
             ? `<button onclick="event.stopPropagation(); openCancelGroupModal('${g.groupId}')"
                 class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
-                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งกลุ่ม
+                <span class="material-symbols-outlined text-[15px]">event_busy</span>ยกเลิกทั้งหมด
             </button>`
             : ""
           }
@@ -284,11 +284,11 @@ function openApproveGroup(groupId) {
     const count = groupBookings.length;
 
     document.getElementById("approveDetail").innerHTML =
-      `<strong>อนุมัติทั้งกลุ่ม #${groupId} (ทั้งหมด ${count} รายการ)</strong><br>
+      `<strong>อนุมัติทั้งหมด #${groupId} (ทั้งหมด ${count} รายการ)</strong><br>
        ห้อง ${roomName} (${roomCode})<br>
        ผู้จอง: ${first.booker?.displayname_th || "—"}`;
   } else {
-    document.getElementById("approveDetail").innerHTML = `<strong>อนุมัติทั้งกลุ่ม #${groupId}</strong>`;
+    document.getElementById("approveDetail").innerHTML = `<strong>อนุมัติทั้งหมด #${groupId}</strong>`;
   }
 
   document.getElementById("approveNote").value = "";
@@ -317,7 +317,7 @@ async function doApprove() {
       await api.patch(`/api/admin/bookings/recurring/${curActionId}/approve/`, {
         admin_notes: note,
       });
-      showToast("อนุมัติการจองทั้งกลุ่มเรียบร้อยแล้ว", "check_circle");
+      showToast("อนุมัติการจองทั้งหมดเรียบร้อยแล้ว", "check_circle");
     } else {
       // เรียกส่ง PATCH ของคิวเดี่ยวปกติ
       await api.patch(`/api/admin/bookings/${curActionId}/approve/`, {
