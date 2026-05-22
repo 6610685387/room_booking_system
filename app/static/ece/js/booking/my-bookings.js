@@ -126,7 +126,26 @@ function buildMyBookingsHtml(filteredList) {
   };
 
   // 2. จัดเรียงลำดับคิวจองจากรายการที่ใกล้ถึงกำหนดใช้งานมากที่สุดขึ้นก่อน (Ascending Order)
-  finalGroupedList.sort((a, b) => getEarliestDate(a) - getEarliestDate(b));
+  // แต่ย้ายรายการที่ผ่านไปแล้ว (Past) ไปไว้ข้างล่างสุด
+  const now = new Date();
+  const isPast = (item) => {
+    if (item.type === "single") {
+      return new Date(item.booking.end_datetime) < now;
+    } else {
+      const sorted = [...item.bookings].sort(
+        (x, y) => new Date(x.end_datetime) - new Date(y.end_datetime),
+      );
+      return new Date(sorted[sorted.length - 1].end_datetime) < now;
+    }
+  };
+
+  finalGroupedList.sort((a, b) => {
+    const aPast = isPast(a);
+    const bPast = isPast(b);
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+    return getEarliestDate(a) - getEarliestDate(b);
+  });
 
   const borderMap = {
     Pending: "border-l-amber-400",
@@ -137,6 +156,9 @@ function buildMyBookingsHtml(filteredList) {
 
   return finalGroupedList
     .map((item) => {
+      const itemPast = isPast(item);
+      const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
+
       if (item.type === "single") {
         const b = item.booking;
         const start = thaiDateShort(b.start_datetime);
@@ -152,7 +174,7 @@ function buildMyBookingsHtml(filteredList) {
           : `<button onclick="event.stopPropagation();" class="px-3.5 py-2 bg-slate-50 text-slate-300 border border-slate-100 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-not-allowed" title="จองซ้ำได้เฉพาะรายการที่อนุมัติแล้วเท่านั้น"><span class="material-symbols-outlined text-[15px]">autorenew</span>จองซ้ำ</button>`;
 
         return `
-<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all" onclick="navigate('detail',{detailId:${b.booking_id}})">
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} ${opacityClass} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all" onclick="navigate('detail',{detailId:${b.booking_id}})">
     <div class="flex-1 space-y-2 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
             ${badge(b.status)}
@@ -256,7 +278,7 @@ function buildMyBookingsHtml(filteredList) {
           .join("");
 
         return `
-<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} rounded-xl shadow-sm overflow-hidden group/details">
+<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} ${opacityClass} rounded-xl shadow-sm overflow-hidden group/details">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
         <div class="flex-1 space-y-2 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
