@@ -68,8 +68,27 @@ function buildAdminPendingBookingsHtml(pendingList) {
     }
   };
 
+  const now = new Date();
+  const isPast = (item) => {
+    if (item.type === "single") {
+      return new Date(item.booking.end_datetime) < now;
+    } else {
+      const sorted = [...item.bookings].sort(
+        (x, y) => new Date(x.end_datetime) - new Date(y.end_datetime),
+      );
+      return new Date(sorted[sorted.length - 1].end_datetime) < now;
+    }
+  };
+
   // เรียงลำดับรายการตามวันที่เริ่มต้นการจองที่ใกล้มาถึงที่สุด (Ascending Order)
-  finalGroupedList.sort((a, b) => getEarliestDate(a) - getEarliestDate(b));
+  // แต่ย้ายรายการที่ผ่านไปแล้ว (Past) ไปไว้ข้างล่างสุด
+  finalGroupedList.sort((a, b) => {
+    const aPast = isPast(a);
+    const bPast = isPast(b);
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+    return getEarliestDate(a) - getEarliestDate(b);
+  });
 
   const borderMap = {
     Pending: "border-l-amber-400",
@@ -80,6 +99,9 @@ function buildAdminPendingBookingsHtml(pendingList) {
 
   return finalGroupedList
     .map((item) => {
+      const itemPast = isPast(item);
+      const opacityClass = itemPast ? "opacity-60 grayscale-[30%]" : "";
+
       if (item.type === "single") {
         const b = item.booking;
         const start = thaiDateShort(b.start_datetime);
@@ -89,7 +111,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
         return `
 <div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all"
      onclick="viewDetailAdmin(${b.booking_id})">
-    <div class="flex-1 space-y-1.5 min-w-0">
+    <div class="flex-1 space-y-1.5 min-w-0 ${opacityClass}">
         <div class="flex items-center gap-2 flex-wrap">
             <span class="badge-pending px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                 <span class="material-symbols-outlined text-[11px]">pending</span>รออนุมัติ
@@ -171,7 +193,7 @@ function buildAdminPendingBookingsHtml(pendingList) {
         return `
 <details class="bg-white border border-slate-200 border-l-4 border-l-indigo-500 rounded-xl shadow-sm overflow-hidden group/details">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
-        <div class="flex-1 space-y-2 min-w-0">
+        <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="badge-pending text-indigo-800 bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">pending</span>รายการรออนุมัติแบบกลุ่ม</span>
                 <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
