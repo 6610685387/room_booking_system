@@ -38,6 +38,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     displayname_th = models.CharField(max_length=200, blank=True)
     displayname_en = models.CharField(max_length=200, blank=True)
     email = models.EmailField(blank=True)
+    notification_email = models.EmailField(blank=True, null=True)
     department = models.CharField(max_length=200, blank=True)
     faculty = models.CharField(max_length=200, blank=True)
     role = models.CharField(

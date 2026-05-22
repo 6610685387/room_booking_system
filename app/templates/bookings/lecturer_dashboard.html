@@ -79,6 +79,11 @@
 
     <!-- Bottom -->
     <div class="px-3 pb-4 space-y-0.5 border-t border-slate-100 pt-3">
+      <button onclick="openProfileModal()"
+        class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-primary hover:bg-slate-50 transition-all">
+        <span class="material-symbols-outlined text-[19px]">settings</span>
+        <span>ตั้งค่าข้อมูลส่วนตัว</span>
+      </button>
       <button onclick="doLogout()"
         class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all">
         <span class="material-symbols-outlined text-[19px]">logout</span>
@@ -106,6 +111,48 @@
   style="opacity:0;pointer-events:none;transition:opacity .3s,transform .3s">
   <span class="material-symbols-outlined text-[18px]" id="toastIcon">check_circle</span>
   <span id="toastMsg">สำเร็จ</span>
+</div>
+
+<!-- ══════════════════ PROFILE MODAL ══════════════════ -->
+<div id="profileModal" class="fixed inset-0 z-50 hidden flex items-center justify-center"
+  style="background:rgba(15,23,42,.45);backdrop-filter:blur(4px)">
+  <div class="modal-card bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex justify-between items-start">
+      <div>
+        <h3 class="font-bold text-slate-800 text-base">ตั้งค่าข้อมูลส่วนตัว</h3>
+        <p class="text-xs text-slate-500 mt-0.5">จัดการข้อมูลและการแจ้งเตือน</p>
+      </div>
+      <button onclick="closeProfileModal()"
+        class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+        <span class="material-symbols-outlined text-[16px]">close</span>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="space-y-1">
+        <label class="block text-xs font-bold text-slate-400 uppercase">ชื่อ-นามสกุล (ภาษาไทย)</label>
+        <p class="text-sm font-bold text-slate-700" id="profNameTh">—</p>
+      </div>
+      <div class="space-y-1">
+        <label class="block text-xs font-bold text-slate-400 uppercase">อีเมลหลัก (TU Account)</label>
+        <p class="text-sm text-slate-600" id="profEmail">—</p>
+      </div>
+      <div class="pt-2 border-t border-slate-50">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">อีเมลสำหรับรับแจ้งเตือนการจอง</label>
+        <input type="email" id="profNotiEmail" placeholder="เช่น alternate-email@gmail.com"
+          class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary">
+        <p class="text-[10px] text-slate-400 mt-1.5">
+          * หากเว้นว่างไว้ ระบบจะส่งการแจ้งเตือนไปยังอีเมลหลักของ TU Account อัตโนมัติ
+        </p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeProfileModal()"
+          class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">ยกเลิก</button>
+        <button onclick="doSaveProfile()" id="btnSaveProfile"
+          class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-all"
+          style="background:#7e0000">บันทึกข้อมูล</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════════ DAY MODAL ══════════════════ -->

@@ -28,6 +28,7 @@ let dashCapacity = ""; // State เก็บค่าความจุตัว
 let cancelId = null;
 let cancelGroupId = null;
 let bfType = "all";
+let currentUser = null; // ข้อมูลผู้ใช้ปัจจุบัน (รวม notification_email)
 
 // Calendar state
 let calView = "month";
@@ -52,9 +53,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     user = await api.get(`/api/auth/me/?_t=${Date.now()}`);
+    currentUser = user; // บันทึกข้อมูลลง state
   } catch (err) {
     console.error("Failed to load user info from /api/auth/me/:", err);
     user = window.ECE_USER || {};
+    currentUser = user;
   }
 
   const displayName = user.displayname_th || user.username || "—";
@@ -445,8 +448,53 @@ function doLogout() {
   window.location.href = "/logout/";
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// PROFILE SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+
+function openProfileModal() {
+  if (!currentUser) return;
+  document.getElementById("profNameTh").textContent =
+    currentUser.displayname_th || "—";
+  document.getElementById("profEmail").textContent = currentUser.email || "—";
+  document.getElementById("profNotiEmail").value =
+    currentUser.notification_email || "";
+  document.getElementById("profileModal").classList.remove("hidden");
+}
+
+function closeProfileModal() {
+  document.getElementById("profileModal").classList.add("hidden");
+}
+
+async function doSaveProfile() {
+  const email = document.getElementById("profNotiEmail").value.trim();
+  const btn = document.getElementById("btnSaveProfile");
+
+  btn.disabled = true;
+  btn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> กำลังบันทึก...`;
+
+  try {
+    const updated = await api.patch("/api/auth/me/", {
+      notification_email: email,
+    });
+    currentUser = updated;
+    showToast("บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว", "check_circle");
+    closeProfileModal();
+  } catch (err) {
+    showApiError(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "บันทึกข้อมูล";
+  }
+}
+
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
+window.doSaveProfile = doSaveProfile;
+
 // Global Click
 window.addEventListener("click", (e) => {
+  if (e.target === document.getElementById("profileModal")) closeProfileModal();
   if (e.target === document.getElementById("cancelModal")) closeCancelModal();
   if (e.target === document.getElementById("cancelGroupModal"))
     closeCancelGroupModal();
