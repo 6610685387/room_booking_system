@@ -188,6 +188,17 @@ function openEditRoom(roomId, blackout=false) {
   if (modal) modal.classList.remove("hidden");
 }
 
+function updateRmImageText(input) {
+    const textSpan = document.getElementById('rmImageText');
+    if (input.files && input.files.length > 0) {
+        textSpan.textContent = input.files[0].name;
+        textSpan.classList.replace('text-slate-500', 'text-slate-800');
+    } else {
+        textSpan.textContent = 'ยังไม่ได้เลือกไฟล์';
+        textSpan.classList.replace('text-slate-800', 'text-slate-500');
+    }
+}
+
 function toggleBlackoutFields() {
   const elActive = document.getElementById("isBlackout");
   const blackoutDiv = document.getElementById("blackoutFields");

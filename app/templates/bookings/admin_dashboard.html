@@ -271,8 +271,15 @@
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">รูปภาพห้อง</label>
-                <input type="file" id="rmImage" accept="image/*"
-                    class="w-full p-1.5 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+                
+                <input type="file" id="rmImage" accept="image/*" class="hidden" onchange="updateRmImageText(this)">
+                
+                <label for="rmImage" class="w-full p-1 border border-slate-200 rounded-xl text-xs flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors">
+                    <div class="py-1.5 px-3 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                        เลือกไฟล์
+                    </div>
+                    <span id="rmImageText" class="text-slate-500">ยังไม่ได้เลือกไฟล์</span>
+                </label>
             </div>
 
             <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
