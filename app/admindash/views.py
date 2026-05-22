@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import localtime
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -10,6 +11,7 @@ from drf_spectacular.utils import extend_schema
 from rooms.models import Room, BlackoutPeriod
 from rooms.serializers import RoomSerializer, BlackoutPeriodSerializer
 from bookings.models import Booking
+from bookings.services.admin_booking_service import bulk_approve_bookings, bulk_reject_bookings
 
 # --- Blackout ---
 class BlackoutPeriodCreateView(generics.CreateAPIView):
@@ -245,3 +247,44 @@ def admin_booking_reject(request, booking_id):
     bk.reject_reason = reject_reason
     bk.save()
     return Response({"booking_id": bk.booking_id, "status": "Rejected", "message": "ปฏิเสธเรียบร้อยแล้ว"}, status=200)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def admin_booking_approve_recurring(request, group_id):
+    admin_notes = request.data.get("admin_notes", "")
+    approved_count = bulk_approve_bookings(group_id, admin_notes, request.user)
+
+    if approved_count == 0:
+        return Response({"error": "ไม่พบการจองที่รออนุมัติในกลุ่มนี้"}, status=404)
+
+    return Response(
+        {
+            "group_id": group_id,
+            "approved_count": approved_count,
+            "message": f"อนุมัติ {approved_count} รายการเรียบร้อยแล้ว",
+        },
+        status=200,
+    )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def admin_booking_reject_recurring(request, group_id):
+    reject_reason = request.data.get("reject_reason", "").strip()
+    if not reject_reason:
+        return Response({"error": "กรุณาระบุเหตุผล"}, status=400)
+
+    rejected_count = bulk_reject_bookings(group_id, reject_reason)
+
+    if rejected_count == 0:
+        return Response({"error": "ไม่พบการจองที่รออนุมัติในกลุ่มนี้"}, status=404)
+
+    return Response(
+        {
+            "group_id": group_id,
+            "rejected_count": rejected_count,
+            "message": f"ปฏิเสธ {rejected_count} รายการเรียบร้อยแล้ว",
+        },
+        status=200,
+    )

@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+app_name = 'admindash'
+
 urlpatterns = [
     # path("", views.dashboard, name="admin_dashboard"),
     # --- blackout ---
@@ -12,4 +14,6 @@ urlpatterns = [
     path("bookings/", views.admin_booking_list, name="admin_booking_list"),
     path("bookings/<int:booking_id>/approve/", views.admin_booking_approve, name="admin_booking_approve"),
     path("bookings/<int:booking_id>/reject/", views.admin_booking_reject, name="admin_booking_reject"),
+    path("bookings/recurring/<int:group_id>/approve/", views.admin_booking_approve_recurring, name="admin_booking_approve_recurring"),
+    path("bookings/recurring/<int:group_id>/reject/", views.admin_booking_reject_recurring, name="admin_booking_reject_recurring"),
 ]
