@@ -176,8 +176,8 @@ function buildMyBookingsHtml(filteredList) {
           : `<button onclick="event.stopPropagation();" class="px-3.5 py-2 bg-slate-50 text-slate-300 border border-slate-100 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-not-allowed" title="จองซ้ำได้เฉพาะรายการที่อนุมัติแล้วเท่านั้น"><span class="material-symbols-outlined text-[15px]">autorenew</span>จองซ้ำ</button>`;
 
         return `
-<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all ${opacityClass}" onclick="navigate('detail',{detailId:${b.booking_id}})">
-    <div class="flex-1 space-y-2 min-w-0">
+<div class="bg-white border border-slate-200 border-l-4 ${borderMap[b.status] || "border-l-slate-300"} rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-slate-300 hover:shadow transition-all" onclick="navigate('detail',{detailId:${b.booking_id}})">
+    <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
         <div class="flex items-center gap-2 flex-wrap">
             ${badge(b.status)}
         </div>
@@ -285,9 +285,9 @@ function buildMyBookingsHtml(filteredList) {
           .join("");
 
         return `
-<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} rounded-xl shadow-sm overflow-hidden group/details ${opacityClass}">
+<details class="bg-white border border-slate-200 border-l-4 ${groupBorderClass} rounded-xl shadow-sm overflow-hidden group/details">
     <summary class="p-5 cursor-pointer list-none flex flex-col md:flex-row md:items-center justify-between gap-4 select-none outline-none [&::-webkit-details-marker]:hidden">
-        <div class="flex-1 space-y-2 min-w-0">
+        <div class="flex-1 space-y-2 min-w-0 ${opacityClass}">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[11px] font-bold ${groupBadgeClass}">${groupBadgeText}</span>
                 <span class="text-slate-400 text-xs font-semibold">มีรายการจองทั้งหมด ${g.bookings.length} วัน</span>
