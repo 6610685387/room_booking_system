@@ -327,7 +327,7 @@ def admin_booking_list(request):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def admin_booking_approve(request, booking_id):
-    bk = get_object_or_404(Booking, pk=booking_id, is_deleted=False)
+    bk = get_object_or_404(Booking, pk=booking_id)
     if bk.status != "Pending":
         return Response(
             {"error": f"สถานะปัจจุบันคือ {bk.status} ไม่สามารถอนุมัติได้"}, status=400
