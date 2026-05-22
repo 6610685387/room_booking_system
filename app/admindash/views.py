@@ -47,10 +47,23 @@ class BlackoutPeriodCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         blackout = serializer.save(created_by=self.request.user)
-        
+        room = blackout.room
+
+        overlapping_bookings = Booking.objects.filter(
+            room=room,
+            status__in=["Pending", "Approved"],
+            start_datetime__lt=blackout.end_datetime,
+            end_datetime__gt=blackout.start_datetime
+        )
+
+        if overlapping_bookings.exists():
+            overlapping_bookings.update(
+                status="Cancelled",
+                reject_reason="ถูกยกเลิกอัตโนมัติเนื่องจากมีการตั้งค่าปิดปรับปรุงห้อง (Blackout Period) ทับซ้อนกับเวลาที่จอง"
+            )
+
         now = timezone.now()
         if blackout.start_datetime <= now <= blackout.end_datetime:
-            room = blackout.room
             room.is_active = False
             room.save(update_fields=['is_active'])
 
